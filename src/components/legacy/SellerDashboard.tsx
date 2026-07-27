@@ -63,7 +63,7 @@ function SellerSidebar() {
   const pathname = usePathname();
   return (
     <aside className="w-60 shrink-0">
-      <div className="bg-[#1C1B14] rounded-2xl overflow-hidden sticky top-6">
+      <div className="bg-[#1C1B14] rounded-2xl overflow-hidden sticky top-24">
         <div className="p-5 border-b border-white/10">
           <div className="flex items-center gap-3 mb-2">
             <div className="w-11 h-11 rounded-xl flex items-center justify-center text-white font-black" style={{ background: "linear-gradient(135deg, #FF7A00, #FF4500)" }}>
@@ -143,7 +143,7 @@ export function SellerDashboard() {
   ]);
 
   return (
-    <div className="min-h-screen bg-[#FAFAF8] pb-8">
+    <div className="min-h-screen bg-[#FAFAF8] pt-20 pb-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex gap-8">
           <div className="hidden lg:block">

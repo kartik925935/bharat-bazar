@@ -53,7 +53,7 @@ export function SellerLayout({ children, title }: { children: React.ReactNode; t
   const router = useRouter();
 
   return (
-    <div className="min-h-screen bg-[#FAFAF8] pb-20 lg:pb-0 flex">
+    <div className="min-h-screen bg-[#FAFAF8] pt-20 pb-20 lg:pb-0 flex">
       {/* Mobile overlay */}
       {mobileSidebarOpen && (
         <div className="fixed inset-0 z-40 bg-black/60 lg:hidden" onClick={() => setMobileSidebarOpen(false)} />
@@ -105,7 +105,7 @@ export function SellerLayout({ children, title }: { children: React.ReactNode; t
       {/* Main */}
       <div className="flex-1 min-w-0 flex flex-col">
         {/* Mobile topbar */}
-        <div className="lg:hidden flex items-center gap-3 px-4 py-3 bg-white border-b border-black/5 sticky top-0 z-30">
+        <div className="lg:hidden flex items-center gap-3 px-4 py-3 bg-white border-b border-black/5 sticky top-20 z-30">
           <button onClick={() => setMobileSidebarOpen(true)} className="p-2 rounded-xl bg-[#FAFAF8] border border-black/5">
             <Menu size={18} className="text-[#555449]" />
           </button>
