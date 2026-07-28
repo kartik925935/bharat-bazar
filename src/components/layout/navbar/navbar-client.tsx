@@ -38,6 +38,14 @@ export function NavbarClient() {
   const cartCount = useCartStore((state) => state.totalItems());
   const wishlistCount = useWishlistStore((state) => state.totalWishlistItems());
 
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const displayCartCount = mounted ? cartCount : 0;
+  const displayWishlistCount = mounted ? wishlistCount : 0;
+
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 20);
     window.addEventListener('scroll', handleScroll);
@@ -225,15 +233,15 @@ export function NavbarClient() {
                 className="relative w-10 h-10 flex items-center justify-center rounded-full text-[#555449] hover:text-[#FF7A00] hover:bg-[#FFF8F0] transition-all hidden sm:flex"
               >
                 <Heart size={20} />
-                {wishlistCount > 0 && (
+                {displayWishlistCount > 0 && (
                   <motion.span
-                    key={wishlistCount}
+                    key={displayWishlistCount}
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}
                     className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full text-[10px] font-bold text-white flex items-center justify-center"
                     style={{ background: '#FF7A00' }}
                   >
-                    {wishlistCount}
+                    {displayWishlistCount}
                   </motion.span>
                 )}
               </Link>
@@ -244,15 +252,15 @@ export function NavbarClient() {
                 className="relative w-10 h-10 flex items-center justify-center rounded-full text-[#555449] hover:text-[#FF7A00] hover:bg-[#FFF8F0] transition-all"
               >
                 <ShoppingCart size={20} />
-                {cartCount > 0 && (
+                {displayCartCount > 0 && (
                   <motion.span
-                    key={cartCount}
+                    key={displayCartCount}
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}
                     className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full text-[10px] font-bold text-white flex items-center justify-center"
                     style={{ background: '#FF7A00' }}
                   >
-                    {cartCount}
+                    {displayCartCount}
                   </motion.span>
                 )}
               </Link>
@@ -351,7 +359,7 @@ export function NavbarClient() {
           {[
             { icon: '🏠', label: 'Home', href: '/' },
             { icon: '🗂️', label: 'Categories', href: '/products' },
-            { icon: '🛒', label: 'Cart', href: '/cart', badge: cartCount },
+            { icon: '🛒', label: 'Cart', href: '/cart', badge: displayCartCount },
             { icon: '📦', label: 'Orders', href: '/orders' },
             { icon: '👤', label: 'Profile', href: '/dashboard' },
           ].map((item) => (
