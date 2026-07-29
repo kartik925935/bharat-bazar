@@ -1,10 +1,11 @@
 'use client';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { LayoutDashboard, Package, Heart, MapPin, Star, RotateCcw, Bell, User, LogOut, ChevronRight, TrendingUp, Clock, CheckCircle, XCircle, Truck, Tag, Menu, X } from "lucide-react";
 import { orders, products } from "./mockData";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const sidebarLinks = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard" },
@@ -359,6 +360,12 @@ export function CustomerAccountLayout({ children, title }: { children: React.Rea
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const pathname = usePathname()
   const router = useRouter();
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setLoading(false), 700);
+    return () => clearTimeout(timer);
+  }, []);
 
   return (
     <div className="min-h-screen bg-[#FAFAF8] pt-20 pb-20 lg:pb-8">
@@ -431,7 +438,42 @@ export function CustomerAccountLayout({ children, title }: { children: React.Rea
               </div>
             </div>
           </aside>
-          <div className="flex-1 min-w-0">{children}</div>
+          <div className="flex-1 min-w-0">
+            {loading ? (
+              <div className="space-y-6">
+                <div>
+                  <Skeleton className="h-8 w-60 mb-2" />
+                  <Skeleton className="h-4 w-96" />
+                </div>
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                  {[1, 2, 3, 4].map((i) => (
+                    <div key={i} className="bg-white p-5 rounded-2xl border border-black/5 shadow-sm">
+                      <div className="flex items-center justify-between mb-4">
+                        <Skeleton className="h-4 w-12" />
+                        <Skeleton className="w-8 h-8 rounded-xl" />
+                      </div>
+                      <Skeleton className="h-8 w-16 mb-2" />
+                      <Skeleton className="h-4 w-28" />
+                    </div>
+                  ))}
+                </div>
+                <div className="bg-white p-6 rounded-3xl border border-black/5 shadow-sm space-y-4">
+                  <Skeleton className="h-6 w-36 mb-6" />
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="flex items-center justify-between p-4 border-b border-black/5 last:border-0">
+                      <div className="space-y-2">
+                        <Skeleton className="h-4 w-48" />
+                        <Skeleton className="h-3 w-24" />
+                      </div>
+                      <Skeleton className="h-6 w-20 rounded-full" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              children
+            )}
+          </div>
         </div>
       </div>
     </div>

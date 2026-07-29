@@ -1,15 +1,22 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { ProductCard } from '@/components/storefront/product-card';
 import { FilterSidebarClient } from '@/components/storefront/listing/filter-sidebar';
 import { mockProducts } from '@/lib/mock/products';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function ProductListingPage() {
   const [activeCategory, setActiveCategory] = useState('');
   const [activePrice, setActivePrice] = useState('');
   const [activeRating, setActiveRating] = useState('');
   const [sortBy, setSortBy] = useState('featured');
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setLoading(false), 700);
+    return () => clearTimeout(timer);
+  }, []);
 
   const filteredProducts = useMemo(() => {
     return mockProducts.filter((product) => {
@@ -72,7 +79,21 @@ export default function ProductListingPage() {
           />
 
           <div className="flex-1">
-            {filteredProducts.length === 0 ? (
+            {loading ? (
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6">
+                {[1, 2, 3, 4, 5, 6].map((i) => (
+                  <div key={i} className="bg-white rounded-3xl p-4 border border-black/5 shadow-sm">
+                    <Skeleton className="w-full aspect-square rounded-2xl mb-4" />
+                    <Skeleton className="h-4 w-3/4 mb-2" />
+                    <Skeleton className="h-3 w-1/2 mb-4" />
+                    <div className="flex justify-between items-center">
+                      <Skeleton className="h-5 w-16" />
+                      <Skeleton className="h-8 w-8 rounded-full" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : filteredProducts.length === 0 ? (
               <div className="bg-white rounded-2xl p-12 text-center border border-black/5">
                 <div className="text-5xl mb-4">🔍</div>
                 <h3 className="text-lg font-bold text-[#1C1B14] mb-2">No products match your filters</h3>
