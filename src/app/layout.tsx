@@ -1,10 +1,11 @@
 import type { Metadata } from 'next';
+import { siteConfig } from '@/config/site';
 import './globals.css';
 import { Toaster } from 'sonner';
 
 export const metadata: Metadata = {
-  title: 'Bharat Bazaar — Authentic Handcrafted Indian Products',
-  description: 'Shop directly from artisans, village producers, and NGOs across India. Handloom sarees, pottery, organic spices, Madhubani art, silver filigree.',
+  title: `${siteConfig.name} — ${siteConfig.tagline}`,
+  description: siteConfig.description,
 };
 
 export default function RootLayout({

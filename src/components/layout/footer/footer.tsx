@@ -1,31 +1,10 @@
 import Link from 'next/link';
 import { Mail, Phone, MapPin } from 'lucide-react';
 import { NewsletterBarClient } from './newsletter-bar';
+import { siteConfig } from '@/config/site';
 
-const footerLinks = {
-  Company: [
-    { label: 'About Us', href: '/about' },
-    { label: 'Blog', href: '/blog' },
-    { label: 'Impact Report', href: '/about#impact' },
-  ],
-  Sellers: [
-    { label: 'Start Selling', href: '/seller-registration' },
-    { label: 'Seller Dashboard', href: '/seller-dashboard' },
-  ],
-  Help: [
-    { label: 'FAQ', href: '/contact#faq' },
-    { label: 'Contact Us', href: '/contact' },
-    { label: 'Track Order', href: '/orders' },
-  ],
-  Categories: [
-    { label: 'Handloom & Textiles', href: '/products?category=handloom-textiles' },
-    { label: 'Organic Food', href: '/products?category=organic-food' },
-    { label: 'Pottery & Ceramics', href: '/products?category=pottery-ceramics' },
-    { label: 'Jewelry', href: '/products?category=jewelry' },
-  ],
-};
-
-const paymentMethods = ['UPI', 'Visa', 'Mastercard', 'RuPay', 'Razorpay'];
+const footerLinks = siteConfig.footerLinks;
+const paymentMethods = siteConfig.paymentMethods;
 
 export function Footer() {
   return (
@@ -52,25 +31,25 @@ export function Footer() {
           <div className="lg:col-span-2">
             <div className="flex items-center gap-2 mb-4">
               <div className="w-9 h-9 rounded-xl flex items-center justify-center text-white font-black text-sm bg-gradient-to-br from-[#FF7A00] to-[#FF4500]">
-                BB
+                {siteConfig.logoText}
               </div>
               <span className="font-black text-xl bg-gradient-to-r from-[#FF7A00] to-[#FF4500] bg-clip-text text-transparent">
-                Bharat Bazaar
+                {siteConfig.name}
               </span>
             </div>
             <p className="text-white/50 text-sm leading-relaxed mb-6">
-              India's premier marketplace connecting artisans, village producers, and NGOs with customers across the nation. Every purchase tells a story.
+              {siteConfig.description}
             </p>
 
             <div className="space-y-2 mb-6">
               <div className="flex items-center gap-2 text-sm text-white/50">
-                <Mail size={14} className="shrink-0" /> support@bharatbazaar.com
+                <Mail size={14} className="shrink-0" /> {siteConfig.contact.email}
               </div>
               <div className="flex items-center gap-2 text-sm text-white/50">
-                <Phone size={14} className="shrink-0" /> 1800-XXX-XXXX (Toll Free)
+                <Phone size={14} className="shrink-0" /> {siteConfig.contact.phone} (Toll Free)
               </div>
               <div className="flex items-center gap-2 text-sm text-white/50">
-                <MapPin size={14} className="shrink-0" /> Bangalore, Karnataka, India 🇮🇳
+                <MapPin size={14} className="shrink-0" /> {siteConfig.contact.address}
               </div>
             </div>
           </div>
@@ -100,7 +79,7 @@ export function Footer() {
         {/* Divider & Copyright */}
         <div className="border-t border-white/10 mt-12 pt-8 flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="text-white/40 text-sm text-center md:text-left">
-            <div>© 2024 Bharat Bazaar. Made with ❤️ in India 🇮🇳</div>
+            <div>© {new Date().getFullYear()} {siteConfig.name}. Made with ❤️ in India 🇮🇳</div>
           </div>
           <div className="flex items-center gap-2 flex-wrap justify-center">
             <span className="text-white/30 text-xs mr-1">Payments secured by</span>

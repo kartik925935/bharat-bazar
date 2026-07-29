@@ -7,23 +7,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Search, ShoppingCart, Heart, Bell, Menu, X, ChevronDown } from 'lucide-react';
 import { useCartStore } from '@/lib/store/cart-store';
 import { useWishlistStore } from '@/lib/store/wishlist-store';
+import { siteConfig } from '@/config/site';
 
-const navLinks = [
-  { label: 'Home', href: '/' },
-  { label: 'Categories', href: '/products' },
-  { label: 'Sellers', href: '/sellers' },
-  { label: 'About', href: '/about' },
-  { label: 'Blog', href: '/blog' },
-];
-
-const categories = [
-  { label: 'Handloom & Textiles', icon: '🧵', href: '/products?category=textiles' },
-  { label: 'Pottery & Ceramics', icon: '🏺', href: '/products?category=pottery' },
-  { label: 'Organic Food', icon: '🌿', href: '/products?category=food' },
-  { label: 'Paintings & Art', icon: '🎨', href: '/products?category=art' },
-  { label: 'Jewelry', icon: '💍', href: '/products?category=jewelry' },
-  { label: 'Home Décor', icon: '🪑', href: '/products?category=decor' },
-];
+const navLinks = siteConfig.navLinks;
+const categories = siteConfig.categories;
 
 export function NavbarClient() {
   const [searchOpen, setSearchOpen] = useState(false);
@@ -83,7 +70,7 @@ export function NavbarClient() {
                   className="w-9 h-9 rounded-xl flex items-center justify-center text-white font-black text-sm"
                   style={{ background: 'linear-gradient(135deg, #FF7A00, #FF4500)' }}
                 >
-                  BB
+                  {siteConfig.logoText}
                 </div>
               </div>
               <div>
@@ -96,10 +83,10 @@ export function NavbarClient() {
                     WebkitTextFillColor: 'transparent',
                   }}
                 >
-                  Bharat Bazaar
+                  {siteConfig.name}
                 </div>
                 <div className="text-[9px] leading-none mt-0.5" style={{ color: '#8C8B80' }}>
-                  From Village Hands to Your Home
+                  {siteConfig.tagline}
                 </div>
               </div>
             </Link>
