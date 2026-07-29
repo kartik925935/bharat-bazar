@@ -16,6 +16,7 @@ import { formatCurrency } from '@/lib/utils/format-currency';
 import { RatingStars } from '@/components/ui/rating-stars';
 import { TIER_ICONS } from '@/lib/mock/sellers';
 import { toast } from 'sonner';
+import { useBrowsingStore } from '@/lib/store/browsing-store';
 
 interface Review {
   id: string;
@@ -58,6 +59,12 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
   const addItem = useCartStore((state) => state.addItem);
   const toggleWishlist = useWishlistStore((state) => state.toggleWishlist);
   const isWishlisted = useWishlistStore((state) => state.isInWishlist(product.id));
+  const { addRecentlyViewed } = useBrowsingStore();
+
+  // Track recently viewed
+  useEffect(() => {
+    if (product) addRecentlyViewed(product);
+  }, [product]);
 
   // Store in recently viewed
   useEffect(() => {

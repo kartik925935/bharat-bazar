@@ -4,12 +4,14 @@ import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, ShoppingCart, Heart, Bell, Menu, X, ChevronDown, User as UserIcon, LogOut, Shield, Store } from 'lucide-react';
+import { Search, ShoppingCart, Heart, Menu, X, ChevronDown, User as UserIcon, LogOut, Shield, Store } from 'lucide-react';
 import { useCartStore } from '@/lib/store/cart-store';
 import { useWishlistStore } from '@/lib/store/wishlist-store';
 import { useAuthStore } from '@/lib/store/auth-store';
 import { siteConfig } from '@/config/site';
 import { toast } from 'sonner';
+import { SearchModal } from '@/components/search/search-modal';
+import { NotificationBell } from '@/components/notifications/notification-bell';
 
 const navLinks = siteConfig.navLinks;
 const categories = siteConfig.categories;
@@ -313,13 +315,10 @@ export function NavbarClient() {
               </Link>
 
               {/* Notifications */}
-              <Link
-                href="/notifications"
-                className="relative w-10 h-10 items-center justify-center rounded-full text-[#555449] hover:text-[#FF7A00] hover:bg-[#FFF8F0] transition-all hidden md:flex"
-              >
-                <Bell size={20} />
-                <span className="absolute top-2.5 right-2.5 w-2 h-2 rounded-full bg-red-500" />
-              </Link>
+              <div className="hidden md:block">
+                <NotificationBell />
+              </div>
+              <SearchModal open={searchOpen} onClose={() => setSearchOpen(false)} />
 
               {/* Dynamic User Profile Menu / Signin triggers */}
               {displayIsAuthenticated && displayUser ? (
