@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useAuthStore } from '@/lib/store/auth-store';
+import { initializeUserDatabase } from '@/lib/mock/users';
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const initialize = useAuthStore((state) => state.initialize);
@@ -9,9 +10,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const initAuth = async () => {
+      // Seed user database before checking auth state
+      initializeUserDatabase();
       await initialize();
-      // Short pleasant loader feel
-      setTimeout(() => setInitDone(true), 600);
+      setInitDone(true);
     };
     initAuth();
 
@@ -30,9 +32,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-[#FAFAF8]">
         <div className="relative flex items-center justify-center mb-4">
           <div className="w-16 h-16 rounded-full border-4 border-[#E5E4DE] border-t-[#FF7A00] animate-spin absolute" />
-          <span className="font-black text-2xl text-[#FF7A00] animate-pulse" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>BB</span>
+          <span
+            className="font-black text-2xl text-[#FF7A00] animate-pulse"
+            style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+          >
+            BB
+          </span>
         </div>
-        <p className="text-sm font-semibold text-[#8C8B80] mt-10" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+        <p
+          className="text-sm font-semibold text-[#8C8B80] mt-10"
+          style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+        >
           Loading Bharat Bazaar...
         </p>
       </div>
@@ -41,4 +51,5 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   return <>{children}</>;
 }
+
 export default AuthProvider;

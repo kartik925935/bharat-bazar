@@ -21,7 +21,20 @@ export function RedirectIfAuthed({ children }: { children: React.ReactNode }) {
     }
   }, [isAuthenticated, isLoading, user, router]);
 
-  if (isLoading || isAuthenticated) {
+  // Still loading auth state — don't flicker the login form
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#FAFAF8]">
+        <div className="relative flex items-center justify-center">
+          <div className="w-14 h-14 rounded-full border-4 border-[#E5E4DE] border-t-[#FF7A00] animate-spin absolute" />
+          <span className="font-black text-xl text-[#FF7A00]">BB</span>
+        </div>
+      </div>
+    );
+  }
+
+  // Already authenticated — redirect in progress, show nothing
+  if (isAuthenticated) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#FAFAF8]">
         <Spinner size="lg" />
@@ -31,4 +44,5 @@ export function RedirectIfAuthed({ children }: { children: React.ReactNode }) {
 
   return <>{children}</>;
 }
+
 export default RedirectIfAuthed;

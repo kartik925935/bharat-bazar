@@ -15,31 +15,35 @@ export function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) 
   const pathname = usePathname();
   const { user, isAuthenticated, isLoading } = useAuthStore();
 
+  const hasCorrectRole = !requiredRole || (user && user.role === requiredRole);
+  const shouldRedirectToLogin = !isLoading && !isAuthenticated;
+  const shouldRedirectRole = !isLoading && isAuthenticated && user && requiredRole && user.role !== requiredRole;
+
   useEffect(() => {
-    if (!isLoading) {
-      if (!isAuthenticated) {
-        // Redirect to appropriate login page based on required role
-        const targetLogin = requiredRole === 'seller' ? '/seller-login' : '/login';
-        router.replace(`${targetLogin}?returnUrl=${encodeURIComponent(pathname)}`);
-      } else if (user && requiredRole && user.role !== requiredRole) {
-        // Authenticated but incorrect role. Send to correct dashboard
-        if (user.role === 'seller') {
-          router.replace('/seller-dashboard');
-        } else if (user.role === 'admin') {
-          router.replace('/admin-dashboard');
-        } else {
-          router.replace('/dashboard');
-        }
+    if (shouldRedirectToLogin) {
+      const targetLogin = requiredRole === 'seller' ? '/seller-login' : '/login';
+      router.replace(`${targetLogin}?returnUrl=${encodeURIComponent(pathname)}`);
+    } else if (shouldRedirectRole) {
+      if (user!.role === 'seller') {
+        router.replace('/seller-dashboard');
+      } else if (user!.role === 'admin') {
+        router.replace('/admin-dashboard');
+      } else {
+        router.replace('/dashboard');
       }
     }
-  }, [isAuthenticated, isLoading, user, requiredRole, router, pathname]);
+  }, [shouldRedirectToLogin, shouldRedirectRole, user, requiredRole, router, pathname]);
 
-  if (isLoading || !isAuthenticated || (user && requiredRole && user.role !== requiredRole)) {
+  // Show loading spinner while auth is being checked
+  if (isLoading || shouldRedirectToLogin || shouldRedirectRole) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-[#FAFAF8]">
-        <Spinner size="lg" />
-        <p className="text-xs text-[#8C8B80] mt-4 font-semibold" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
-          Verifying security credentials...
+        <div className="relative flex items-center justify-center mb-4">
+          <div className="w-16 h-16 rounded-full border-4 border-[#E5E4DE] border-t-[#FF7A00] animate-spin absolute" />
+          <span className="font-black text-2xl text-[#FF7A00]">BB</span>
+        </div>
+        <p className="text-xs text-[#8C8B80] mt-10 font-semibold">
+          {shouldRedirectToLogin ? 'Redirecting to login…' : 'Verifying access…'}
         </p>
       </div>
     );
@@ -47,4 +51,5 @@ export function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) 
 
   return <>{children}</>;
 }
+
 export default ProtectedRoute;

@@ -50,7 +50,7 @@ export const useAuthStore = create<AuthState>()(
     (set, get) => ({
       user: null,
       isAuthenticated: false,
-      isLoading: false,
+      isLoading: true, // stays true until initialize() completes
       error: null,
 
       setUser: (user) => set({ user, isAuthenticated: !!user }),
