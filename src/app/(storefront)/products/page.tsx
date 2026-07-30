@@ -75,6 +75,7 @@ export default function ProductListingPage() {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('bb-recent-searches');
       if (saved) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setRecentSearches(JSON.parse(saved));
       }
     }
@@ -135,7 +136,7 @@ export default function ProductListingPage() {
   const addItem = useCartStore((state) => state.addItem);
   const [addedItems, setAddedItems] = useState<Record<string, boolean>>({});
 
-  const handleQuickAdd = (e: React.MouseEvent, product: any) => {
+  const handleQuickAdd = (e: React.MouseEvent, product: { id: string; name: string; inStock: boolean; [key: string]: unknown }) => {
     e.stopPropagation();
     if (!product.inStock) return;
     addItem(product);
@@ -233,7 +234,7 @@ export default function ProductListingPage() {
             )}
             {debouncedSearch && (
               <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-[#FFF8F0] text-[#FF7A00]">
-                Query: "{debouncedSearch}"
+                Query: &quot;{debouncedSearch}&quot;
                 <X size={12} className="cursor-pointer" onClick={() => setSearchQuery('')} />
               </span>
             )}
@@ -467,7 +468,7 @@ export default function ProductListingPage() {
                   No crafts found
                 </h3>
                 <p className="text-xs text-[#8C8B80] max-w-xs mx-auto mb-6 leading-relaxed">
-                  We couldn't find any products matching your specific active filters. Try resetting sliders or search queries.
+                  We couldn&apos;t find any products matching your specific active filters. Try resetting sliders or search queries.
                 </p>
                 <button
                   onClick={clearAllFilters}

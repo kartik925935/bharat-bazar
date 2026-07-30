@@ -68,7 +68,7 @@ export const useAuthStore = create<AuthState>()(
             const usersListStr = localStorage.getItem('bb-users');
             if (usersListStr) {
               const usersList = JSON.parse(usersListStr);
-              const found = usersList.find((u: any) => u.id === current.id);
+              const found = usersList.find((u: User) => u.id === current.id);
               if (found) {
                 set({ user: found, isAuthenticated: true });
               } else {
@@ -93,7 +93,7 @@ export const useAuthStore = create<AuthState>()(
 
           // Find user matching email and check password
           const foundUser = usersList.find(
-            (u: any) => u.email.toLowerCase() === email.toLowerCase()
+            (u: User) => u.email.toLowerCase() === email.toLowerCase()
           );
 
           if (!foundUser) {
@@ -141,7 +141,7 @@ export const useAuthStore = create<AuthState>()(
           const usersList = JSON.parse(usersListStr);
 
           const emailExists = usersList.some(
-            (u: any) => u.email.toLowerCase() === data.email.toLowerCase()
+            (u: User) => u.email.toLowerCase() === data.email.toLowerCase()
           );
 
           if (emailExists) {
@@ -167,7 +167,7 @@ export const useAuthStore = create<AuthState>()(
             id: newUserRecord.id,
             email: newUserRecord.email,
             name: newUserRecord.name,
-            role: newUserRecord.role as any,
+            role: newUserRecord.role as User['role'],
             phone: newUserRecord.phone,
             createdAt: newUserRecord.createdAt,
           };
@@ -199,7 +199,7 @@ export const useAuthStore = create<AuthState>()(
           initializeUserDatabase();
           const usersListStr = localStorage.getItem('bb-users') || '[]';
           const usersList = JSON.parse(usersListStr);
-          if (!usersList.some((u: any) => u.email === googleUser.email)) {
+          if (!usersList.some((u: User) => u.email === googleUser.email)) {
             usersList.push({
               ...googleUser,
               password: 'Google@123',
@@ -237,7 +237,7 @@ export const useAuthStore = create<AuthState>()(
           const usersListStr = localStorage.getItem('bb-users') || '[]';
           const usersList = JSON.parse(usersListStr);
 
-          const updatedList = usersList.map((u: any) => {
+          const updatedList = usersList.map((u: User) => {
             if (u.id === currentUser.id) {
               return {
                 ...u,

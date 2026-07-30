@@ -30,7 +30,7 @@ export function SellerStories() {
                 </div>
               </div>
               <blockquote className="text-white/80 italic text-sm leading-relaxed mb-4">
-                "{seller.quote}"
+                &quot;{seller.quote}&quot;
               </blockquote>
               <Link
                 href={`/seller/${seller.username}`}

@@ -38,7 +38,7 @@ export function initializeUserDatabase() {
     // Always ensure seed accounts exist by merging — never overwrite custom accounts
     let changed = false;
     for (const seed of seedUsers) {
-      if (!users.find((u: any) => u.email === seed.email)) {
+      if (!users.find((u: { email: string }) => u.email === seed.email)) {
         users.push(seed);
         changed = true;
       }

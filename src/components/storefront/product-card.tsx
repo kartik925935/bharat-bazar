@@ -107,7 +107,7 @@ export function ProductCard({ product, variant = 'grid', priority = false }: Pro
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5 mb-1">
             <span className="text-[10px] text-[#8C7B6E] truncate">{product.seller.name}</span>
-            <span className="text-[10px] shrink-0">{(TIER_ICONS as any)[product.seller.tier]}</span>
+            <span className="text-[10px] shrink-0">{(TIER_ICONS as Record<string, React.ReactNode>)[product.seller.tier]}</span>
           </div>
           <h3 className="text-sm font-semibold text-[#1A0A00] line-clamp-2 leading-snug mb-2">
             {product.name}
@@ -296,7 +296,7 @@ export function ProductCard({ product, variant = 'grid', priority = false }: Pro
         {/* Seller row */}
         <div className="flex items-center gap-1.5 mb-2">
           <span className="text-[11px] text-[#8C7B6E] truncate max-w-[120px]">{product.seller.name}</span>
-          <span className="text-[11px] shrink-0">{(TIER_ICONS as any)[product.seller.tier]}</span>
+          <span className="text-[11px] shrink-0">{(TIER_ICONS as Record<string, React.ReactNode>)[product.seller.tier]}</span>
           <div className="flex items-center gap-0.5 ml-auto shrink-0">
             <MapPin size={9} className="text-[#B5A99A]" />
             <span className="text-[10px] text-[#B5A99A] max-w-[70px] truncate">

@@ -42,6 +42,7 @@ export function SearchModal({ open, onClose }: SearchModalProps) {
     if (open) {
       setTimeout(() => inputRef.current?.focus(), 100);
     } else {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setQuery('');
     }
   }, [open]);
@@ -261,12 +262,12 @@ export function SearchModal({ open, onClose }: SearchModalProps) {
                       className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-[#FFF3E8] text-[#FF7A00] text-sm font-bold hover:bg-[#FF7A00] hover:text-white transition-colors cursor-pointer"
                     >
                       <TrendingUp size={15} />
-                      See all results for "{debouncedQuery}"
+                      See all results for &quot;{debouncedQuery}&quot;
                     </button>
 
                     {results.length === 0 && matchedCategories.length === 0 && (
                       <div className="text-center py-8">
-                        <p className="text-[#8C7B6E] text-sm">No results found for "{debouncedQuery}"</p>
+                        <p className="text-[#8C7B6E] text-sm">No results found for &quot;{debouncedQuery}&quot;</p>
                         <p className="text-xs text-[#B5A99A] mt-1">Try a different search term</p>
                       </div>
                     )}
