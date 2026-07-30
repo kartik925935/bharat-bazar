@@ -3,6 +3,8 @@
 /* eslint-disable react/no-unescaped-entities */
 /* eslint-disable react-hooks/rules-of-hooks */
 
+"use client";
+
 import React, { useState, useEffect, useMemo, MouseEvent } from 'react';
 
 import { useSearchParams, useRouter } from 'next/navigation';

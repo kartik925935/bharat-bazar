@@ -185,11 +185,32 @@ export const useAuthStore = create<AuthState>()(
       signInWithGoogle: async () => {
         get().setLoading(true);
         try {
+          let email = 'google.visitor@gmail.com';
+          let name = 'Google Guest';
+
+          if (typeof window !== 'undefined') {
+            const enteredEmail = window.prompt("Enter mock Google email:", "google.visitor@gmail.com");
+            if (enteredEmail === null) {
+              return { success: false, error: 'Google login cancelled' };
+            }
+            if (enteredEmail.trim()) {
+              email = enteredEmail.trim();
+            }
+
+            const enteredName = window.prompt("Enter mock Google name:", "Google Guest");
+            if (enteredName === null) {
+              return { success: false, error: 'Google login cancelled' };
+            }
+            if (enteredName.trim()) {
+              name = enteredName.trim();
+            }
+          }
+
           // Simulate Google OAuth
           const googleUser: User = {
             id: 'google-user-' + Date.now(),
-            email: 'google.visitor@gmail.com',
-            name: 'Google Guest',
+            email: email,
+            name: name,
             role: 'customer',
             avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop',
             createdAt: new Date().toISOString().split('T')[0],
