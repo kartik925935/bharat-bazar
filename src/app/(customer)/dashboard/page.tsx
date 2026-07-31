@@ -14,6 +14,7 @@ import { useBrowsingStore } from '@/lib/store/browsing-store';
 import { useNotificationStore } from '@/lib/store/notification-store';
 import { mockOrders, STATUS_CONFIG } from '@/lib/mock/orders';
 import { mockProducts } from '@/lib/mock/products';
+import { MOCK_USER_LOYALTY } from '@/lib/mock/customer';
 import { formatCurrency } from '@/lib/utils/format-currency';
 import { ProductCard } from '@/components/storefront/product-card';
 
@@ -344,54 +345,63 @@ export default function CustomerDashboardPage() {
       )}
 
       {/* ── LOYALTY CARD ─────────────────────────────────────────────────── */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true }}
-        className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#FF7A00] to-[#E63900] p-6 text-white"
-      >
-        <div className="absolute -right-8 -top-8 w-40 h-40 rounded-full bg-white/10" />
-        <div className="absolute -right-4 -bottom-8 w-28 h-28 rounded-full bg-white/10" />
-        <div className="relative">
-          <div className="flex items-start justify-between mb-4">
-            <div>
-              <p className="text-xs font-bold text-white/70 mb-1">🏆 BHARAT BAZAAR REWARDS</p>
-              <h3 className="text-xl font-black">Hi, {firstName}!</h3>
-              <p className="text-sm text-white/80">Gold Member</p>
+      {(() => {
+        const loyalty = MOCK_USER_LOYALTY;
+        const tierColors: Record<string, string> = { Bronze: 'from-[#CD7F32] to-[#A0522D]', Silver: 'from-[#6B7280] to-[#4B5563]', Gold: 'from-[#FF7A00] to-[#E63900]', Platinum: 'from-[#312E81] to-[#4C1D95]' };
+        const tierMarkers = ['Bronze', 'Silver', 'Gold', 'Platinum'];
+        const currentTierIdx = tierMarkers.indexOf(loyalty.tier);
+        const progressPct = Math.min(100, (loyalty.points / loyalty.nextTierPoints) * 100);
+        return (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
+            className={`relative overflow-hidden rounded-2xl bg-gradient-to-r ${tierColors[loyalty.tier] ?? tierColors.Bronze} p-6 text-white`}
+          >
+            <div className="absolute -right-8 -top-8 w-40 h-40 rounded-full bg-white/10" />
+            <div className="absolute -right-4 -bottom-8 w-28 h-28 rounded-full bg-white/10" />
+            <div className="relative">
+              <div className="flex items-start justify-between mb-4">
+                <div>
+                  <p className="text-xs font-bold text-white/70 mb-1">🏆 BHARAT BAZAAR REWARDS</p>
+                  <h3 className="text-xl font-black">Hi, {firstName}!</h3>
+                  <p className="text-sm text-white/80">{loyalty.tier} Member</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-2xl font-black">{loyalty.points}</p>
+                  <p className="text-xs text-white/70">Available Points</p>
+                </div>
+              </div>
+              <div className="mb-4">
+                <div className="flex justify-between text-xs text-white/80 mb-1">
+                  <span>{loyalty.points} / {loyalty.nextTierPoints} pts to next tier</span>
+                  <span>{loyalty.nextTierPoints - loyalty.points} more!</span>
+                </div>
+                <div className="h-2.5 bg-white/20 rounded-full overflow-hidden">
+                  <motion.div
+                    initial={{ width: 0 }}
+                    whileInView={{ width: `${progressPct}%` }}
+                    viewport={{ once: true }}
+                    transition={{ duration: 1, ease: 'easeOut', delay: 0.2 }}
+                    className="h-full bg-white rounded-full"
+                  />
+                </div>
+                <div className="flex justify-between text-[10px] text-white/60 mt-1">
+                  {tierMarkers.map((t, i) => (
+                    <span key={t} className={i <= currentTierIdx ? 'text-white font-bold' : ''}>{t}{i === currentTierIdx ? ' ★' : ''}</span>
+                  ))}
+                </div>
+              </div>
+              <div className="flex gap-2 flex-wrap">
+                <Link href="/wallet" className="px-4 py-2 rounded-xl bg-white text-[#FF7A00] text-xs font-bold hover:bg-white/90 transition-colors">
+                  Redeem Points
+                </Link>
+                <Link href="/products" className="px-4 py-2 rounded-xl bg-white/20 text-white text-xs font-bold hover:bg-white/30 transition-colors">
+                  Continue Shopping
+                </Link>
+              </div>
             </div>
-            <div className="text-right">
-              <p className="text-2xl font-black">450</p>
-              <p className="text-xs text-white/70">Available Points</p>
-            </div>
-          </div>
-          <div className="mb-4">
-            <div className="flex justify-between text-xs text-white/80 mb-1">
-              <span>800 / 1,000 pts to Platinum</span>
-              <span>200 more!</span>
-            </div>
-            <div className="h-2.5 bg-white/20 rounded-full overflow-hidden">
-              <motion.div
-                initial={{ width: 0 }}
-                whileInView={{ width: '80%' }}
-                viewport={{ once: true }}
-                transition={{ duration: 1, ease: 'easeOut', delay: 0.2 }}
-                className="h-full bg-white rounded-full"
-              />
-            </div>
-            <div className="flex justify-between text-[10px] text-white/60 mt-1">
-              <span>Bronze</span><span>Silver</span><span>Gold ★</span><span>Platinum</span>
-            </div>
-          </div>
-          <div className="flex gap-2 flex-wrap">
-            <Link href="/wallet" className="px-4 py-2 rounded-xl bg-white text-[#FF7A00] text-xs font-bold hover:bg-white/90 transition-colors">
-              Redeem Points
-            </Link>
-            <Link href="/wallet" className="px-4 py-2 rounded-xl bg-white/20 text-white text-xs font-bold hover:bg-white/30 transition-colors">
-              View History
-            </Link>
-          </div>
-        </div>
-      </motion.div>
+          </motion.div>
+        );
+      })()}
 
       {/* ── RECOMMENDATIONS ──────────────────────────────────────────────── */}
       <div>

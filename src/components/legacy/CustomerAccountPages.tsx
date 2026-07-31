@@ -32,7 +32,7 @@ export function AddressBookPage() {
   };
 
   const startEdit = (addr: typeof INITIAL_ADDRESSES[0]) => {
-    setForm({ label: addr.label, name: addr.name, phone: addr.phone, line1: addr.line1, line2: addr.line2, city: addr.city, state: addr.state, pincode: addr.pincode });
+    setForm({ label: addr.label ?? 'Home', name: addr.name, phone: addr.phone, line1: addr.line1, line2: addr.line2 ?? '', city: addr.city, state: addr.state, pincode: addr.pincode });
     setEditingId(addr.id);
     setShowForm(true);
   };

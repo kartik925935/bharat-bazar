@@ -20,7 +20,7 @@ export function SellerPublicPage() {
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [followed, setFollowed] = useState(false);
 
-  const seller = SELLERS.find(s => s.id === sellerId) || SELLERS[0];
+  const seller = SELLERS.find((s: any) => s.id === sellerId) || SELLERS[0];
   const tierColor = TIER_COLORS[seller.tier] || TIER_COLORS.Silver;
 
   return (
@@ -61,7 +61,7 @@ export function SellerPublicPage() {
                   <span className="text-[#B0AFA5]">Member since {seller.since}</span>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  {seller.certifications.map(cert => (
+                  {seller.certifications.map((cert: any) => (
                     <span key={cert} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-[#F0FDF4] text-[#1A9E4E] border border-[#BBF7D0]">
                       <CheckCircle size={11} /> {cert}
                     </span>
@@ -126,7 +126,7 @@ export function SellerPublicPage() {
               </div>
             </div>
             <div className={viewMode === "grid" ? "grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4" : "space-y-3"}>
-              {seller.products.map((product, i) => (
+              {seller.products.map((product: any, i: any) => (
                 <motion.div key={product.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
                   {viewMode === "grid" ? (
                     <Link href={`/products/${product.id}`} className="block bg-white rounded-2xl overflow-hidden border border-black/5 hover:shadow-md transition-all group">
@@ -177,7 +177,7 @@ export function SellerPublicPage() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             <div className="bg-white rounded-2xl border border-black/5 p-6">
               <h3 className="font-bold text-[#1C1B14] mb-4" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Our Story</h3>
-              {seller.bio.split("\n\n").map((para, i) => (
+              {seller.bio.split("\n\n").map((para: any, i: any) => (
                 <p key={i} className="text-sm text-[#555449] leading-relaxed mb-3">{para}</p>
               ))}
             </div>
@@ -185,7 +185,7 @@ export function SellerPublicPage() {
               <div className="bg-white rounded-2xl border border-black/5 p-6">
                 <h3 className="font-bold text-[#1C1B14] mb-4" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Specialties</h3>
                 <div className="flex flex-wrap gap-2">
-                  {seller.specialties.map(s => (
+                  {seller.specialties.map((s: any) => (
                     <span key={s} className="px-3 py-1.5 rounded-xl text-sm font-medium bg-[#FFF8F0] text-[#FF7A00] border border-[#FFD4A8]">{s}</span>
                   ))}
                 </div>
@@ -193,7 +193,7 @@ export function SellerPublicPage() {
               <div className="bg-white rounded-2xl border border-black/5 p-6">
                 <h3 className="font-bold text-[#1C1B14] mb-4" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Certifications</h3>
                 <div className="space-y-2">
-                  {seller.certifications.map(cert => (
+                  {seller.certifications.map((cert: any) => (
                     <div key={cert} className="flex items-center gap-3 text-sm text-[#555449]">
                       <div className="w-6 h-6 rounded-full bg-[#F0FDF4] flex items-center justify-center">
                         <CheckCircle size={14} className="text-[#1A9E4E]" />
@@ -236,7 +236,7 @@ export function SellerPublicPage() {
             </div>
 
             <div className="space-y-4">
-              {seller.reviews.map((review, i) => (
+              {seller.reviews.map((review: any, i: any) => (
                 <motion.div key={i} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1 }} className="bg-white rounded-2xl border border-black/5 p-5">
                   <div className="flex items-start justify-between mb-2">
                     <div>
@@ -274,7 +274,7 @@ export function SellerListingPage() {
 
   const categoryTabs = ["All", "Handloom & Textiles", "Organic Food", "Pottery & Ceramics", "Jewelry", "Paintings & Art", "Home Décor"];
 
-  const filtered = ALL_SELLERS.filter(s => {
+  const filtered = ALL_SELLERS.filter((s: any) => {
     const matchSearch = s.name.toLowerCase().includes(search.toLowerCase()) || s.tagline.toLowerCase().includes(search.toLowerCase());
     const matchCat = categoryFilter === "All" || s.category === categoryFilter;
     return matchSearch && matchCat;
