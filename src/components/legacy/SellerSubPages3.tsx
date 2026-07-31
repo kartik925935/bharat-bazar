@@ -81,7 +81,7 @@ export function SellerPerformancePage() {
 
 
 export function SellerNotificationsPage() {
-  const [notifs, setNotifs] = useState(SELLER_NOTIFS);
+  const [notifs, setNotifs] = useState<any[]>([]) /* SELLER_NOTIFS */;
   const markRead = (id: string) => setNotifs(prev => prev.map(n => n.id === id ? { ...n, unread: false } : n));
 
   return (

@@ -22,7 +22,7 @@ import {
 
 
 export function SellerInventoryPage() {
-  const [inventory, setInventory] = useState(INVENTORY);
+  const [inventory, setInventory] = useState<any[]>([]) /* INVENTORY */;
   const [editing, setEditing] = useState<string | null>(null);
   const [editQty, setEditQty] = useState("");
 
@@ -118,7 +118,7 @@ export function SellerInventoryPage() {
 
 
 export function SellerReturnsPage() {
-  const [requests, setRequests] = useState(RETURN_REQUESTS);
+  const [requests, setRequests] = useState<any[]>([]) /* RETURN_REQUESTS */;
 
   const update = (id: string, status: string) => setRequests(prev => prev.map(r => r.id === id ? { ...r, status } : r));
 
@@ -260,7 +260,7 @@ export function SellerReviewsPage() {
 
 
 export function SellerCouponsPage() {
-  const [coupons, setCoupons] = useState(SELLER_COUPONS);
+  const [coupons, setCoupons] = useState<any[]>([]) /* SELLER_COUPONS */;
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ code: "", type: "percentage", value: "", minOrder: "", maxUses: "", expiry: "" });
 

@@ -17,7 +17,7 @@ const STATUS_STYLE: Record<string, { bg: string; text: string; label: string }> 
 };
 
 export function SellerProductsPage() {
-  const [products, setProducts] = useState(MOCK_PRODUCTS);
+  const [products, setProducts] = useState<any[]>([]) /* MOCK_PRODUCTS */;
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);

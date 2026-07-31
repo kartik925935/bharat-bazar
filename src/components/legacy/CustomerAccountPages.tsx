@@ -12,7 +12,7 @@ import { INITIAL_ADDRESSES } from "@/lib/mock/customer";
 
 
 export function AddressBookPage() {
-  const [addresses, setAddresses] = useState(INITIAL_ADDRESSES);
+  const [addresses, setAddresses] = useState<any[]>([]) /* INITIAL_ADDRESSES */;
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState({ label: "Home", name: "", phone: "", line1: "", line2: "", city: "", state: "", pincode: "" });
@@ -153,16 +153,16 @@ export function MyReviewsPage() {
       <div className="max-w-2xl">
         <h1 className="text-[#1C1B14] text-xl font-bold mb-6" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>My Reviews ⭐</h1>
         <div className="flex gap-1 bg-[#F5F4F0] p-1 rounded-2xl mb-6 w-fit">
-          {([["pending", `Pending (${PENDING_REVIEWS.length})`], ["written", `Written (${PAST_REVIEWS.length})`]] as const).map(([key, label]) => (
+          {([["pending", `Pending (${0 /* PENDING_REVIEWS.length */})`], ["written", `Written (${0 /* PAST_REVIEWS.length */})`]] as const).map(([key, label]) => (
             <button key={key} onClick={() => setTab(key)} className={`px-5 py-2 rounded-xl text-sm font-semibold transition-all ${tab === key ? "bg-white shadow-sm text-[#1C1B14]" : "text-[#8C8B80] hover:text-[#555449]"}`}>{label}</button>
           ))}
         </div>
 
         {tab === "pending" && (
           <div className="space-y-4">
-            {PENDING_REVIEWS.length === 0 ? (
+            {0 /* PENDING_REVIEWS.length */ === 0 ? (
               <div className="text-center py-16"><div className="text-5xl mb-4">🎉</div><p className="text-[#8C8B80]">No pending reviews! You're all caught up.</p></div>
-            ) : PENDING_REVIEWS.map(item => (
+            ) : ([] as any[]).map /* PENDING_REVIEWS */(item => (
               <div key={item.orderId}>
                 <div className="bg-white rounded-2xl border border-black/5 p-5">
                   <div className="flex gap-4 items-start">
@@ -213,7 +213,7 @@ export function MyReviewsPage() {
 
         {tab === "written" && (
           <div className="space-y-4">
-            {PAST_REVIEWS.map((review, i) => (
+            {([] as any[]).map /* PAST_REVIEWS */((review, i) => (
               <motion.div key={review.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }} className="bg-white rounded-2xl border border-black/5 p-5">
                 <div className="flex gap-4">
                   <img src={review.img} alt={review.product} className="w-14 h-14 rounded-xl object-cover shrink-0" />
@@ -391,7 +391,7 @@ export function CouponsPage() {
     setTimeout(() => setCopied(null), 1500);
   };
 
-  const filtered = COUPONS.map((c: any) => ({ ...c, used: !c.isNew })).filter(c => filter === "all" ? true : filter === "active" ? !c.used : c.used);
+  const filtered = ([] as any[]).map /* COUPONS */((c: any) => ({ ...c, used: !c.isNew })).filter(c => filter === "all" ? true : filter === "active" ? !c.used : c.used);
 
   return (
     <CustomerAccountLayout title="My Coupons">
@@ -476,7 +476,7 @@ export function ReturnsPage() {
 
         <h3 className="font-bold text-[#1C1B14] mb-4" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Your Orders</h3>
         <div className="space-y-4">
-          {RETURNABLE_ITEMS.map((item, i: number) => {
+          {([] as any[]).map /* RETURNABLE_ITEMS */((item, i: number) => {
             const isExpired = new Date(item.returnEligibleUntil) < new Date();
             return (
             <div key={item.id}>

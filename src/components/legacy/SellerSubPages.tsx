@@ -254,7 +254,7 @@ export function SellerOrdersPage() {
       <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <div>
           <h1 className="font-bold text-xl text-[#1C1B14]" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Orders</h1>
-          <p className="text-sm text-[#8C8B80]">{SELLER_ORDERS.length} total orders</p>
+          <p className="text-sm text-[#8C8B80]">{0 /* SELLER_ORDERS.length */} total orders</p>
         </div>
       </div>
 

@@ -14,10 +14,10 @@ export function RecentlyViewedPage() {
       <div className="max-w-4xl">
         <div className="flex items-center justify-between mb-6">
           <h2 className="font-bold text-xl text-[#1C1B14]" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Recently Viewed</h2>
-          <div className="text-sm text-[#8C8B80]">{RECENT_PRODUCTS.length} products</div>
+          <div className="text-sm text-[#8C8B80]">{0 /* RECENT_PRODUCTS.length */} products</div>
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-          {RECENT_PRODUCTS.map((p, i) => (
+          {([] as any[]).map /* RECENT_PRODUCTS */((p, i) => (
             <motion.div key={p.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
               <Link href={`/products/${p.id}`} className="block bg-white rounded-2xl border border-black/5 overflow-hidden hover:shadow-md transition-all hover:-translate-y-0.5">
                 <img src={p.img} alt={p.name} className="w-full h-36 object-cover" />
@@ -48,7 +48,7 @@ export function PurchaseHistoryPage() {
         <h2 className="font-bold text-xl text-[#1C1B14] mb-6" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Purchase History</h2>
 
         <div className="space-y-6">
-          {PURCHASE_HISTORY.map((group: any) => (
+          {([] as any[]).map /* PURCHASE_HISTORY */((group: any) => (
             <div key={group.month}>
               <div className="text-xs font-bold text-[#8C8B80] uppercase tracking-wider mb-3">{group.month}</div>
               <div className="space-y-2">
@@ -142,7 +142,7 @@ export function FavouriteSellersPage() {
       <div className="max-w-2xl">
         <h2 className="font-bold text-xl text-[#1C1B14] mb-6" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Favourite Sellers</h2>
         <div className="space-y-3">
-          {FAV_SELLERS.map((seller, i) => (
+          {([] as any[]).map /* FAV_SELLERS */((seller, i) => (
             <motion.div key={seller.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.06 }}
               className="bg-white rounded-2xl border border-black/5 p-4">
               <div className="flex items-center gap-4">
@@ -229,7 +229,7 @@ export function AccountSecurityPage() {
 
 
 export function ActiveSessionsPage() {
-  const [sessions, setSessions] = useState(SESSIONS);
+  const [sessions, setSessions] = useState<any[]>([]) /* SESSIONS */;
   const revoke = (id: string) => setSessions(prev => prev.filter(s => s.id === id ? s.isCurrent : true));
 
   return (
@@ -289,8 +289,8 @@ export function LoginHistoryPage() {
         </div>
 
         <div className="bg-white rounded-2xl border border-black/5 overflow-hidden">
-          {LOGIN_HISTORY.map((log: any, i) => (
-            <div key={log.id} className={`flex items-center justify-between p-4 ${i < LOGIN_HISTORY.length - 1 ? "border-b border-[#F5F4F0]" : ""}`}>
+          {([] as any[]).map /* LOGIN_HISTORY */((log: any, i) => (
+            <div key={log.id} className={`flex items-center justify-between p-4 ${i < 0 /* LOGIN_HISTORY.length */ - 1 ? "border-b border-[#F5F4F0]" : ""}`}>
               <div className="flex items-start gap-3">
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${log.status === "Success" ? "bg-[#F0FDF4]" : "bg-red-50"}`}>
                   {log.status === "Success" ? <Shield size={14} className="text-[#1A9E4E]" /> : <Shield size={14} className="text-red-500" />}
