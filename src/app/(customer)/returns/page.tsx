@@ -6,7 +6,6 @@ import { RotateCcw, Truck, RefreshCw, X, ChevronRight, ChevronDown, Package, Che
 import Link from 'next/link';
 import { formatCurrency } from '@/lib/utils/format-currency';
 import { toast } from 'sonner';
-import { MOCK_RETURNS, type MockReturn } from '@/lib/mock/customer';
 
 const STATUS_BADGES: Record<string, { label: string; bg: string; text: string }> = {
   under_review:     { label: 'Under Review',     bg: '#FEFCE8', text: '#CA8A04' },
@@ -34,17 +33,12 @@ const REFUND_METHODS = [
   'Wallet Credits',
 ];
 
-// Mock delivered orders for return request
-const DELIVERED_ORDERS = [
-  { orderNumber: 'BB-2025-78234', productName: 'Handcrafted Wooden Toys Set', productImage: 'https://images.unsplash.com/photo-1596461404969-9ae70f2830c1?w=300&auto=format&fit=crop', price: 1299, date: '18 Jan 2025' },
-  { orderNumber: 'BB-2025-69145', productName: 'Madhubani Art Painting', productImage: 'https://images.unsplash.com/photo-1582571352032-448f40b9e26c?w=300&auto=format&fit=crop', price: 2400, date: '12 Jan 2025' },
-];
+import { MOCK_RETURNS, DELIVERED_ORDERS, type MockReturn } from '@/lib/mock/customer';
 
 export default function ReturnsPage() {
   const [returns, setReturns] = useState<MockReturn[]>(MOCK_RETURNS);
   const [tab, setTab] = useState<'all' | 'active' | 'completed'>('all');
-  const [showRequestModal, setShowRequestModal] = useState(false);
-  const [selectedOrder, setSelectedOrder] = useState(DELIVERED_ORDERS[0]);
+  const [selectedOrder, setSelectedOrder] = useState<any>(DELIVERED_ORDERS[0] || null);
   const [reason, setReason] = useState(RETURN_REASONS[0]);
   const [refundMethod, setRefundMethod] = useState(REFUND_METHODS[0]);
   const [additionalInfo, setAdditionalInfo] = useState('');
@@ -58,6 +52,10 @@ export default function ReturnsPage() {
 
   const handleSubmitReturn = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!selectedOrder) {
+      toast.error('Please select an order to return.');
+      return;
+    }
     setSubmitting(true);
     setTimeout(() => {
       const newReturn: MockReturn = {
@@ -209,18 +207,24 @@ export default function ReturnsPage() {
                 <div>
                   <label className="font-bold text-[#8C7B6E] uppercase tracking-wider block mb-2">Select Delivered Order</label>
                   <div className="space-y-2">
-                    {DELIVERED_ORDERS.map((order) => (
-                      <button key={order.orderNumber} type="button" onClick={() => setSelectedOrder(order)}
-                        className={`w-full flex items-center gap-3 p-3 rounded-xl border text-left transition-all cursor-pointer ${selectedOrder.orderNumber === order.orderNumber ? 'border-[#FF7A00] bg-[#FFFBF7]' : 'border-[#E8E4DE] hover:border-[#FF7A00]/30'}`}>
-                        <img src={order.productImage} alt={order.productName} className="w-12 h-12 rounded-xl object-cover shrink-0" />
-                        <div className="flex-1 min-w-0">
-                          <p className="font-bold text-[#1A0A00] truncate">{order.productName}</p>
-                          <p className="text-[#8C7B6E]">Order #{order.orderNumber} · {order.date}</p>
-                          <p className="font-black text-[#FF7A00]">{formatCurrency(order.price)}</p>
-                        </div>
-                        {selectedOrder.orderNumber === order.orderNumber && <Check size={16} className="text-[#FF7A00] shrink-0" />}
-                      </button>
-                    ))}
+                    {DELIVERED_ORDERS.length === 0 ? (
+                      <div className="text-center p-4 border border-dashed border-[#E8E4DE] rounded-xl text-sm text-[#8C7B6E]">
+                        You have no delivered orders to return.
+                      </div>
+                    ) : (
+                      DELIVERED_ORDERS.map((order: any) => (
+                        <button key={order.orderNumber} type="button" onClick={() => setSelectedOrder(order)}
+                          className={`w-full flex items-center gap-3 p-3 rounded-xl border text-left transition-all cursor-pointer ${selectedOrder?.orderNumber === order.orderNumber ? 'border-[#FF7A00] bg-[#FFFBF7]' : 'border-[#E8E4DE] hover:border-[#FF7A00]/30'}`}>
+                          <img src={order.productImage} alt={order.productName} className="w-12 h-12 rounded-xl object-cover shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <p className="font-bold text-[#1A0A00] truncate">{order.productName}</p>
+                            <p className="text-[#8C7B6E]">Order #{order.orderNumber} · {order.date}</p>
+                            <p className="font-black text-[#FF7A00]">{formatCurrency(order.price)}</p>
+                          </div>
+                          {selectedOrder?.orderNumber === order.orderNumber && <Check size={16} className="text-[#FF7A00] shrink-0" />}
+                        </button>
+                      ))
+                    )}
                   </div>
                 </div>
 
@@ -251,7 +255,7 @@ export default function ReturnsPage() {
                 </div>
 
                 <div className="bg-[#FFF3E8] rounded-xl p-3 text-[11px] text-[#8C7B6E]">
-                  💡 Refund of <strong className="text-[#FF7A00]">{formatCurrency(selectedOrder.price)}</strong> will be processed within 5–7 business days after item is received.
+                  💡 Refund of <strong className="text-[#FF7A00]">{formatCurrency(selectedOrder?.price || 0)}</strong> will be processed within 5–7 business days after item is received.
                 </div>
 
                 <div className="flex gap-3 pt-1">

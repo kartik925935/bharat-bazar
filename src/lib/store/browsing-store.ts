@@ -41,6 +41,6 @@ export const useBrowsingStore = create<BrowsingState>()(
 
       clearSearchHistory: () => set({ searchHistory: [] }),
     }),
-    { name: 'bb-browsing' }
+    { name: 'bb-browsing-empty' }
   )
 );
