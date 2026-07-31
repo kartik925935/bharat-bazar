@@ -25,7 +25,7 @@ export function FeaturedProducts() {
         <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-10 gap-4">
           <div>
             <h2 className="text-3xl font-bold text-[#1C1B14] mb-2">Handpicked for You</h2>
-            <p className="text-[#8C8B80]">Curated selection from India's finest artisans</p>
+            <p className="text-[#8C8B80]">Curated selection from India&apos;s finest artisans</p>
           </div>
           <Link
             href="/products"

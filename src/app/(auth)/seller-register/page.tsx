@@ -11,6 +11,7 @@ import { Check, ArrowRight, ArrowLeft, Upload, Store, Package, Truck, Star, Lock
 import { toast } from 'sonner';
 import { useAuthStore } from '@/lib/store/auth-store';
 import { RedirectIfAuthed } from '@/components/auth/redirect-if-authed';
+import { registerSeller } from '@/actions/auth/seller-register';
 
 const STEPS = [
   { id: 1, title: 'Basic Info', icon: '👤' },
@@ -122,31 +123,42 @@ export default function SellerRegisterPage() {
     setLoading(true);
     const data = getValues();
     
-    // Create new seller account
-    const result = await signUp({
+    // Use server action with admin client so the seller can log in
+    // immediately (email_confirm: true — no email verification step).
+    const result = await registerSeller({
       fullName: data.fullName,
       email: data.email,
       phone: `+91 ${data.phone}`,
       password: data.password,
-      role: 'seller',
+      shopName: data.shopName,
+      shopDescription: data.shopDescription,
+      category: data.category,
+      city: data.city,
+      state: data.state,
+      experience: data.experience,
+      accountName: data.accountName,
+      bank: data.bank,
+      accountNumber: data.accountNumber,
+      ifsc: data.ifsc,
+      aadhar: data.aadhar,
+      pan: data.pan,
     });
 
     if (result.success) {
-      // Store additional shop details inside local storage under their shop name / id
-      const sellerDetails = {
-        sellerId: result.error || `seller-${Date.now()}`,
-        shopName: data.shopName,
-        category: data.category,
-        experience: data.experience,
-        city: data.city,
-        state: data.state,
-      };
-      localStorage.setItem(`bb-seller-shop-${data.email}`, JSON.stringify(sellerDetails));
-      
-      toast.success('Seller application submitted successfully! 🎉');
-      setStep(5);
+      toast.success('Seller account created! Signing you in... 🎉');
+      // Auto-sign in so the seller lands in the dashboard immediately
+      const { signIn } = useAuthStore.getState();
+      const signInResult = await signIn(data.email, data.password, 'seller');
+      if (signInResult.success) {
+        setStep(5);
+        // Brief pause then redirect
+        setTimeout(() => router.replace('/seller-dashboard'), 1500);
+      } else {
+        // Sign-in failed but account was created — show Step 5 and let them sign in manually
+        setStep(5);
+      }
     } else {
-      toast.error(result.error || 'Registration failed. Email might already exist.');
+      toast.error(result.error || 'Registration failed. Email might already be registered.');
     }
     setLoading(false);
   };

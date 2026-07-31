@@ -188,7 +188,7 @@ export function CustomerSidebar() {
                     icon={item.icon}
                     label={item.label}
                     href={item.href}
-                    badge={(item as any).badge}
+                    badge={(item as { icon: React.ElementType; label: string; href: string; badge?: string }).badge}
                     isActive={pathname === item.href || pathname.startsWith(item.href + '/')}
                     notifCount={unreadCount}
                     ordersCount={activeOrders}

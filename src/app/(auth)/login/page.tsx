@@ -53,6 +53,8 @@ export default function LoginPage() {
       toast.success(`Welcome back, ${activeUser?.name}! 🙏`);
       
       // Determine redirection target based on role
+      if (activeUser?.role === 'admin' || activeUser?.role === 'super_admin') {
+        router.replace('/admin-dashboard');
       if (activeUser?.role === 'admin') {
         router.replace('/super-admin/dashboard');
       } else if (activeUser?.role === 'seller') {
@@ -71,10 +73,13 @@ export default function LoginPage() {
     setLoading(true);
     const result = await signInWithGoogle();
     if (result.success) {
-      toast.success('Welcome back, Google Guest! 🙏');
+      const activeUser = useAuthStore.getState().user;
+      toast.success(`Welcome back, ${activeUser?.name || 'Google Guest'}! 🙏`);
       router.replace('/dashboard');
     } else {
-      toast.error('Google Sign In failed');
+      if (result.error !== 'Google login cancelled') {
+        toast.error(result.error || 'Google Sign In failed');
+      }
       setLoading(false);
     }
   };

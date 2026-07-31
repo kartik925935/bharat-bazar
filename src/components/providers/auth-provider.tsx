@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import { useAuthStore } from '@/lib/store/auth-store';
-import { initializeUserDatabase } from '@/lib/mock/users';
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const initialize = useAuthStore((state) => state.initialize);
@@ -10,8 +9,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const initAuth = async () => {
-      // Seed user database before checking auth state
-      initializeUserDatabase();
       await initialize();
       setInitDone(true);
     };

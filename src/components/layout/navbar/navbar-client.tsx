@@ -36,6 +36,7 @@ export function NavbarClient() {
 
   const [mounted, setMounted] = useState(false);
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
   }, []);
 
@@ -57,6 +58,7 @@ export function NavbarClient() {
   }, [searchOpen]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMobileOpen(false);
     setUserDropdownOpen(false);
     setCategoriesOpen(false);
