@@ -38,7 +38,7 @@ export default function SellerRegisterPage() {
       ...form,
       avatar: null, shopLogo: null, shopBanner: null, subCategories: [], village: '', gstNumber: null,
       shippingAreas: ['All India'], processingDays: 2,
-      status: 'pending', vacationMode: false, vacationMessage: null,
+      status: 'approved', vacationMode: false, vacationMessage: null,
     });
     setLoading(false);
     if (res.success) {

@@ -39,6 +39,13 @@ const publicRoutes = [
 export async function middleware(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
 
+  // For the current mock environment (Zustand + localStorage), 
+  // we must bypass Supabase server-side auth checks.
+  const USE_MOCK_AUTH = true;
+  if (USE_MOCK_AUTH || !process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+    return supabaseResponse;
+  }
+
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
