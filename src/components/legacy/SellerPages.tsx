@@ -6,14 +6,8 @@ import { Plus, Search, Edit2, Trash2, Eye, TrendingUp, TrendingDown, Upload, X, 
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from "recharts";
 import { SellerLayout } from "./SellerSubPages";
 
-// ─── My Products Page ──────────────────────────────────────
-const MOCK_PRODUCTS = [
-  { id: "p1", name: "Bandhani Silk Saree - Royal Blue", category: "Textiles", price: 2499, mrp: 3500, stock: 8, status: "active", sales: 124, rating: 4.9, img: "https://images.unsplash.com/photo-1569909115134-a0426936c879?w=200&auto=format&fit=crop" },
-  { id: "p2", name: "Block Print Cotton Dupatta", category: "Textiles", price: 699, mrp: 999, stock: 42, status: "active", sales: 87, rating: 4.7, img: "https://images.unsplash.com/photo-1558769132-cb1aea458c5e?w=200&auto=format&fit=crop" },
-  { id: "p3", name: "Natural Dye Kurta Set", category: "Clothing", price: 1899, mrp: 2499, stock: 0, status: "out_of_stock", sales: 45, rating: 4.8, img: "https://images.unsplash.com/photo-1594736797933-d0501ba2fe65?w=200&auto=format&fit=crop" },
-  { id: "p4", name: "Indigo Block Print Saree", category: "Textiles", price: 1799, mrp: 2400, stock: 3, status: "low_stock", sales: 62, rating: 4.6, img: "https://images.unsplash.com/photo-1591291621164-2c6367723315?w=200&auto=format&fit=crop" },
-  { id: "p5", name: "Batik Silk Stole", category: "Accessories", price: 899, mrp: 1299, stock: 15, status: "active", sales: 38, rating: 4.7, img: "https://images.unsplash.com/photo-1606107557195-0e29a4b5b4aa?w=200&auto=format&fit=crop" },
-];
+import { MOCK_SELLER_PRODUCTS as MOCK_PRODUCTS } from '@/lib/mock/sellers';
+
 
 const STATUS_STYLE: Record<string, { bg: string; text: string; label: string }> = {
   active: { bg: "#F0FDF4", text: "#1A9E4E", label: "Active" },
@@ -23,7 +17,7 @@ const STATUS_STYLE: Record<string, { bg: string; text: string; label: string }> 
 };
 
 export function SellerProductsPage() {
-  const [products, setProducts] = useState(MOCK_PRODUCTS);
+  const [products, setProducts] = useState<any[]>([]) /* MOCK_PRODUCTS */;
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);

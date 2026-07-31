@@ -14,74 +14,50 @@ export const TIER_ICONS: Record<SellerTier, string> = {
   platinum: '💎',
 };
 
-export const mockSellers: Seller[] = [
-  {
-    id: 'sel-001',
-    sellerId: 'SEL-IND-001234',
-    username: 'meena-handicrafts',
-    displayName: 'Meena Handicrafts',
-    legalName: 'Meena Handicrafts Pvt Ltd',
-    type: 'artisan',
-    tier: 'platinum',
-    kycStatus: 'approved',
-    rating: 4.9,
-    totalSales: 12345,
-    totalProducts: 234,
-    location: 'Jaipur',
-    state: 'Rajasthan',
-    joinedAt: '2018',
-    avatar: 'https://ui-avatars.com/api/?name=Meena+Devi&bg=FF7A00&color=fff',
-    banner: 'https://images.unsplash.com/photo-1569909115134-a0426936c879?w=600&auto=format&fit=crop',
-    tagline: 'Authentic Rajasthani Handloom Since 2018',
-    quote: "Every thread I weave carries the blessing of my mother's hands.",
-    commissionRate: 5.0,
-    isVerified: true,
-    badges: ['Verified Artisan', 'Top Seller 2024', 'GI Certified'],
-  },
-  {
-    id: 'sel-004',
-    sellerId: 'SEL-IND-001235',
-    username: 'bihar-art-collective',
-    displayName: 'Bihar Art Collective',
-    legalName: 'Mithila Kala Welfare Society',
-    type: 'ngo',
-    tier: 'gold',
-    kycStatus: 'approved',
-    rating: 4.7,
-    totalSales: 5678,
-    totalProducts: 89,
-    location: 'Madhubani',
-    state: 'Bihar',
-    joinedAt: '2020',
-    avatar: 'https://ui-avatars.com/api/?name=Bihar+Art&bg=1A9E4E&color=fff',
-    banner: 'https://images.unsplash.com/photo-1590180021913-f5e9eb51644c?w=600&auto=format&fit=crop',
-    tagline: 'Preserving Madhubani Art for Future Generations',
-    quote: 'Art is our language, crafts are our heritage.',
-    commissionRate: 3.5,
-    isVerified: true,
-    badges: ['NGO Partner', 'Women Empowerment'],
-  },
-  {
-    id: 'sel-003',
-    sellerId: 'SEL-IND-001236',
-    username: 'kashmir-harvest',
-    displayName: 'Kashmir Harvest Co.',
-    legalName: 'Kashmir Saffron Producers Co-op',
-    type: 'village_producer',
-    tier: 'platinum',
-    kycStatus: 'approved',
-    rating: 4.9,
-    totalSales: 9012,
-    totalProducts: 145,
-    location: 'Srinagar',
-    state: 'Jammu & Kashmir',
-    joinedAt: '2019',
-    avatar: 'https://ui-avatars.com/api/?name=Kashmir+Harvest&bg=3333FF&color=fff',
-    banner: 'https://images.unsplash.com/photo-1663325265966-0d17de3e85c5?w=600&auto=format&fit=crop',
-    tagline: 'Pure Kashmir, Direct to Your Doorstep',
-    quote: 'Our fields are our pride, our produce is our promise.',
-    commissionRate: 4.0,
-    isVerified: true,
-    badges: ['100% Organic', 'GI Tagged Saffron'],
-  },
-];
+export const TIER_BADGE: Record<string, { bg: string; text: string; icon: string }> = {
+  Platinum: { bg: '#F3E8FF', text: '#5B21B6', icon: '💎' },
+  Gold: { bg: '#FEF3C7', text: '#92400E', icon: '🥇' },
+  Silver: { bg: '#F1F5F9', text: '#475569', icon: '🥈' },
+  Bronze: { bg: '#FEF0E6', text: '#9A3412', icon: '🥉' },
+};
+
+export const tierColors: Record<string, string> = {
+  Platinum: '#BF953F',
+  Gold: '#FFB800',
+  Silver: '#9E9E9E',
+  Bronze: '#CD7F32',
+};
+
+export const tierIcons: Record<string, string> = {
+  Platinum: '💎',
+  Gold: '🥇',
+  Silver: '🥈',
+  Bronze: '🥉',
+};
+
+export const mockSellers: Seller[] = ([] as any[]);
+
+export const sellers = ([] as any[]);
+
+export const SELLERS = ([] as any[]);
+
+export const ALL_SELLERS = ([] as any[]);
+
+export const MOCK_SELLER_PRODUCTS = ([] as any[]);
+
+export const MOCK_SELLER_EARNINGS = ([] as any[]);
+
+export const MOCK_SELLER_ORDERS_LIST = ([] as any[]);
+
+export const MOCK_SELLER_COUPONS_LIST = ([] as any[]);
+
+export const MOCK_SELLER_RETURNS_LIST = ([] as any[]);
+
+export const MOCK_SELLER_REVIEWS_LIST = ([] as any[]);
+
+export const INVENTORY = ([] as any[]);
+
+export const SELLER_ORDERS = ([] as any[]);
+
+export const SELLER_NOTIFS = ([] as any[]);
+

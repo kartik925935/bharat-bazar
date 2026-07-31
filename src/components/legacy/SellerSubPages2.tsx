@@ -12,16 +12,17 @@ import {
 } from "lucide-react";
 import { SellerLayout } from './SellerSubPages';
 
-const INVENTORY = [
-  { id: "p1", name: "Bandhani Silk Saree - Royal Blue", sku: "MH-SAR-001", stock: 8, lowAlert: 5, img: "https://images.unsplash.com/photo-1569909115134-a0426936c879?w=80&fit=crop", status: "in_stock" },
-  { id: "p2", name: "Block Print Cotton Dupatta", sku: "MH-DUP-002", stock: 42, lowAlert: 10, img: "https://images.unsplash.com/photo-1558769132-cb1aea458c5e?w=80&fit=crop", status: "in_stock" },
-  { id: "p3", name: "Natural Dye Kurta Set", sku: "MH-KUR-003", stock: 0, lowAlert: 5, img: "https://images.unsplash.com/photo-1594736797933-d0501ba2fe65?w=80&fit=crop", status: "out_of_stock" },
-  { id: "p4", name: "Indigo Block Print Saree", sku: "MH-SAR-004", stock: 3, lowAlert: 5, img: "https://images.unsplash.com/photo-1591291621164-2c6367723315?w=80&fit=crop", status: "low_stock" },
-  { id: "p5", name: "Batik Silk Stole", sku: "MH-STL-005", stock: 15, lowAlert: 5, img: "https://images.unsplash.com/photo-1606107557195-0e29a4b5b4aa?w=80&fit=crop", status: "in_stock" },
-];
+import {
+  INVENTORY,
+  MOCK_SELLER_RETURNS_LIST as RETURN_REQUESTS,
+  MOCK_SELLER_REVIEWS_LIST as SELLER_REVIEWS,
+  MOCK_SELLER_COUPONS_LIST as SELLER_COUPONS,
+  MOCK_SELLER_EARNINGS as PERF_DATA
+} from '@/lib/mock/sellers';
+
 
 export function SellerInventoryPage() {
-  const [inventory, setInventory] = useState(INVENTORY);
+  const [inventory, setInventory] = useState<any[]>([]) /* INVENTORY */;
   const [editing, setEditing] = useState<string | null>(null);
   const [editQty, setEditQty] = useState("");
 
@@ -114,15 +115,10 @@ export function SellerInventoryPage() {
   );
 }
 
-// ─── Seller Returns Page ───────────────────────────────────
-const RETURN_REQUESTS = [
-  { id: "RET-001", orderId: "ORD-2024-001220", customer: "Pooja S.", product: "Bandhani Silk Saree", reason: "Wrong size/fit", amount: 2499, status: "PENDING", date: "Nov 29, 2024", img: "https://images.unsplash.com/photo-1569909115134-a0426936c879?w=80&fit=crop" },
-  { id: "RET-002", orderId: "ORD-2024-001210", customer: "Rahul K.", product: "Block Print Dupatta", reason: "Quality issue", amount: 699, status: "APPROVED", date: "Nov 22, 2024", img: "https://images.unsplash.com/photo-1558769132-cb1aea458c5e?w=80&fit=crop" },
-  { id: "RET-003", orderId: "ORD-2024-001198", customer: "Ananya M.", product: "Batik Silk Stole", reason: "Not as described", amount: 899, status: "REJECTED", date: "Nov 15, 2024", img: "https://images.unsplash.com/photo-1606107557195-0e29a4b5b4aa?w=80&fit=crop" },
-];
+
 
 export function SellerReturnsPage() {
-  const [requests, setRequests] = useState(RETURN_REQUESTS);
+  const [requests, setRequests] = useState<any[]>([]) /* RETURN_REQUESTS */;
 
   const update = (id: string, status: string) => setRequests(prev => prev.map(r => r.id === id ? { ...r, status } : r));
 
@@ -137,7 +133,7 @@ export function SellerReturnsPage() {
         {requests.map((req, i) => (
           <motion.div key={req.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }} className="bg-white rounded-2xl border border-black/5 p-5">
             <div className="flex gap-4 items-start">
-              <img src={req.img} alt="" className="w-16 h-16 rounded-xl object-cover shrink-0" />
+              <div className="w-16 h-16 rounded-xl bg-gray-100 flex items-center justify-center text-2xl shrink-0">📦</div>
               <div className="flex-1 min-w-0">
                 <div className="flex flex-wrap items-start justify-between gap-2 mb-1">
                   <div>
@@ -150,7 +146,7 @@ export function SellerReturnsPage() {
                   </span>
                 </div>
                 <div className="font-semibold text-[#1C1B14] text-sm mb-0.5" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>{req.product}</div>
-                <div className="text-xs text-[#8C8B80] mb-1">Customer: {req.customer} · {req.date}</div>
+                <div className="text-xs text-[#8C8B80] mb-1">Customer: {req.customer}</div>
                 <div className="text-xs text-[#555449]">Reason: <strong>{req.reason}</strong></div>
                 <div className="text-sm font-bold text-[#1C1B14] mt-1">₹{req.amount.toLocaleString()}</div>
               </div>
@@ -168,13 +164,7 @@ export function SellerReturnsPage() {
   );
 }
 
-// ─── Seller Reviews Page ───────────────────────────────────
-const SELLER_REVIEWS = [
-  { id: "r1", customer: "Priya S.", product: "Bandhani Silk Saree", rating: 5, text: "Absolutely stunning! The craftsmanship is incredible.", date: "Dec 1, 2024", replied: false, img: "https://images.unsplash.com/photo-1569909115134-a0426936c879?w=60&fit=crop" },
-  { id: "r2", customer: "Amit K.", product: "Block Print Dupatta", rating: 4, text: "Great quality fabric. Colors are vibrant and true to the photos.", date: "Nov 28, 2024", replied: true, reply: "Thank you Amit ji! Glad you loved it. 🙏", img: "https://images.unsplash.com/photo-1558769132-cb1aea458c5e?w=60&fit=crop" },
-  { id: "r3", customer: "Riya P.", product: "Natural Dye Kurta Set", rating: 5, text: "Perfect fit and the natural dyes smell wonderful. Very unique piece.", date: "Nov 25, 2024", replied: false, img: "https://images.unsplash.com/photo-1594736797933-d0501ba2fe65?w=60&fit=crop" },
-  { id: "r4", customer: "Suresh M.", product: "Indigo Block Print Saree", rating: 3, text: "Nice product but took longer than expected to ship.", date: "Nov 20, 2024", replied: false, img: "https://images.unsplash.com/photo-1591291621164-2c6367723315?w=60&fit=crop" },
-];
+
 
 export function SellerReviewsPage() {
   const [reviews, setReviews] = useState(SELLER_REVIEWS.map(r => ({ ...r, replyText: "" })));
@@ -224,24 +214,25 @@ export function SellerReviewsPage() {
         {reviews.map((review, i) => (
           <motion.div key={review.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }} className="bg-white rounded-2xl border border-black/5 p-5">
             <div className="flex gap-3 mb-3">
-              <img src={review.img} alt="" className="w-10 h-10 rounded-xl object-cover shrink-0" />
+              <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center text-[#FF7A00] shrink-0 font-bold">
+                {review.customer.charAt(0)}
+              </div>
               <div className="flex-1">
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="font-semibold text-sm text-[#1C1B14]">{review.customer}</span>
                   <span className="text-xs text-[#8C8B80]">on <em>{review.product}</em></span>
-                  <span className="text-xs text-[#B0AFA5] ml-auto">{review.date}</span>
                 </div>
                 <div className="flex gap-0.5 mt-0.5">
                   {Array.from({ length: 5 }, (_, i) => <Star key={i} size={12} className={i < review.rating ? "fill-amber-400 text-amber-400" : "text-[#D4D3CB]"} />)}
                 </div>
               </div>
             </div>
-            <p className="text-sm text-[#555449] leading-relaxed mb-3">{review.text}</p>
+            <p className="text-sm text-[#555449] leading-relaxed mb-3">{review.comment}</p>
 
-            {review.replied && review.reply && (
+            {review.replied && (
               <div className="ml-3 pl-3 border-l-2 border-[#FF7A00]/30 bg-[#FFF8F0] rounded-r-xl p-3 text-sm text-[#555449]">
                 <span className="font-semibold text-[#FF7A00] text-xs block mb-0.5">Your Reply:</span>
-                {review.reply}
+                Thank you for your feedback! We're glad you liked the product.
               </div>
             )}
 
@@ -266,19 +257,14 @@ export function SellerReviewsPage() {
   );
 }
 
-// ─── Seller Coupons & Offers Page ──────────────────────────
-const SELLER_COUPONS = [
-  { id: "c1", code: "MEENA10", type: "percentage", value: 10, minOrder: 500, uses: 34, maxUses: 100, expiry: "Dec 31, 2024", active: true },
-  { id: "c2", code: "BANDHANI50", type: "flat", value: 50, minOrder: 300, uses: 12, maxUses: 50, expiry: "Jan 15, 2025", active: true },
-  { id: "c3", code: "WELCOME15", type: "percentage", value: 15, minOrder: 1000, uses: 50, maxUses: 50, expiry: "Nov 30, 2024", active: false },
-];
+
 
 export function SellerCouponsPage() {
-  const [coupons, setCoupons] = useState(SELLER_COUPONS);
+  const [coupons, setCoupons] = useState<any[]>([]) /* SELLER_COUPONS */;
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ code: "", type: "percentage", value: "", minOrder: "", maxUses: "", expiry: "" });
 
-  const toggleActive = (id: string) => setCoupons(prev => prev.map(c => c.id === id ? { ...c, active: !c.active } : c));
+  const toggleActive = (code: string) => setCoupons(prev => prev.map(c => c.code === code ? { ...c, active: !c.active } : c));
 
   return (
     <SellerLayout title="Coupons & Offers">
@@ -319,7 +305,7 @@ export function SellerCouponsPage() {
                 </div>
               </div>
               <div className="flex gap-3 mt-4">
-                <button onClick={() => { setCoupons(p => [...p, { id: Date.now().toString(), code: form.code.toUpperCase(), type: form.type, value: Number(form.value), minOrder: Number(form.minOrder), uses: 0, maxUses: Number(form.maxUses), expiry: form.expiry, active: true }]); setShowForm(false); setForm({ code: "", type: "percentage", value: "", minOrder: "", maxUses: "", expiry: "" }); }}
+                <button onClick={() => { setCoupons(p => [...p, { code: form.code.toUpperCase(), type: form.type, value: Number(form.value), minOrder: Number(form.minOrder), uses: 0, maxUses: Number(form.maxUses), expiry: form.expiry, active: true }]); setShowForm(false); setForm({ code: "", type: "percentage", value: "", minOrder: "", maxUses: "", expiry: "" }); }}
                   className="px-6 py-2 rounded-xl text-sm font-semibold text-white" style={{ background: "linear-gradient(135deg, #FF7A00, #FF4500)" }}>Create Coupon</button>
                 <button onClick={() => setShowForm(false)} className="px-5 py-2 rounded-xl text-sm border border-[#D4D3CB] text-[#555449]">Cancel</button>
               </div>
@@ -330,7 +316,7 @@ export function SellerCouponsPage() {
 
       <div className="space-y-3">
         {coupons.map((coupon, i) => (
-          <motion.div key={coupon.id} layout initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}
+          <motion.div key={coupon.code} layout initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}
             className={`bg-white rounded-2xl border p-5 ${coupon.active ? "border-[#FFD4A8]" : "border-black/5 opacity-70"}`}>
             <div className="flex flex-wrap items-center gap-4">
               <div className="flex-1 min-w-0">
@@ -352,7 +338,7 @@ export function SellerCouponsPage() {
                   <div className="h-full rounded-full" style={{ width: `${(coupon.uses / coupon.maxUses) * 100}%`, background: "#FF7A00" }} />
                 </div>
               </div>
-              <button onClick={() => toggleActive(coupon.id)}
+              <button onClick={() => toggleActive(coupon.code)}
                 className={`relative w-11 h-6 rounded-full transition-colors shrink-0 ${coupon.active ? "bg-[#1A9E4E]" : "bg-[#D4D3CB]"}`}>
                 <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${coupon.active ? "left-5" : "left-0.5"}`} />
               </button>
@@ -364,12 +350,4 @@ export function SellerCouponsPage() {
   );
 }
 
-// ─── Seller Performance Page ───────────────────────────────
-const PERF_DATA = [
-  { month: "Jul", views: 420, clicks: 134, conversions: 12 },
-  { month: "Aug", views: 580, clicks: 198, conversions: 18 },
-  { month: "Sep", views: 510, clicks: 162, conversions: 15 },
-  { month: "Oct", views: 720, clicks: 243, conversions: 24 },
-  { month: "Nov", views: 950, clicks: 342, conversions: 38 },
-  { month: "Dec", views: 1100, clicks: 410, conversions: 45 },
-];
+

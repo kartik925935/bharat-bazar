@@ -7,11 +7,12 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   LayoutDashboard, Package, Heart, User, MapPin, Wallet,
   Star, RotateCcw, Bell, Settings, HelpCircle, LogOut,
-  ChevronRight, Home,
+  ChevronRight, Home, BookOpen,
 } from 'lucide-react';
 import { useAuthStore } from '@/lib/store/auth-store';
 import { useNotificationStore } from '@/lib/store/notification-store';
 import { mockOrders } from '@/lib/mock/orders';
+import { MOCK_USER_LOYALTY } from '@/lib/mock/customer';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils/cn';
 import { Navbar } from '@/components/layout/navbar/navbar';
@@ -29,9 +30,10 @@ const NAV_GROUPS = [
   {
     label: 'Shopping',
     items: [
-      { icon: MapPin,  label: 'Addresses',      href: '/addresses' },
-      { icon: Wallet,  label: 'Wallet & Credits', href: '/wallet' },
-      { icon: Star,    label: 'My Reviews',     href: '/my-reviews' },
+      { icon: MapPin,     label: 'Addresses',       href: '/addresses' },
+      { icon: Wallet,     label: 'Wallet & Credits', href: '/wallet' },
+      { icon: Star,       label: 'My Reviews',      href: '/my-reviews' },
+      { icon: BookOpen,   label: 'Blog & Stories',  href: '/blog' },
     ],
   },
   {
@@ -84,7 +86,9 @@ function ProfileCompletion({ user }: { user: { name: string; email: string; phon
             </p>
             <p className="text-[11px] text-[#8C7B6E] truncate">{user.email}</p>
             <div className="flex items-center gap-1 mt-0.5">
-              <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded-full">🥇 Gold Member</span>
+              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: MOCK_USER_LOYALTY.tier === 'Bronze' ? '#FEF3C7' : MOCK_USER_LOYALTY.tier === 'Silver' ? '#F3F4F6' : MOCK_USER_LOYALTY.tier === 'Gold' ? '#FFF3E8' : '#EDE9FE', color: MOCK_USER_LOYALTY.tier === 'Bronze' ? '#92400E' : MOCK_USER_LOYALTY.tier === 'Silver' ? '#374151' : MOCK_USER_LOYALTY.tier === 'Gold' ? '#FF7A00' : '#7C3AED' }}>
+                {MOCK_USER_LOYALTY.tier === 'Bronze' ? '🥉' : MOCK_USER_LOYALTY.tier === 'Silver' ? '🥈' : MOCK_USER_LOYALTY.tier === 'Gold' ? '🥇' : '💎'} {MOCK_USER_LOYALTY.tier} Member
+              </span>
             </div>
           </div>
         </div>

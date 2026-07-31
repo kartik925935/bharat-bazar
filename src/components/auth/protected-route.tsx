@@ -21,13 +21,15 @@ export function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) 
 
   useEffect(() => {
     if (shouldRedirectToLogin) {
-      const targetLogin = requiredRole === 'seller' ? '/seller-login' : '/login';
+      let targetLogin = '/login';
+      if (requiredRole === 'seller') targetLogin = '/seller-login';
+      if (requiredRole === 'admin') targetLogin = '/super-admin-login';
       router.replace(`${targetLogin}?returnUrl=${encodeURIComponent(pathname)}`);
     } else if (shouldRedirectRole) {
       if (user!.role === 'seller') {
         router.replace('/seller-dashboard');
       } else if (user!.role === 'admin') {
-        router.replace('/admin-dashboard');
+        router.replace('/super-admin/dashboard');
       } else {
         router.replace('/dashboard');
       }

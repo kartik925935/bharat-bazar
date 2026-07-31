@@ -5,6 +5,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { MapPin, Plus, Check, Trash2, Edit3, Home, Briefcase, Building, X, Search } from 'lucide-react';
 import { toast } from 'sonner';
 
+import { INITIAL_ADDRESSES } from '@/lib/mock/customer';
+
 interface Address {
   id: string;
   name: string;
@@ -17,33 +19,6 @@ interface Address {
   type: 'home' | 'work' | 'other';
   isDefault: boolean;
 }
-
-const INITIAL_ADDRESSES: Address[] = [
-  {
-    id: 'addr-1',
-    name: 'Priya Sharma',
-    phone: '+91 98765 43210',
-    line1: '123 MG Road, Koramangala',
-    line2: 'Near Forum Mall',
-    city: 'Bangalore',
-    state: 'Karnataka',
-    pincode: '560034',
-    type: 'home',
-    isDefault: true,
-  },
-  {
-    id: 'addr-2',
-    name: 'Priya Sharma',
-    phone: '+91 98765 43210',
-    line1: 'Tech Park, Whitefield',
-    line2: 'Block B, Floor 4',
-    city: 'Bangalore',
-    state: 'Karnataka',
-    pincode: '560066',
-    type: 'work',
-    isDefault: false,
-  },
-];
 
 export default function AddressesPage() {
   const [addresses, setAddresses] = useState<Address[]>(INITIAL_ADDRESSES);

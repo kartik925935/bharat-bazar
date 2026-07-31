@@ -230,15 +230,8 @@ export function SellerShopPage() {
   );
 }
 
-// ─── Seller Orders Page ────────────────────────────────────
-const SELLER_ORDERS = [
-  { id: "ORD-2024-001240", customer: "Priya S.", product: "Bandhani Silk Saree", qty: 1, amount: 2499, status: "NEW", date: "Dec 1, 2024", img: "https://images.unsplash.com/photo-1569909115134-a0426936c879?w=80&fit=crop" },
-  { id: "ORD-2024-001239", customer: "Amit K.", product: "Block Print Dupatta", qty: 2, amount: 1398, status: "PROCESSING", date: "Nov 30, 2024", img: "https://images.unsplash.com/photo-1558769132-cb1aea458c5e?w=80&fit=crop" },
-  { id: "ORD-2024-001238", customer: "Riya P.", product: "Natural Dye Kurta Set", qty: 1, amount: 1899, status: "SHIPPED", date: "Nov 29, 2024", img: "https://images.unsplash.com/photo-1594736797933-d0501ba2fe65?w=80&fit=crop" },
-  { id: "ORD-2024-001235", customer: "Suresh M.", product: "Indigo Block Print Saree", qty: 1, amount: 1799, status: "DELIVERED", date: "Nov 25, 2024", img: "https://images.unsplash.com/photo-1591291621164-2c6367723315?w=80&fit=crop" },
-  { id: "ORD-2024-001234", customer: "Kavita R.", product: "Batik Silk Stole", qty: 3, amount: 2697, status: "DELIVERED", date: "Nov 22, 2024", img: "https://images.unsplash.com/photo-1606107557195-0e29a4b5b4aa?w=80&fit=crop" },
-  { id: "ORD-2024-001230", customer: "Meena D.", product: "Bandhani Silk Saree", qty: 1, amount: 2499, status: "CANCELLED", date: "Nov 18, 2024", img: "https://images.unsplash.com/photo-1569909115134-a0426936c879?w=80&fit=crop" },
-];
+import { SELLER_ORDERS, INVENTORY } from "@/lib/mock/sellers";
+
 
 const ORDER_STATUS: Record<string, { bg: string; text: string; label: string; icon: React.ElementType }> = {
   NEW: { bg: "#EFF6FF", text: "#2563EB", label: "New", icon: Clock },
@@ -261,7 +254,7 @@ export function SellerOrdersPage() {
       <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <div>
           <h1 className="font-bold text-xl text-[#1C1B14]" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Orders</h1>
-          <p className="text-sm text-[#8C8B80]">{SELLER_ORDERS.length} total orders</p>
+          <p className="text-sm text-[#8C8B80]">{0 /* SELLER_ORDERS.length */} total orders</p>
         </div>
       </div>
 
@@ -330,11 +323,4 @@ export function SellerOrdersPage() {
   );
 }
 
-// ─── Inventory Page ────────────────────────────────────────
-const INVENTORY = [
-  { id: "p1", name: "Bandhani Silk Saree - Royal Blue", sku: "MH-SAR-001", stock: 8, lowAlert: 5, img: "https://images.unsplash.com/photo-1569909115134-a0426936c879?w=80&fit=crop", status: "in_stock" },
-  { id: "p2", name: "Block Print Cotton Dupatta", sku: "MH-DUP-002", stock: 42, lowAlert: 10, img: "https://images.unsplash.com/photo-1558769132-cb1aea458c5e?w=80&fit=crop", status: "in_stock" },
-  { id: "p3", name: "Natural Dye Kurta Set", sku: "MH-KUR-003", stock: 0, lowAlert: 5, img: "https://images.unsplash.com/photo-1594736797933-d0501ba2fe65?w=80&fit=crop", status: "out_of_stock" },
-  { id: "p4", name: "Indigo Block Print Saree", sku: "MH-SAR-004", stock: 3, lowAlert: 5, img: "https://images.unsplash.com/photo-1591291621164-2c6367723315?w=80&fit=crop", status: "low_stock" },
-  { id: "p5", name: "Batik Silk Stole", sku: "MH-STL-005", stock: 15, lowAlert: 5, img: "https://images.unsplash.com/photo-1606107557195-0e29a4b5b4aa?w=80&fit=crop", status: "in_stock" },
-];
+
