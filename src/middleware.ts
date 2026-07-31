@@ -1,19 +1,43 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
-// Define which routes need which roles
-const protectedRoutes = {
-  '/admin': ['super admin', 'admin'],
-  '/seller': ['super admin', 'admin', 'seller'],
-  '/delivery': ['super admin', 'admin', 'delivery partner'],
-  '/profile': ['super admin', 'admin', 'seller', 'delivery partner', 'user'],
-  '/orders': ['super admin', 'admin', 'seller', 'user'], // User can view own orders, seller can manage orders
+// Routes that require authentication and a specific role
+const protectedRoutes: Record<string, string[]> = {
+  '/admin-dashboard': ['super_admin', 'admin'],
+  '/admin': ['super_admin', 'admin'],
+  '/seller-dashboard': ['seller'],
+  '/seller-shop': ['seller'],
+  '/seller-products': ['seller'],
+  '/seller-orders': ['seller'],
+  '/seller-inventory': ['seller'],
+  '/seller-returns': ['seller'],
+  '/seller-reviews': ['seller'],
+  '/seller-coupons': ['seller'],
+  '/seller-performance': ['seller'],
+  '/seller-earnings': ['seller'],
+  '/seller-notifications': ['seller'],
+  '/seller-settings': ['seller'],
+  '/dashboard': ['customer', 'seller', 'admin', 'super_admin'],
 }
 
+// Routes that are always public (no auth required)
+const publicRoutes = [
+  '/seller-register',
+  '/seller-login',
+  '/login',
+  '/register',
+  '/forgot-password',
+  '/reset-password',
+  '/verify-email',
+  '/email-verified',
+  '/auth',
+  '/account-suspended',
+  '/session-expired',
+  '/',
+]
+
 export async function middleware(request: NextRequest) {
-  let supabaseResponse = NextResponse.next({
-    request,
-  })
+  let supabaseResponse = NextResponse.next({ request })
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -25,9 +49,7 @@ export async function middleware(request: NextRequest) {
         },
         setAll(cookiesToSet) {
           cookiesToSet.forEach(({ name, value, options }) => request.cookies.set(name, value))
-          supabaseResponse = NextResponse.next({
-            request,
-          })
+          supabaseResponse = NextResponse.next({ request })
           cookiesToSet.forEach(({ name, value, options }) =>
             supabaseResponse.cookies.set(name, value, options)
           )
@@ -36,16 +58,23 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  // IMPORTANT: DO NOT use getSession() in middleware!
-  // Always use getUser() to validate the token securely on the server.
+  // IMPORTANT: Always use getUser() not getSession() in middleware
   const { data: { user }, error } = await supabase.auth.getUser()
-  
   const pathname = request.nextUrl.pathname
 
-  // Determine if the current route is protected based on prefixes
+  // Check if this is a public route
+  const isPublicRoute = publicRoutes.some(
+    route => pathname === route || pathname.startsWith(route + '/')
+  )
+
+  if (isPublicRoute) {
+    return supabaseResponse
+  }
+
+  // Find matching protected route
   let requiredRoles: string[] | null = null
   for (const [route, roles] of Object.entries(protectedRoutes)) {
-    if (pathname.startsWith(route)) {
+    if (pathname === route || pathname.startsWith(route + '/')) {
       requiredRoles = roles
       break
     }
@@ -53,29 +82,26 @@ export async function middleware(request: NextRequest) {
 
   if (requiredRoles) {
     if (!user || error) {
-      // User is not authenticated, redirect to login
+      // Not authenticated — redirect to appropriate login page
       const url = request.nextUrl.clone()
-      url.pathname = '/login'
-      url.searchParams.set('redirect', pathname)
+      url.pathname = pathname.startsWith('/seller') ? '/seller-login' : '/login'
+      url.searchParams.set('returnUrl', pathname)
       return NextResponse.redirect(url)
     }
 
-    // Role checking
-    const userRole = user.user_metadata?.role || 'user'
-    
-    if (!requiredRoles.includes(userRole)) {
-      // User is authenticated but lacks required role
+    // Check role — stored in user_metadata from signup
+    const userRole: string = user.user_metadata?.role || 'customer'
+
+    const hasRole =
+      requiredRoles.includes(userRole) ||
+      // super_admin can access all admin routes
+      (userRole === 'super_admin' && requiredRoles.includes('admin'))
+
+    if (!hasRole) {
       const url = request.nextUrl.clone()
-      url.pathname = '/unauthorized' // Or redirect to home
+      url.pathname = '/403'
       return NextResponse.redirect(url)
     }
-  }
-
-  // Example: Prevent logged in users from accessing auth pages
-  if (user && (pathname === '/login' || pathname === '/signup')) {
-    const url = request.nextUrl.clone()
-    url.pathname = '/'
-    return NextResponse.redirect(url)
   }
 
   return supabaseResponse
@@ -83,13 +109,6 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * Feel free to modify this pattern to include more paths.
-     */
     '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }

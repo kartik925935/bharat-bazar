@@ -10,6 +10,8 @@ import {
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { SellerLayout } from "./SellerSubPages";
 import { Skeleton } from "@/components/ui/skeleton";
+import { createClient } from "@/lib/supabase/client";
+import { useAuthStore } from "@/lib/store/auth-store";
 
 const sidebarLinks = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/seller-dashboard" },
@@ -62,8 +64,16 @@ const initialOrders = [
 ];
 
 export function SellerDashboard() {
-  const [productsList, setProductsList] = useState(initialProducts);
-  const [ordersList, setOrdersList] = useState(initialOrders);
+  const { user } = useAuthStore();
+  const [stats, setStats] = useState({
+    totalRevenue: 0,
+    ordersCount: 0,
+    productsCount: 0,
+    shopRating: 5.0,
+    reviewsCount: 0
+  });
+  const [productsList, setProductsList] = useState<any[]>([]);
+  const [ordersList, setOrdersList] = useState<any[]>([]);
   const [searchProd, setSearchProd] = useState("");
   const [editingProduct, setEditingProduct] = useState<any>(null);
   const [showAddProductModal, setShowAddProductModal] = useState(false);
@@ -71,9 +81,75 @@ export function SellerDashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const timer = setTimeout(() => setLoading(false), 750);
-    return () => clearTimeout(timer);
-  }, []);
+    async function loadDashboardData() {
+      if (!user) return;
+      try {
+        const supabase = createClient();
+        const sellerId = user.seller?.id;
+        if (!sellerId) {
+          setLoading(false);
+          return;
+        }
+
+        // 1. Fetch products count and list
+        const { data: prods } = await supabase
+          .from('products')
+          .select('*')
+          .eq('seller_id', sellerId);
+
+        const prodList = prods || [];
+        setProductsList(prodList);
+
+        // 2. Fetch order items for this seller to calculate revenue and count
+        const { data: items } = await supabase
+          .from('order_items')
+          .select('*, orders(*)')
+          .eq('seller_id', sellerId);
+
+        const itemList = items || [];
+        
+        // Compute unique orders and revenue
+        const uniqueOrderIds = new Set(itemList.map(it => it.order_id));
+        const totalRev = itemList.reduce((sum, item) => sum + Number(item.subtotal || 0), 0);
+
+        // Format orders for the table
+        const formattedOrders = Array.from(uniqueOrderIds).slice(0, 5).map(orderId => {
+          const item = itemList.find(it => it.order_id === orderId);
+          const order = item?.orders;
+          return {
+            id: order?.order_number || `ORD-${orderId.toString().substring(0, 6).toUpperCase()}`,
+            customer: order?.shipping_address?.full_name || 'Customer',
+            product: item?.product_name || 'Handicraft Item',
+            amount: itemList.filter(it => it.order_id === orderId).reduce((s, it) => s + Number(it.subtotal || 0), 0),
+            status: order?.status || 'PROCESSING',
+            date: new Date(order?.created_at || Date.now()).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+          };
+        });
+        setOrdersList(formattedOrders);
+
+        // 3. Fetch seller performance rating
+        const { data: perf } = await supabase
+          .from('seller_performance')
+          .select('*')
+          .eq('seller_id', sellerId)
+          .maybeSingle();
+
+        setStats({
+          totalRevenue: totalRev,
+          ordersCount: uniqueOrderIds.size,
+          productsCount: prodList.length,
+          shopRating: perf ? Number(perf.avg_rating) : 5.0,
+          reviewsCount: perf ? 12 : 0
+        });
+
+      } catch (err) {
+        console.error('Error loading seller dashboard data:', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadDashboardData();
+  }, [user]);
 
   const [coupons, setCoupons] = useState([
     { code: 'CRAFT20', type: 'percent', value: 20, minOrder: 500, uses: 47, maxUses: 100, active: true, expiry: '31 Aug 2026' },
@@ -144,15 +220,15 @@ export function SellerDashboard() {
           {/* Overview Stats */}
           <div className="mb-8">
             <h1 className="text-2xl font-bold text-[#1C1B14] mb-2" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Seller Dashboard 🏪</h1>
-            <p className="text-xs text-[#8C8B80]">Welcome back, Meena! Here is your shop performance summary.</p>
+            <p className="text-xs text-[#8C8B80]">Welcome back, {user?.name || 'Seller'}! Here is your shop performance summary.</p>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
             {[
-              { label: "Total Revenue", val: "₹1,42,890", change: "+18.4%", icon: DollarSign, color: "#FF7A00" },
-              { label: "Orders Fulfilled", val: "538", change: "+12.1%", icon: Package, color: "#1A9E4E" },
-              { label: "Active Products", val: "42", change: "+4 new", icon: ShoppingBag, color: "#2563EB" },
-              { label: "Shop Rating", val: "4.9 ★", change: "1,280 reviews", icon: Star, color: "#D97706" },
+              { label: "Total Revenue", val: `₹${stats.totalRevenue.toLocaleString()}`, change: "+0%", icon: DollarSign, color: "#FF7A00" },
+              { label: "Orders Fulfilled", val: `${stats.ordersCount}`, change: "+0%", icon: Package, color: "#1A9E4E" },
+              { label: "Active Products", val: `${stats.productsCount}`, change: "+0 new", icon: ShoppingBag, color: "#2563EB" },
+              { label: "Shop Rating", val: `${stats.shopRating.toFixed(1)} ★`, change: `${stats.reviewsCount} reviews`, icon: Star, color: "#D97706" },
             ].map((stat) => (
               <div key={stat.label} className="bg-white p-5 rounded-2xl border border-black/5 shadow-sm">
                 <div className="flex items-center justify-between mb-3">

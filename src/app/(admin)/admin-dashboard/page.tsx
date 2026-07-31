@@ -4,7 +4,8 @@ import { useState, useEffect } from 'react';
 import * as Icons from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { Skeleton } from '@/components/ui/skeleton';
-import { mockGmvData, mockAdminStats } from '@/lib/mock/admin';
+import { mockGmvData } from '@/lib/mock/admin';
+import { createClient } from '@/lib/supabase/client';
 
 const iconMap: Record<string, React.ComponentType<any>> = {
   CreditCard: Icons.CreditCard,
@@ -15,10 +16,50 @@ const iconMap: Record<string, React.ComponentType<any>> = {
 
 export default function AdminDashboardPage() {
   const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState([
+    { label: 'Total Platform GMV', val: '₹0', icon: 'CreditCard', color: 'text-amber-600 bg-amber-50' },
+    { label: 'Active Sellers', val: '0', icon: 'ShoppingBag', color: 'text-green-600 bg-green-50' },
+    { label: 'Pending KYC Approvals', val: '0', icon: 'ShieldCheck', color: 'text-orange-600 bg-orange-50' },
+    { label: 'Open Complaints', val: '0', icon: 'AlertCircle', color: 'text-red-600 bg-red-50' },
+  ]);
 
   useEffect(() => {
-    const timer = setTimeout(() => setLoading(false), 750);
-    return () => clearTimeout(timer);
+    async function loadAdminStats() {
+      try {
+        const supabase = createClient();
+        
+        // 1. Fetch GMV from orders table
+        const { data: orders } = await supabase
+          .from('orders')
+          .select('total_amount');
+        const gmv = orders ? orders.reduce((sum, o) => sum + Number(o.total_amount || 0), 0) : 0;
+        
+        // 2. Fetch Active Sellers
+        const { count: activeSellers } = await supabase
+          .from('sellers')
+          .select('*', { count: 'exact', head: true })
+          .eq('kyc_status', 'approved');
+
+        // 3. Fetch Pending KYC
+        const { count: pendingKyc } = await supabase
+          .from('sellers')
+          .select('*', { count: 'exact', head: true })
+          .eq('kyc_status', 'pending');
+
+        // 4. Fetch Open complaints or other issues (default to 0 for now)
+        setStats([
+          { label: 'Total Platform GMV', val: `₹${gmv.toLocaleString('en-IN')}`, icon: 'CreditCard', color: 'text-amber-600 bg-amber-50' },
+          { label: 'Active Sellers', val: String(activeSellers || 0), icon: 'ShoppingBag', color: 'text-green-600 bg-green-50' },
+          { label: 'Pending KYC Approvals', val: String(pendingKyc || 0), icon: 'ShieldCheck', color: 'text-orange-600 bg-orange-50' },
+          { label: 'Open Complaints', val: '0', icon: 'AlertCircle', color: 'text-red-600 bg-red-50' },
+        ]);
+      } catch (err) {
+        console.error('Error loading admin dashboard stats:', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadAdminStats();
   }, []);
 
   return (
@@ -50,7 +91,7 @@ export default function AdminDashboardPage() {
           <>
             {/* Platform Stat Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-              {mockAdminStats.map((s) => {
+              {stats.map((s) => {
                 const Icon = iconMap[s.icon] || Icons.HelpCircle;
                 return (
                   <div key={s.label} className="bg-white p-5 rounded-2xl border border-black/5 shadow-sm">

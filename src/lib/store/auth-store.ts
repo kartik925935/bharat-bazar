@@ -14,6 +14,7 @@ export interface User {
   role: 'customer' | 'seller' | 'admin' | 'super_admin' | 'delivery';
   phone?: string;
   createdAt: string;
+  seller?: any;
 }
 
 export interface SignUpData {
@@ -21,7 +22,19 @@ export interface SignUpData {
   email: string;
   phone: string;
   password?: string;
-  role: 'customer' | 'seller' | 'admin';
+  role: 'customer' | 'seller' | 'admin' | 'super_admin';
+  shopName?: string;
+  shopDescription?: string;
+  category?: string;
+  city?: string;
+  state?: string;
+  experience?: string;
+  accountName?: string;
+  bank?: string;
+  accountNumber?: string;
+  ifsc?: string;
+  aadhar?: string;
+  pan?: string;
 }
 
 interface AuthState {
@@ -93,6 +106,22 @@ export const useAuthStore = create<AuthState>()(
             }
           }
 
+          // Fetch seller info if role is seller
+          let sellerInfo: any = null;
+          if (userRole === 'seller') {
+            const { data: sellerData, error: sellerError } = await supabase
+              .from('sellers')
+              .select('*, shops(*), bank_accounts(*), seller_performance(*)')
+              .eq('user_id', authUser.id)
+              .maybeSingle();
+
+            if (sellerError) {
+              console.error('Error fetching seller info:', sellerError.message);
+            } else {
+              sellerInfo = sellerData;
+            }
+          }
+
           const userObj: User = {
             id: authUser.id,
             email: authUser.email!,
@@ -101,6 +130,7 @@ export const useAuthStore = create<AuthState>()(
             role: userRole,
             phone: profile?.phone,
             createdAt: profile?.created_at || authUser.created_at,
+            seller: sellerInfo,
           };
 
           set({ user: userObj, isAuthenticated: true, error: null });
@@ -200,6 +230,19 @@ export const useAuthStore = create<AuthState>()(
                 first_name: data.fullName.split(' ')[0],
                 last_name: data.fullName.split(' ').slice(1).join(' ') || '',
                 role: dbRole,
+                phone: data.phone,
+                shop_name: data.shopName,
+                shop_description: data.shopDescription,
+                category: data.category,
+                city: data.city,
+                state: data.state,
+                experience: data.experience,
+                account_name: data.accountName,
+                bank_name: data.bank,
+                account_number: data.accountNumber,
+                ifsc: data.ifsc,
+                aadhar: data.aadhar,
+                pan: data.pan,
               },
             },
           });
@@ -215,57 +258,8 @@ export const useAuthStore = create<AuthState>()(
             return { success: false, error: 'Sign up succeeded, but no user data was returned.' };
           }
 
-          // 2. Create profile row in public.profiles table
-          const { error: profileError } = await supabase
-            .from('profiles')
-            .insert({
-              id: authUser.id,
-              full_name: data.fullName,
-              phone: data.phone,
-              status: 'active',
-            });
-
-          if (profileError) {
-            set({ error: profileError.message });
-            return { success: false, error: profileError.message };
-          }
-
-          // 3. Query role record to get the role id
-          const { data: roleRecord, error: roleError } = await supabase
-            .from('roles')
-            .select('id')
-            .eq('name', dbRole)
-            .maybeSingle();
-
-          if (roleError || !roleRecord) {
-            set({ error: `Failed to resolve role ID mapping for ${dbRole}` });
-            return { success: false, error: `Failed to resolve role ID mapping for ${dbRole}` };
-          }
-
-          // 4. Assign role in public.user_roles table
-          const { error: userRoleError } = await supabase
-            .from('user_roles')
-            .insert({
-              user_id: authUser.id,
-              role_id: roleRecord.id,
-            });
-
-          if (userRoleError) {
-            set({ error: userRoleError.message });
-            return { success: false, error: userRoleError.message };
-          }
-
-          // Set user in state
-          const userObj: User = {
-            id: authUser.id,
-            email: authUser.email!,
-            name: data.fullName,
-            role: data.role,
-            phone: data.phone,
-            createdAt: authUser.created_at,
-          };
-
-          set({ user: userObj, isAuthenticated: true, error: null });
+          // State setup is automatically handled by auth state listener or fetchAndSetUser
+          await get().fetchAndSetUser(authUser);
           return { success: true };
         } catch (e: any) {
           set({ error: e.message || 'Sign up failed' });

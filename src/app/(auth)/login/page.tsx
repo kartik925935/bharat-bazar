@@ -53,7 +53,7 @@ export default function LoginPage() {
       toast.success(`Welcome back, ${activeUser?.name}! 🙏`);
       
       // Determine redirection target based on role
-      if (activeUser?.role === 'admin') {
+      if (activeUser?.role === 'admin' || activeUser?.role === 'super_admin') {
         router.replace('/admin-dashboard');
       } else if (activeUser?.role === 'seller') {
         router.replace('/seller-dashboard');

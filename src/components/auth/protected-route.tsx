@@ -15,9 +15,9 @@ export function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) 
   const pathname = usePathname();
   const { user, isAuthenticated, isLoading } = useAuthStore();
 
-  const hasCorrectRole = !requiredRole || (user && user.role === requiredRole);
+  const hasCorrectRole = !requiredRole || (user && (user.role === requiredRole || (requiredRole === 'admin' && user.role === 'super_admin')));
   const shouldRedirectToLogin = !isLoading && !isAuthenticated;
-  const shouldRedirectRole = !isLoading && isAuthenticated && user && requiredRole && user.role !== requiredRole;
+  const shouldRedirectRole = !isLoading && isAuthenticated && user && requiredRole && !hasCorrectRole;
 
   useEffect(() => {
     if (shouldRedirectToLogin) {
