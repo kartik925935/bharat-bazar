@@ -5,15 +5,8 @@ import { motion } from "framer-motion";
 import { Star, ShoppingBag, Clock, Shield, Smartphone, LogOut, MapPin, ChevronRight, TrendingUp, Eye } from "lucide-react";
 import { CustomerAccountLayout } from "./CustomerDashboard";
 
-// ─── Recently Viewed ────────────────────────────────────────
-const RECENT_PRODUCTS = [
-  { id: "rp1", name: "Bandhani Silk Saree – Royal Blue", seller: "Meena Handicrafts", price: 2499, rating: 4.9, time: "2 hours ago", img: "https://images.unsplash.com/photo-1569909115134-a0426936c879?w=300&fit=crop" },
-  { id: "rp2", name: "Blue Pottery Decorative Vase", seller: "Jaipur Blue Art", price: 849, rating: 4.7, time: "Yesterday", img: "https://images.unsplash.com/photo-1565193566173-7a0ee3dbe261?w=300&fit=crop" },
-  { id: "rp3", name: "Kashmiri Walnut Wood Box", seller: "Kashmir Crafts", price: 1599, rating: 4.8, time: "2 days ago", img: "https://images.unsplash.com/photo-1601924994987-69e26d50dc26?w=300&fit=crop" },
-  { id: "rp4", name: "Madhubani Painting (A3)", seller: "Bihar Craft House", price: 1299, rating: 4.6, time: "3 days ago", img: "https://images.unsplash.com/photo-1582201942988-13e60e4556ee?w=300&fit=crop" },
-  { id: "rp5", name: "Kondapalli Wooden Elephant", seller: "AP Crafts", price: 599, rating: 4.5, time: "4 days ago", img: "https://images.unsplash.com/photo-1617450365226-9bf28c04e130?w=300&fit=crop" },
-  { id: "rp6", name: "Phulkari Embroidered Dupatta", seller: "Punjab Handlooms", price: 1199, rating: 4.7, time: "1 week ago", img: "https://images.unsplash.com/photo-1558769132-cb1aea458c5e?w=300&fit=crop" },
-];
+import { RECENT_PRODUCTS, PURCHASE_HISTORY, FAV_SELLERS, SESSIONS, LOGIN_HISTORY } from "@/lib/mock/customer";
+
 
 export function RecentlyViewedPage() {
   return (
@@ -46,12 +39,7 @@ export function RecentlyViewedPage() {
   );
 }
 
-// ─── Purchase History ────────────────────────────────────────
-const PURCHASE_HISTORY = [
-  { month: "November 2024", orders: [{ id: "ORD-001234", item: "Bandhani Silk Saree", amount: 1299, date: "Nov 28" }, { id: "ORD-001230", item: "Block Print Dupatta", amount: 699, date: "Nov 22" }] },
-  { month: "October 2024", orders: [{ id: "ORD-001190", item: "Blue Pottery Vase", amount: 849, date: "Oct 15" }, { id: "ORD-001150", item: "Madhubani Painting", amount: 1299, date: "Oct 3" }] },
-  { month: "September 2024", orders: [{ id: "ORD-001100", item: "Kashmiri Saffron (10g)", amount: 299, date: "Sep 18" }] },
-];
+
 
 export function PurchaseHistoryPage() {
   return (
@@ -60,11 +48,11 @@ export function PurchaseHistoryPage() {
         <h2 className="font-bold text-xl text-[#1C1B14] mb-6" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Purchase History</h2>
 
         <div className="space-y-6">
-          {PURCHASE_HISTORY.map(group => (
+          {PURCHASE_HISTORY.map((group: any) => (
             <div key={group.month}>
               <div className="text-xs font-bold text-[#8C8B80] uppercase tracking-wider mb-3">{group.month}</div>
               <div className="space-y-2">
-                {group.orders.map(order => (
+                {group.orders.map((order: any) => (
                   <Link key={order.id} href={`/orders/${order.id}`}
                     className="flex items-center justify-between p-4 bg-white rounded-xl border border-black/5 hover:border-[#FFD4A8] transition-all">
                     <div className="flex items-center gap-3">
@@ -146,12 +134,7 @@ export function SpendingSummaryPage() {
   );
 }
 
-// ─── Favourite Sellers ───────────────────────────────────────
-const FAV_SELLERS = [
-  { id: "s1", name: "Meena Handicrafts", location: "Jaipur, Rajasthan", specialty: "Bandhani & Block Print", rating: 4.9, orders: 5, avatar: "🧵" },
-  { id: "s2", name: "Kashmir Looms", location: "Srinagar, J&K", specialty: "Pashmina Shawls", rating: 4.8, orders: 3, avatar: "🏔️" },
-  { id: "s3", name: "Bihar Craft House", location: "Madhubani, Bihar", specialty: "Madhubani Paintings", rating: 4.7, orders: 2, avatar: "🎨" },
-];
+
 
 export function FavouriteSellersPage() {
   return (
@@ -169,7 +152,7 @@ export function FavouriteSellersPage() {
                   <div className="text-xs text-[#8C8B80] flex items-center gap-1"><MapPin size={10} /> {seller.location}</div>
                   <div className="flex items-center gap-3 mt-1 text-xs">
                     <span className="text-[#8C8B80] flex items-center gap-1"><Star size={10} className="fill-amber-400 text-amber-400" /> {seller.rating}</span>
-                    <span className="text-[#8C8B80]">{seller.orders} orders placed</span>
+                    <span className="text-[#8C8B80]">{seller.productsCount} products</span>
                   </div>
                 </div>
                 <Link href={`/seller/${seller.id}`} className="shrink-0 px-3 py-1.5 rounded-xl text-xs font-semibold border-2 border-[#FF7A00] transition-all" style={{ color: "#FF7A00" }}>
@@ -243,23 +226,18 @@ export function AccountSecurityPage() {
   );
 }
 
-// ─── Active Sessions ─────────────────────────────────────────
-const SESSIONS = [
-  { id: "sess1", device: "iPhone 14 Pro", browser: "Safari 17", location: "Bengaluru, Karnataka", lastActive: "Active now", current: true, os: "iOS 17" },
-  { id: "sess2", device: "MacBook Pro", browser: "Chrome 120", location: "Bengaluru, Karnataka", lastActive: "2 hours ago", current: false, os: "macOS 14" },
-  { id: "sess3", device: "Windows PC", browser: "Edge 120", location: "Mumbai, Maharashtra", lastActive: "5 days ago", current: false, os: "Windows 11" },
-];
+
 
 export function ActiveSessionsPage() {
   const [sessions, setSessions] = useState(SESSIONS);
-  const revoke = (id: string) => setSessions(prev => prev.filter(s => s.id === id ? s.current : true));
+  const revoke = (id: string) => setSessions(prev => prev.filter(s => s.id === id ? s.isCurrent : true));
 
   return (
     <CustomerAccountLayout title="Active Sessions">
       <div className="max-w-lg">
         <div className="flex items-center justify-between mb-6">
           <h2 className="font-bold text-xl text-[#1C1B14]" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Active Sessions</h2>
-          <button onClick={() => setSessions(prev => prev.filter(s => s.current))} className="text-sm font-semibold text-red-500 hover:text-red-700">
+          <button onClick={() => setSessions(prev => prev.filter(s => s.isCurrent))} className="text-sm font-semibold text-red-500 hover:text-red-700">
             Logout All Others
           </button>
         </div>
@@ -267,7 +245,7 @@ export function ActiveSessionsPage() {
         <div className="space-y-3">
           {sessions.map((s, i) => (
             <motion.div key={s.id} layout initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}
-              className={`bg-white rounded-2xl border p-4 ${s.current ? "border-[#1A9E4E]" : "border-black/5"}`}>
+              className={`bg-white rounded-2xl border p-4 ${s.isCurrent ? "border-[#1A9E4E]" : "border-black/5"}`}>
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-start gap-3">
                   <div className="w-10 h-10 rounded-xl bg-[#F5F4F0] flex items-center justify-center shrink-0 text-xl">
@@ -276,14 +254,13 @@ export function ActiveSessionsPage() {
                   <div>
                     <div className="flex items-center gap-2 mb-0.5">
                       <span className="text-sm font-semibold text-[#1C1B14]">{s.device}</span>
-                      {s.current && <span className="text-xs px-2 py-0.5 rounded-full bg-[#F0FDF4] text-[#1A9E4E] font-medium">Current</span>}
+                      {s.isCurrent && <span className="text-xs px-2 py-0.5 rounded-full bg-[#F0FDF4] text-[#1A9E4E] font-medium">Current</span>}
                     </div>
-                    <div className="text-xs text-[#8C8B80]">{s.browser} · {s.os}</div>
                     <div className="text-xs text-[#8C8B80] flex items-center gap-1 mt-0.5"><MapPin size={10} /> {s.location}</div>
                     <div className="text-xs text-[#B0AFA5] flex items-center gap-1 mt-0.5"><Clock size={10} /> {s.lastActive}</div>
                   </div>
                 </div>
-                {!s.current && (
+                {!s.isCurrent && (
                   <button onClick={() => revoke(s.id)} className="text-xs text-red-500 font-semibold hover:text-red-700 shrink-0 flex items-center gap-1">
                     <LogOut size={12} /> Revoke
                   </button>
@@ -297,14 +274,7 @@ export function ActiveSessionsPage() {
   );
 }
 
-// ─── Login History ────────────────────────────────────────────
-const LOGIN_HISTORY = [
-  { id: 1, device: "iPhone 14 Pro · Safari", location: "Bengaluru, KA", time: "Today, 9:42 AM", status: "success" },
-  { id: 2, device: "MacBook Pro · Chrome", location: "Bengaluru, KA", time: "Yesterday, 3:15 PM", status: "success" },
-  { id: 3, device: "Unknown Device · Chrome", location: "Hyderabad, TS", time: "Nov 28, 2024 · 11:30 PM", status: "failed" },
-  { id: 4, device: "iPhone 14 Pro · Safari", location: "Bengaluru, KA", time: "Nov 27, 2024 · 8:00 AM", status: "success" },
-  { id: 5, device: "Windows PC · Edge", location: "Mumbai, MH", time: "Nov 25, 2024 · 6:45 PM", status: "success" },
-];
+
 
 export function LoginHistoryPage() {
   return (
@@ -319,11 +289,11 @@ export function LoginHistoryPage() {
         </div>
 
         <div className="bg-white rounded-2xl border border-black/5 overflow-hidden">
-          {LOGIN_HISTORY.map((log, i) => (
+          {LOGIN_HISTORY.map((log: any, i) => (
             <div key={log.id} className={`flex items-center justify-between p-4 ${i < LOGIN_HISTORY.length - 1 ? "border-b border-[#F5F4F0]" : ""}`}>
               <div className="flex items-start gap-3">
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${log.status === "success" ? "bg-[#F0FDF4]" : "bg-red-50"}`}>
-                  {log.status === "success" ? <Shield size={14} className="text-[#1A9E4E]" /> : <Shield size={14} className="text-red-500" />}
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${log.status === "Success" ? "bg-[#F0FDF4]" : "bg-red-50"}`}>
+                  {log.status === "Success" ? <Shield size={14} className="text-[#1A9E4E]" /> : <Shield size={14} className="text-red-500" />}
                 </div>
                 <div>
                   <div className="text-sm font-medium text-[#1C1B14]">{log.device}</div>
@@ -331,9 +301,9 @@ export function LoginHistoryPage() {
                 </div>
               </div>
               <div className="text-right">
-                <div className="text-xs text-[#8C8B80]">{log.time}</div>
-                <span className={`text-xs font-semibold ${log.status === "success" ? "text-[#1A9E4E]" : "text-red-500"}`}>
-                  {log.status === "success" ? "Success" : "Failed"}
+                <div className="text-xs text-[#8C8B80]">{log.date}</div>
+                <span className={`text-xs font-semibold ${log.status === "Success" ? "text-[#1A9E4E]" : "text-red-500"}`}>
+                  {log.status === "Success" ? "Success" : "Failed"}
                 </span>
               </div>
             </div>

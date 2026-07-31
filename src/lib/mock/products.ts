@@ -294,3 +294,5 @@ export const mockProducts: Product[] = [
     },
   },
 ];
+
+export const products = mockProducts;

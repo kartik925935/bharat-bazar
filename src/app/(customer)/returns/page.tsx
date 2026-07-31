@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { RotateCcw, Package, Clock, CheckCircle2, ChevronRight, ArrowRight, ShieldCheck, Truck, RefreshCw } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils/format-currency';
+import { MOCK_RETURNS } from '@/lib/mock/customer';
 
 interface ReturnRequest {
   id: string;
@@ -19,32 +20,7 @@ interface ReturnRequest {
   expectedRefundMethod: string;
 }
 
-const MOCK_RETURNS: ReturnRequest[] = [
-  {
-    id: 'ret-1',
-    returnNumber: 'RET-2025-001',
-    orderNumber: 'BB-2025-71234',
-    productName: 'Sambhalpuri Ikat Silk Saree',
-    productImage: 'https://images.unsplash.com/photo-1620619767323-b95a89183081?w=300&auto=format&fit=crop',
-    reason: 'Color slightly different from photo',
-    refundAmount: 3200,
-    status: 'under_review',
-    date: '2025-01-18',
-    expectedRefundMethod: 'UPI (GPay)',
-  },
-  {
-    id: 'ret-2',
-    returnNumber: 'RET-2024-089',
-    orderNumber: 'BB-2024-65891',
-    productName: 'Blue Pottery Decorative Plate',
-    productImage: 'https://images.unsplash.com/photo-1536266305399-b367feb671f9?w=300&auto=format&fit=crop',
-    reason: 'Damaged during transit',
-    refundAmount: 750,
-    status: 'refunded',
-    date: '2024-12-29',
-    expectedRefundMethod: 'Original Payment Method',
-  },
-];
+
 
 const STATUS_BADGES = {
   under_review:     { label: 'Under Review', bg: '#FEFCE8', text: '#CA8A04' },
@@ -109,7 +85,7 @@ export default function ReturnsPage() {
       ) : (
         <div className="space-y-4">
           {filtered.map((ret, idx) => {
-            const badge = STATUS_BADGES[ret.status];
+            const badge = STATUS_BADGES[ret.status as keyof typeof STATUS_BADGES];
             return (
               <motion.div
                 key={ret.id}

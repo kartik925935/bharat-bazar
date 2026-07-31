@@ -3,40 +3,8 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Star, MapPin, Package, CheckCircle, Share2, Heart, Grid, List } from "lucide-react";
-
-const SELLERS = [
-  {
-    id: "meena-handicrafts",
-    name: "Meena Handicrafts",
-    tagline: "Authentic Rajasthani Bandhani & Block Print",
-    avatar: "https://images.unsplash.com/photo-1594736797933-d0501ba2fe65?w=200&h=200&fit=crop",
-    banner: "https://images.unsplash.com/photo-1558769132-cb1aea458c5e?w=1200&auto=format&fit=crop",
-    location: "Jaipur, Rajasthan",
-    since: "2021",
-    tier: "Gold",
-    rating: 4.8,
-    totalReviews: 1284,
-    totalSales: 4200,
-    responseTime: "< 2 hours",
-    bio: "I am Meena Devi, a third-generation Bandhani artisan from Jaipur. My family has practiced this art for over 60 years, passing the craft from mother to daughter. Every piece I make carries the love, precision, and heritage of Rajasthani textile tradition.\n\nI work with a small team of 8 women from my village, all of whom are trained in authentic Bandhani tying techniques. We use only natural dyes sourced from local plants and minerals.",
-    specialties: ["Bandhani Sarees", "Block Print Dupattas", "Hand-dyed Lehengas", "Natural Dye Fabrics"],
-    certifications: ["GI Tag Holder", "Handloom Mark", "Fair Trade Certified"],
-    products: [
-      { id: "1", name: "Bandhani Silk Saree - Royal Blue", price: 2499, mrp: 3500, rating: 4.9, reviews: 234, img: "https://images.unsplash.com/photo-1569909115134-a0426936c879?w=400&auto=format&fit=crop", badge: "Bestseller" },
-      { id: "2", name: "Block Print Cotton Dupatta", price: 699, mrp: 999, rating: 4.7, reviews: 156, img: "https://images.unsplash.com/photo-1558769132-cb1aea458c5e?w=400&auto=format&fit=crop", badge: "New" },
-      { id: "3", name: "Natural Dye Kurta Set", price: 1899, mrp: 2499, rating: 4.8, reviews: 89, img: "https://images.unsplash.com/photo-1594736797933-d0501ba2fe65?w=400&auto=format&fit=crop", badge: "" },
-      { id: "4", name: "Bandhani Lehnga Choli", price: 3999, mrp: 5500, rating: 4.9, reviews: 67, img: "https://images.unsplash.com/photo-1583391733956-6c78276477e2?w=400&auto=format&fit=crop", badge: "Top Rated" },
-      { id: "5", name: "Indigo Block Print Saree", price: 1799, mrp: 2400, rating: 4.6, reviews: 112, img: "https://images.unsplash.com/photo-1591291621164-2c6367723315?w=400&auto=format&fit=crop", badge: "" },
-      { id: "6", name: "Batik Silk Stole", price: 899, mrp: 1299, rating: 4.7, reviews: 78, img: "https://images.unsplash.com/photo-1606107557195-0e29a4b5b4aa?w=400&auto=format&fit=crop", badge: "" },
-    ],
-    reviews: [
-      { user: "Sneha R.", rating: 5, text: "Absolutely stunning saree! The Bandhani work is so intricate. Meena ji was very helpful and even customized the color for me.", date: "Dec 10, 2024", verified: true },
-      { user: "Priya M.", rating: 5, text: "Ordered the dupatta and it arrived beautifully packaged. The colors are vibrant and exactly as shown. Will definitely buy again!", date: "Nov 28, 2024", verified: true },
-      { user: "Kavita S.", rating: 4, text: "Great quality, just as described. Shipping took a little longer than expected but the product is worth the wait.", date: "Nov 15, 2024", verified: true },
-    ],
-  },
-];
+import { CheckCircle, MapPin, Package, Star, Share2, Grid, List, Heart } from "lucide-react";
+import { SELLERS, ALL_SELLERS, TIER_BADGE } from '@/lib/mock/sellers';
 
 const TIER_COLORS: Record<string, { bg: string; text: string; border: string }> = {
   Gold: { bg: "#FEF3C7", text: "#92400E", border: "#FCD34D" },
@@ -44,6 +12,7 @@ const TIER_COLORS: Record<string, { bg: string; text: string; border: string }> 
   Silver: { bg: "#F1F5F9", text: "#475569", border: "#CBD5E1" },
   Bronze: { bg: "#FEF0E6", text: "#9A3412", border: "#FDBA74" },
 };
+
 
 export function SellerPublicPage() {
   const { sellerId } = useParams();
@@ -297,23 +266,7 @@ export function SellerPublicPage() {
 }
 
 
-const ALL_SELLERS = [
-  { id: "meena-handicrafts", name: "Meena Handicrafts", tagline: "Authentic Rajasthani Bandhani & Block Print", location: "Jaipur, Rajasthan", tier: "Gold", rating: 4.8, reviews: 1284, sales: "4,200+", category: "Handloom & Textiles", avatar: "https://images.unsplash.com/photo-1594736797933-d0501ba2fe65?w=200&h=200&fit=crop" },
-  { id: "kashmir-harvest", name: "Kashmir Harvest", tagline: "Premium Kashmiri Spices & Dry Fruits", location: "Srinagar, J&K", tier: "Platinum", rating: 4.9, reviews: 3210, sales: "12,000+", category: "Organic Food", avatar: "https://images.unsplash.com/photo-1663325265966-0d17de3e85c5?w=200&h=200&fit=crop" },
-  { id: "rajput-pottery", name: "Rajput Pottery Works", tagline: "Hand-painted Blue Pottery from Jaipur", location: "Jaipur, Rajasthan", tier: "Silver", rating: 4.7, reviews: 892, sales: "2,800+", category: "Pottery & Ceramics", avatar: "https://images.unsplash.com/photo-1629218091978-f70a20a43aab?w=200&h=200&fit=crop" },
-  { id: "odissi-craft", name: "Odissi Craft House", tagline: "Traditional Odisha Silver & Brass Jewellery", location: "Cuttack, Odisha", tier: "Gold", rating: 4.8, reviews: 1560, sales: "5,100+", category: "Jewelry", avatar: "https://images.unsplash.com/photo-1620619767323-b95a89183081?w=200&h=200&fit=crop" },
-  { id: "warli-art-studio", name: "Warli Art Studio", tagline: "Authentic Warli Tribal Paintings & Prints", location: "Palghar, Maharashtra", tier: "Silver", rating: 4.6, reviews: 445, sales: "1,200+", category: "Paintings & Art", avatar: "https://images.unsplash.com/photo-1582555172866-f73bb12a2ab3?w=200&h=200&fit=crop" },
-  { id: "bamboo-craft-assam", name: "Bamboo Craft Assam", tagline: "Eco-friendly Bamboo Home Products", location: "Guwahati, Assam", tier: "Bronze", rating: 4.5, reviews: 312, sales: "980+", category: "Home Décor", avatar: "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=200&h=200&fit=crop" },
-  { id: "madhubani-art", name: "Madhubani Art Collective", tagline: "Bihar's Finest Madhubani Paintings", location: "Madhubani, Bihar", tier: "Gold", rating: 4.7, reviews: 723, sales: "2,100+", category: "Paintings & Art", avatar: "https://images.unsplash.com/photo-1582555172866-f73bb12a2ab3?w=200&h=200&fit=crop" },
-  { id: "silk-weavers-varanasi", name: "Silk Weavers Varanasi", tagline: "Handwoven Banarasi Silk Sarees", location: "Varanasi, UP", tier: "Platinum", rating: 4.9, reviews: 4100, sales: "15,000+", category: "Handloom & Textiles", avatar: "https://images.unsplash.com/photo-1591291621164-2c6367723315?w=200&h=200&fit=crop" },
-];
 
-const TIER_BADGE: Record<string, { bg: string; text: string; icon: string }> = {
-  Platinum: { bg: "#F3E8FF", text: "#5B21B6", icon: "💎" },
-  Gold: { bg: "#FEF3C7", text: "#92400E", icon: "🥇" },
-  Silver: { bg: "#F1F5F9", text: "#475569", icon: "🥈" },
-  Bronze: { bg: "#FEF0E6", text: "#9A3412", icon: "🥉" },
-};
 
 export function SellerListingPage() {
   const [search, setSearch] = useState("");

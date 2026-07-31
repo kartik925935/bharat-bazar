@@ -1,48 +1,22 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Star, MessageSquare, CheckCircle2, AlertCircle, Edit3, Trash2, ArrowRight } from 'lucide-react';
-import { mockProducts } from '@/lib/mock/products';
+import { Star, CheckCircle2 } from 'lucide-react';
 import { RatingStars } from '@/components/ui/rating-stars';
 import { toast } from 'sonner';
+import { MOCK_REVIEWS, PENDING_REVIEWS } from '@/lib/mock/customer';
 
-interface ReviewItem {
-  id: string;
-  product: typeof mockProducts[0];
-  rating: number;
-  title: string;
-  comment: string;
-  date: string;
-}
-
-const MOCK_REVIEWS: ReviewItem[] = [
-  {
-    id: 'rev-1',
-    product: mockProducts[0],
-    rating: 5,
-    title: 'Incredible Craftsmanship!',
-    comment: 'The colors are vibrant and the hand loom details are clear. Fully worth the purchase.',
-    date: 'July 15, 2026',
-  },
-];
-
-const PENDING_REVIEWS = [
-  {
-    orderId: 'BB-2025-78234',
-    product: mockProducts[1],
-    date: 'Delivered Jan 12, 2025',
-  },
-];
+type ReviewItem = typeof MOCK_REVIEWS[0];
+type PendingItem = typeof PENDING_REVIEWS[0];
 
 export default function MyReviewsPage() {
   const [tab, setTab] = useState<'written' | 'pending'>('pending');
   const [reviews, setReviews] = useState<ReviewItem[]>(MOCK_REVIEWS);
-  const [pending, setPending] = useState(PENDING_REVIEWS);
+  const [pending, setPending] = useState<PendingItem[]>(PENDING_REVIEWS);
 
   // Review modal state
-  const [modalProduct, setModalProduct] = useState<typeof mockProducts[0] | null>(null);
+  const [modalProduct, setModalProduct] = useState<PendingItem | null>(null);
   const [rating, setRating] = useState(5);
   const [title, setTitle] = useState('');
   const [comment, setComment] = useState('');
@@ -56,15 +30,21 @@ export default function MyReviewsPage() {
 
     const newRev: ReviewItem = {
       id: `rev-${Date.now()}`,
-      product: modalProduct,
+      orderId: modalProduct.orderId,
+      productId: modalProduct.productId,
+      productName: modalProduct.productName,
+      productImage: modalProduct.productImage,
+      sellerName: modalProduct.sellerName,
       rating,
       title,
       comment,
       date: 'Just now',
+      status: 'published',
+      helpful: 0,
     };
 
     setReviews([newRev, ...reviews]);
-    setPending(pending.filter((p) => p.product.id !== modalProduct.id));
+    setPending(pending.filter((p) => p.productId !== modalProduct.productId));
     setModalProduct(null);
     setTitle('');
     setComment('');
@@ -113,19 +93,19 @@ export default function MyReviewsPage() {
           ) : (
             pending.map((item) => (
               <div
-                key={item.product.id}
+                key={item.productId}
                 className="bg-white rounded-2xl border border-[#E8E4DE] p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
               >
                 <div className="flex gap-3">
-                  <img src={item.product.images[0]} alt={item.product.name} className="w-16 h-16 rounded-xl object-cover bg-[#F5F4F0] shrink-0" />
+                  <img src={item.productImage} alt={item.productName} className="w-16 h-16 rounded-xl object-cover bg-[#F5F4F0] shrink-0" />
                   <div>
-                    <p className="text-xs font-bold text-[#FF7A00]">{item.product.seller.name}</p>
-                    <p className="text-sm font-semibold text-[#1A0A00] line-clamp-1">{item.product.name}</p>
-                    <p className="text-xs text-[#8C7B6E] mt-0.5">{item.date}</p>
+                    <p className="text-xs font-bold text-[#FF7A00]">{item.sellerName}</p>
+                    <p className="text-sm font-semibold text-[#1A0A00] line-clamp-1">{item.productName}</p>
+                    <p className="text-xs text-[#8C7B6E] mt-0.5">{item.deliveredDate}</p>
                   </div>
                 </div>
                 <button
-                  onClick={() => setModalProduct(item.product)}
+                  onClick={() => setModalProduct(item)}
                   className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#FF7A00] to-[#FF4500] text-white text-xs font-bold shadow-[0_4px_12px_rgba(255,122,0,0.25)] hover:opacity-95 cursor-pointer shrink-0"
                 >
                   Write Review (+20 pts)
@@ -148,9 +128,9 @@ export default function MyReviewsPage() {
             reviews.map((rev) => (
               <div key={rev.id} className="bg-white rounded-2xl border border-[#E8E4DE] p-5 space-y-3">
                 <div className="flex items-center gap-3 pb-3 border-b border-[#F5F4F0]">
-                  <img src={rev.product.images[0]} alt={rev.product.name} className="w-12 h-12 rounded-xl object-cover bg-[#F5F4F0] shrink-0" />
+                  <img src={rev.productImage} alt={rev.productName} className="w-12 h-12 rounded-xl object-cover bg-[#F5F4F0] shrink-0" />
                   <div className="min-w-0 flex-1">
-                    <p className="text-xs font-bold text-[#1A0A00] truncate">{rev.product.name}</p>
+                    <p className="text-xs font-bold text-[#1A0A00] truncate">{rev.productName}</p>
                     <p className="text-[11px] text-[#8C7B6E]">Reviewed on {rev.date}</p>
                   </div>
                 </div>
@@ -189,10 +169,10 @@ export default function MyReviewsPage() {
               </h3>
 
               <div className="flex items-center gap-3 p-3 bg-[#FAFAF8] rounded-xl">
-                <img src={modalProduct.images[0]} alt={modalProduct.name} className="w-12 h-12 rounded-xl object-cover" />
+                <img src={modalProduct.productImage} alt={modalProduct.productName} className="w-12 h-12 rounded-xl object-cover" />
                 <div>
-                  <p className="text-xs font-bold text-[#1A0A00] line-clamp-1">{modalProduct.name}</p>
-                  <p className="text-[10px] text-[#8C7B6E]">by {modalProduct.seller.name}</p>
+                  <p className="text-xs font-bold text-[#1A0A00] line-clamp-1">{modalProduct.productName}</p>
+                  <p className="text-[10px] text-[#8C7B6E]">by {modalProduct.sellerName}</p>
                 </div>
               </div>
 

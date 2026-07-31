@@ -14,3 +14,5 @@ export const mockCategories: Category[] = [
   { id: 'cat-11', name: 'Tribal Crafts', slug: 'tribal-crafts', icon: 'Smile', count: 876, color: '#B85500', image: 'https://images.unsplash.com/photo-1707978932202-751b08324daf?w=400&auto=format&fit=crop' },
   { id: 'cat-12', name: 'Toys & Games', slug: 'toys-games', icon: 'Gamepad2', count: 543, color: '#FF4500', image: 'https://images.unsplash.com/photo-1629218091978-f70a20a43aab?w=400&auto=format&fit=crop' },
 ];
+
+export const categories = mockCategories;

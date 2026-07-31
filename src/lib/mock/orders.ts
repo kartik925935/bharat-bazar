@@ -209,3 +209,5 @@ export const STATUS_CONFIG: Record<OrderStatus, { label: string; color: string; 
   returned:        { label: 'Returned',         color: '#D97706', bg: '#FFFBEB', dot: '#F59E0B' },
   refunded:        { label: 'Refunded',         color: '#16A34A', bg: '#F0FDF4', dot: '#22C55E' },
 };
+
+export const orders = mockOrders;

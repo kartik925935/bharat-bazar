@@ -9,8 +9,7 @@ import {
 } from 'lucide-react';
 import { useAuthStore } from '@/lib/store/auth-store';
 import { toast } from 'sonner';
-
-const CATEGORIES = ['Paintings & Art', 'Jewelry', 'Textiles', 'Pottery', 'Organic Food', 'Home Decor', 'Clothing', 'Spiritual'];
+import { CATEGORIES } from '@/lib/mock/customer';
 
 function Toggle({ on, onChange }: { on: boolean; onChange: (v: boolean) => void }) {
   return (

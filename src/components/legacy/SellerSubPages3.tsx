@@ -11,16 +11,9 @@ import {
   Store, ImageIcon, Globe, Phone, Mail, MapPin, Shield
 } from "lucide-react";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { MOCK_SELLER_EARNINGS as PERF_DATA, SELLER_NOTIFS } from '@/lib/mock/sellers';
 import { SellerLayout } from './SellerSubPages';
 
-const PERF_DATA = [
-  { month: "Jul", views: 420, clicks: 134, conversions: 12 },
-  { month: "Aug", views: 580, clicks: 198, conversions: 18 },
-  { month: "Sep", views: 510, clicks: 162, conversions: 15 },
-  { month: "Oct", views: 720, clicks: 243, conversions: 24 },
-  { month: "Nov", views: 950, clicks: 342, conversions: 38 },
-  { month: "Dec", views: 1100, clicks: 410, conversions: 45 },
-];
 
 export function SellerPerformancePage() {
   return (
@@ -85,14 +78,7 @@ export function SellerPerformancePage() {
   );
 }
 
-// ─── Seller Notifications Page ─────────────────────────────
-const SELLER_NOTIFS = [
-  { id: "1", icon: "🛒", title: "New Order Received!", body: "ORD-2024-001240 · Bandhani Silk Saree · ₹2,499", time: "5 min ago", unread: true },
-  { id: "2", icon: "⭐", title: "New 5-Star Review", body: "Priya S. left you a review on Bandhani Saree", time: "2 hours ago", unread: true },
-  { id: "3", icon: "💰", title: "Payout Credited", body: "₹42,380 credited to your bank account · UTR123456", time: "Nov 30, 2024", unread: false },
-  { id: "4", icon: "⚠️", title: "Low Stock Alert", body: "Indigo Block Print Saree has only 3 units left", time: "Nov 29, 2024", unread: false },
-  { id: "5", icon: "↩️", title: "Return Request", body: "RET-001 · Bandhani Silk Saree · ₹2,499 · Action needed", time: "Nov 29, 2024", unread: false },
-];
+
 
 export function SellerNotificationsPage() {
   const [notifs, setNotifs] = useState(SELLER_NOTIFS);

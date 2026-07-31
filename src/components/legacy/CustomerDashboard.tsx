@@ -136,14 +136,14 @@ function DashboardHome() {
                 className="flex items-center gap-4 p-3 rounded-xl hover:bg-[#FAFAF8] transition-all cursor-pointer"
               >
                 <img
-                  src={order.items[0].product.images[0]}
+                  src={order.items[0].image}
                   alt=""
                   className="w-14 h-14 rounded-xl object-cover shrink-0"
                 />
                 <div className="flex-1 min-w-0">
                   <div className="font-mono text-xs text-[#8C8B80] mb-0.5">{order.id}</div>
-                  <div className="text-sm font-medium text-[#1C1B14] truncate">{order.items[0].product.name}</div>
-                  <div className="text-xs text-[#B0AFA5]">{order.date}</div>
+                  <div className="text-sm font-medium text-[#1C1B14] truncate">{order.items[0].name}</div>
+                  <div className="text-xs text-[#B0AFA5]">{order.placedAt}</div>
                 </div>
                 <div className="text-right shrink-0">
                   <div className="font-bold text-sm text-[#1C1B14] mb-1">₹{order.total.toLocaleString()}</div>
@@ -171,11 +171,11 @@ function DashboardHome() {
           </span>
         </div>
         <div className="flex gap-4 mb-5">
-          <img src={orders[0].items[0].product.images[0]} alt="" className="w-16 h-16 rounded-xl object-cover" />
+          <img src={orders[0].items[0].image} alt="" className="w-16 h-16 rounded-xl object-cover shrink-0" />
           <div>
             <div className="font-mono text-xs text-[#8C8B80] mb-1">{orders[0].id}</div>
-            <div className="text-sm font-medium text-[#1C1B14] mb-1">{orders[0].items[0].product.name}</div>
-            <div className="text-sm text-[#8C8B80]">Expected: Dec 1, 2024</div>
+            <div className="text-sm font-medium text-[#1C1B14] mb-1">{orders[0].items[0].name}</div>
+            <div className="text-xs text-[#B0AFA5]">Expected {orders[0].expectedDelivery}</div>
           </div>
         </div>
         <div className="flex items-center gap-0">
@@ -245,9 +245,9 @@ export function OrdersPage() {
   };
 
   const filteredOrders = activeTab === "All" ? orders :
-    activeTab === "Active" ? orders.filter(o => ["IN_TRANSIT", "PROCESSING"].includes(o.status)) :
-    activeTab === "Delivered" ? orders.filter(o => o.status === "DELIVERED") :
-    activeTab === "Cancelled" ? orders.filter(o => o.status === "CANCELLED") :
+    activeTab === "Active" ? orders.filter(o => ["in_transit", "processing", "packed", "shipped", "out_for_delivery"].includes(o.status)) :
+    activeTab === "Delivered" ? orders.filter(o => o.status === "delivered") :
+    activeTab === "Cancelled" ? orders.filter(o => o.status === "cancelled") :
     [];
 
   return (
@@ -292,7 +292,7 @@ export function OrdersPage() {
                       <div className="flex items-center justify-between p-4 bg-[#FAFAF8] border-b border-[#F5F4F0]">
                         <div>
                           <span className="font-mono font-bold text-sm text-[#1C1B14]">{order.id}</span>
-                          <div className="text-xs text-[#8C8B80]">Placed on {order.date}</div>
+                          <div className="text-xs text-[#8C8B80]">Placed on {new Date(order.placedAt).toLocaleDateString()}</div>
                         </div>
                         <div className="flex items-center gap-3">
                           <span className="font-bold text-[#1C1B14]">₹{order.total.toLocaleString()}</span>
@@ -305,14 +305,14 @@ export function OrdersPage() {
 
                       {/* Products */}
                       <div className="p-4">
-                        {order.items.map(({ product, qty }) => (
-                          <div key={product.id} className="flex gap-3 items-center mb-3 last:mb-0">
-                            <img src={product.images[0]} alt={product.name} className="w-16 h-16 rounded-xl object-cover" />
+                        {order.items.map((item) => (
+                          <div key={item.productId} className="flex gap-3 items-center mb-3 last:mb-0">
+                            <img src={item.image} alt={item.name} className="w-16 h-16 rounded-xl object-cover" />
                             <div className="flex-1">
-                              <div className="text-sm font-medium text-[#1C1B14] line-clamp-2">{product.name}</div>
-                              <div className="text-xs text-[#8C8B80]">Qty: {qty} · ₹{product.price.toLocaleString()}</div>
+                              <div className="text-sm font-medium text-[#1C1B14] line-clamp-2">{item.name}</div>
+                              <div className="text-xs text-[#8C8B80]">Qty: {item.quantity} · ₹{item.price.toLocaleString()}</div>
                             </div>
-                            {order.status === "DELIVERED" && (
+                            {order.status === "delivered" && (
                               <button onClick={() => router.push(`/write-review/${order.id}`)} className="px-3 py-1.5 rounded-lg border border-[#FF7A00] text-xs font-semibold hover:bg-[#FFF8F0] transition-all" style={{ color: "#FF7A00" }}>Rate</button>
                             )}
                           </div>
@@ -321,19 +321,19 @@ export function OrdersPage() {
 
                       {/* Actions */}
                       <div className="flex gap-3 px-4 pb-4 flex-wrap items-center">
-                        {order.status !== "CANCELLED" && (
+                        {order.status !== "cancelled" && (
                           <Link href={`/orders/${order.id}/track`} className="text-sm font-semibold flex items-center gap-1" style={{ color: "#2563EB" }}>
                             📦 Track Order
                           </Link>
                         )}
-                        {order.status === "IN_TRANSIT" && (
+                        {order.status === "in_transit" && (
                           <button onClick={() => router.push(`/orders/${order.id}/cancel`)} className="text-sm font-semibold text-red-500">❌ Cancel</button>
                         )}
-                        {order.status === "DELIVERED" && (
+                        {order.status === "delivered" && (
                           <Link href="/returns/new" className="text-sm font-semibold" style={{ color: "#D97706" }}>↩️ Return</Link>
                         )}
                         <button onClick={() => showInvoice(order.id)} className="text-sm font-semibold text-[#8C8B80] ml-auto hover:text-[#1C1B14] transition-colors">📄 Invoice</button>
-                        <button onClick={() => router.push(`/products/${order.items[0].product.id}`)} className="text-sm font-semibold" style={{ color: "#FF7A00" }}>🔄 Buy Again</button>
+                        <button onClick={() => router.push(`/products/${order.items[0].productId}`)} className="text-sm font-semibold" style={{ color: "#FF7A00" }}>🔄 Buy Again</button>
                       </div>
                     </motion.div>
                   );

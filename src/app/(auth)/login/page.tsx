@@ -54,7 +54,7 @@ export default function LoginPage() {
       
       // Determine redirection target based on role
       if (activeUser?.role === 'admin') {
-        router.replace('/admin-dashboard');
+        router.replace('/super-admin/dashboard');
       } else if (activeUser?.role === 'seller') {
         router.replace('/seller-dashboard');
       } else {

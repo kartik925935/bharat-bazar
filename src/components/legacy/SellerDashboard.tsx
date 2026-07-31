@@ -11,6 +11,15 @@ import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, R
 import { SellerLayout } from "./SellerSubPages";
 import { Skeleton } from "@/components/ui/skeleton";
 
+import {
+  MOCK_SELLER_PRODUCTS as initialProducts,
+  MOCK_SELLER_EARNINGS as monthlyData,
+  MOCK_SELLER_ORDERS_LIST as initialOrders,
+  MOCK_SELLER_COUPONS_LIST as initialCoupons,
+  MOCK_SELLER_RETURNS_LIST as initialReturns,
+  MOCK_SELLER_REVIEWS_LIST as initialReviews
+} from "@/lib/mock/sellers";
+
 const sidebarLinks = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/seller-dashboard" },
   { icon: ShoppingBag, label: "My Shop", href: "/seller-shop" },
@@ -26,14 +35,6 @@ const sidebarLinks = [
   { icon: Settings, label: "Settings", href: "/seller-settings" },
 ];
 
-const initialProducts = [
-  { id: 'p1', name: 'Bandhani Silk Dupatta', sku: 'BND-001', price: 1499, stock: 24, status: 'active', sales: 142, img: 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=200&auto=format&fit=crop' },
-  { id: 'p2', name: 'Blue Pottery Vase', sku: 'BPV-003', price: 2199, stock: 8, status: 'active', sales: 67, img: 'https://images.unsplash.com/photo-1565193566173-7a0ee3dbe261?w=200&auto=format&fit=crop' },
-  { id: 'p3', name: 'Pashmina Shawl (Natural)', sku: 'PSH-007', price: 4999, stock: 3, status: 'low_stock', sales: 38, img: 'https://images.unsplash.com/photo-1617137968427-85924c800a22?w=200&auto=format&fit=crop' },
-  { id: 'p4', name: 'Madhubani Painting A3', sku: 'MDH-012', price: 3499, stock: 0, status: 'out_of_stock', sales: 89, img: 'https://images.unsplash.com/photo-1578301978693-85fa9c0320b9?w=200&auto=format&fit=crop' },
-  { id: 'p5', name: 'Khadi Cotton Kurta Set', sku: 'KKS-019', price: 1899, stock: 31, status: 'active', sales: 201, img: 'https://images.unsplash.com/photo-1583391733956-6c78276477e1?w=200&auto=format&fit=crop' },
-];
-
 const revenueData = [
   { day: "Nov 1", revenue: 12400 },
   { day: "Nov 5", revenue: 18900 },
@@ -42,23 +43,6 @@ const revenueData = [
   { day: "Nov 20", revenue: 19800 },
   { day: "Nov 25", revenue: 28900 },
   { day: "Nov 30", revenue: 24891 },
-];
-
-const monthlyData = [
-  { month: "Jun", revenue: 89000 },
-  { month: "Jul", revenue: 102000 },
-  { month: "Aug", revenue: 95000 },
-  { month: "Sep", revenue: 118000 },
-  { month: "Oct", revenue: 134000 },
-  { month: "Nov", revenue: 158000 },
-];
-
-const initialOrders = [
-  { id: "ORD-1023", customer: "Priya Sharma", product: "Bandhani Dupatta", amount: 1499, status: "PROCESSING", date: "26 Jul 2026" },
-  { id: "ORD-1019", customer: "Rahul Verma", product: "Blue Pottery Vase", amount: 2199, status: "IN_TRANSIT", date: "25 Jul 2026" },
-  { id: "ORD-1014", customer: "Anjali Mehta", product: "Pashmina Shawl", amount: 4999, status: "DELIVERED", date: "24 Jul 2026" },
-  { id: "ORD-1008", customer: "Suresh Kumar", product: "Khadi Kurta Set", amount: 1899, status: "DELIVERED", date: "23 Jul 2026" },
-  { id: "ORD-1002", customer: "Deepa Nair", product: "Madhubani Painting", amount: 3499, status: "CANCELLED", date: "22 Jul 2026" },
 ];
 
 export function SellerDashboard() {
@@ -75,20 +59,10 @@ export function SellerDashboard() {
     return () => clearTimeout(timer);
   }, []);
 
-  const [coupons, setCoupons] = useState([
-    { code: 'CRAFT20', type: 'percent', value: 20, minOrder: 500, uses: 47, maxUses: 100, active: true, expiry: '31 Aug 2026' },
-    { code: 'FIRST150', type: 'flat', value: 150, minOrder: 1000, uses: 23, maxUses: 50, active: true, expiry: '15 Aug 2026' },
-  ]);
+  const [coupons, setCoupons] = useState(initialCoupons);
+  const [returnsList, setReturnsList] = useState(initialReturns);
+  const [reviewsList, setReviewsList] = useState(initialReviews);
 
-  const [returnsList, setReturnsList] = useState([
-    { id: 'RTN-041', orderId: 'ORD-1008', product: 'Khadi Kurta Set', customer: 'Suresh Kumar', reason: 'Size mismatch', amount: 1899, status: 'pending' },
-    { id: 'RTN-039', orderId: 'ORD-998', product: 'Bandhani Dupatta', customer: 'Meera Singh', reason: 'Color variation', amount: 1499, status: 'approved' },
-  ]);
-
-  const [reviewsList, setReviewsList] = useState([
-    { id: 'rv1', customer: 'Priya S.', product: 'Bandhani Dupatta', rating: 5, comment: 'Vibrant colors and authentic tie-dye!', replied: false },
-    { id: 'rv2', customer: 'Anjali M.', product: 'Pashmina Shawl', rating: 4, comment: 'Soft and warm product.', replied: true },
-  ]);
 
   return (
     <SellerLayout title="Dashboard">

@@ -14,7 +14,7 @@ export function RedirectIfAuthed({ children }: { children: React.ReactNode }) {
       if (user.role === 'seller') {
         router.replace('/seller-dashboard');
       } else if (user.role === 'admin') {
-        router.replace('/admin-dashboard');
+        router.replace('/super-admin/dashboard');
       } else {
         router.replace('/dashboard');
       }

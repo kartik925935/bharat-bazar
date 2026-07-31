@@ -5,21 +5,7 @@ import { motion } from 'framer-motion';
 import { Wallet, Gift, ArrowUpRight, ArrowDownLeft, Clock, ShieldCheck, Sparkles, Copy, Check } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils/format-currency';
 import { toast } from 'sonner';
-
-interface Transaction {
-  id: string;
-  type: 'credit' | 'debit';
-  title: string;
-  amount: number;
-  date: string;
-  source: string;
-}
-
-const MOCK_TRANSACTIONS: Transaction[] = [
-  { id: 'tx-1', type: 'credit', title: 'Reward Points Converted', amount: 200, date: '18 Jan 2025', source: 'Loyalty Rewards' },
-  { id: 'tx-2', type: 'credit', title: 'Referral Bonus', amount: 100, date: '10 Jan 2025', source: 'Friend Referral' },
-  { id: 'tx-3', type: 'debit', title: 'Used on Order #BB-2025-78234', amount: 100, date: '15 Jan 2025', source: 'Order Purchase' },
-];
+import { MOCK_TRANSACTIONS } from '@/lib/mock/customer';
 
 export default function WalletPage() {
   const [copied, setCopied] = useState(false);

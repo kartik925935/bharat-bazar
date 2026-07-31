@@ -5,26 +5,14 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { HelpCircle, Search, MessageSquare, Phone, Mail, ChevronDown, ChevronUp, Package, RotateCcw, ShieldCheck, Truck } from 'lucide-react';
 import { toast } from 'sonner';
 
-interface FAQ {
-  q: string;
-  a: string;
-  cat: string;
-}
-
-const FAQS: FAQ[] = [
-  { cat: 'orders', q: 'How do I track my order?', a: 'You can track your order live from your Dashboard or Orders page. Click on any active order to see step-by-step delivery updates.' },
-  { cat: 'orders', q: 'Can I cancel an order after placing it?', a: 'Yes! Orders can be cancelled free of charge before they are packed by the seller. Go to My Orders > Order Details > Cancel Order.' },
-  { cat: 'returns', q: 'What is the return policy?', a: 'Bharat Bazaar offers a 7-day hassle-free return policy on all handicraft items. If you receive a damaged or mismatched item, we schedule a doorstep pickup and issue a full refund.' },
-  { cat: 'returns', q: 'How long does a refund take?', a: 'Refunds are processed within 24-48 hours after the returned item is picked up by our courier partner.' },
-  { cat: 'authenticity', q: 'Are all products 100% authentic handicraft?', a: 'Yes! All sellers on Bharat Bazaar undergo strict artisan verification and tier certification (Bronze, Silver, Gold, Platinum).' },
-];
+import { FAQS } from '@/lib/mock/customer';
 
 export default function HelpPage() {
   const [search, setSearch] = useState('');
   const [openIndex, setOpenIndex] = useState<number | null>(0);
 
   const filteredFaqs = FAQS.filter(
-    (f) => f.q.toLowerCase().includes(search.toLowerCase()) || f.a.toLowerCase().includes(search.toLowerCase())
+    (f) => f.question.toLowerCase().includes(search.toLowerCase()) || f.answer.toLowerCase().includes(search.toLowerCase())
   );
 
   return (
@@ -77,7 +65,7 @@ export default function HelpPage() {
                 onClick={() => setOpenIndex(isOpen ? null : i)}
                 className="w-full flex items-center justify-between text-left text-sm font-bold text-[#1A0A00] hover:text-[#FF7A00] py-2 cursor-pointer transition-colors"
               >
-                <span>{faq.q}</span>
+                <span>{faq.question}</span>
                 {isOpen ? <ChevronUp size={16} className="text-[#FF7A00] shrink-0" /> : <ChevronDown size={16} className="text-[#8C7B6E] shrink-0" />}
               </button>
               <AnimatePresence>
@@ -88,7 +76,7 @@ export default function HelpPage() {
                     exit={{ opacity: 0, height: 0 }}
                     className="text-xs text-[#4A3728] leading-relaxed pt-1 pb-2"
                   >
-                    {faq.a}
+                    {faq.answer}
                   </motion.p>
                 )}
               </AnimatePresence>
