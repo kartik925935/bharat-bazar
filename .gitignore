@@ -39,3 +39,22 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# OS specific files
+Thumbs.db
+desktop.ini
+
+# IDEs and Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Local temp files
+.temp/
+tmp/
+
+# AI Agent Configs
+.agents/
+AGENTS.md
+CLAUDE.md
