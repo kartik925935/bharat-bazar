@@ -88,8 +88,18 @@ export function SellerSidebar() {
 
   if (!seller) return null;
 
-  const tier = seller.tier;
-  const score = seller.tierScore;
+  const hasOrders = seller.totalOrders > 0;
+  const orderCompletion = hasOrders ? 100 - seller.cancellationRate : 0;
+  const returnRateValue = hasOrders ? 100 - seller.returnRate : 0;
+
+  const score = Math.round(
+    (orderCompletion / 100) * 30 +
+    (seller.rating / 5) * 25 +
+    (seller.onTimeDispatchRate / 100) * 20 +
+    (returnRateValue / 100) * 15 +
+    (seller.responseRate / 100) * 10
+  ) || 0;
+  const tier = score >= 90 ? 'platinum' : score >= 70 ? 'gold' : score >= 50 ? 'silver' : 'bronze';
 
   return (
     <aside className="w-[260px] h-screen bg-white border-r border-[#F0EDE8] flex flex-col fixed top-0 left-0 z-30">

@@ -572,7 +572,7 @@ export default function HomePage() {
             >
               <div className="flex items-center gap-4 mb-4">
                 <div className="w-14 h-14 rounded-full overflow-hidden border-2 border-[#FF7A00]/20 shrink-0">
-                  <img src={artisan.avatar} alt={artisan.name} className="w-full h-full object-cover" />
+                  <Image src={artisan.avatar} alt={artisan.name} width={56} height={56} className="w-full h-full object-cover" />
                 </div>
                 <div>
                   <h3 className="font-bold text-[#1A0A00]">{artisan.name}</h3>
@@ -714,9 +714,11 @@ export default function HomePage() {
                   {TESTIMONIALS[testimonialIdx].text}
                 </p>
                 <div className="flex items-center gap-3">
-                  <img
+                  <Image
                     src={TESTIMONIALS[testimonialIdx].avatar}
                     alt={TESTIMONIALS[testimonialIdx].name}
+                    width={48}
+                    height={48}
                     className="w-12 h-12 rounded-full object-cover border-2 border-[#FF7A00]/20"
                   />
                   <div>
@@ -782,7 +784,7 @@ export default function HomePage() {
             <div className="grid grid-cols-2 gap-4">
               {ARTISANS.map((a, i) => (
                 <div key={i} className="bg-white/5 border border-white/10 rounded-2xl p-4 hover:bg-white/10 transition-colors">
-                  <img src={a.avatar} alt={a.name} className="w-10 h-10 rounded-full object-cover mb-3 border border-[#FF7A00]/30" />
+                  <Image src={a.avatar} alt={a.name} width={40} height={40} className="w-10 h-10 rounded-full object-cover mb-3 border border-[#FF7A00]/30" />
                   <p className="text-xs font-bold text-white">{a.name}</p>
                   <p className="text-[10px] text-white/60 mb-2">{a.craft}</p>
                   <span className="text-xs font-black text-[#FF7A00]">{a.earning}</span>

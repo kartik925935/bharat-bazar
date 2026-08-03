@@ -12,24 +12,52 @@ import { toast } from 'sonner';
 import { useAuthStore } from '@/lib/store/auth-store';
 import { RedirectIfAuthed } from '@/components/auth/redirect-if-authed';
 
+import { FormInput } from '@/components/ui/form-input';
+
 const registerSchema = z.object({
   fullName: z.string()
-    .min(2, 'Name must be at least 2 characters')
-    .max(50, 'Name must be at most 50 characters'),
-  email: z.string().min(1, 'Email is required').email('Please enter a valid email address'),
-  phone: z.string().regex(/^[6-9]\d{9}$/, 'Enter a valid 10-digit Indian mobile number starting with 6-9'),
+    .min(1, "Full name is required")
+    .min(2, "Name must be at least 2 characters")
+    .max(50, "Name cannot exceed 50 characters")
+    .regex(/^[a-zA-Z\s'-]+$/, "Name can only contain letters, spaces, hyphens and apostrophes")
+    .transform(val => val.trim()),
+  email: z.string()
+    .min(1, "Email address is required")
+    .email("Please enter a valid email address")
+    .max(100, "Email is too long")
+    .toLowerCase()
+    .trim(),
+  phone: z.string()
+    .min(1, "Mobile number is required")
+    .regex(/^[6-9]\d{9}$/, "Enter valid 10-digit Indian mobile number (must start with 6, 7, 8, or 9)"),
   password: z.string()
-    .min(8, 'Minimum 8 characters')
-    .regex(/[A-Z]/, 'One uppercase letter required')
-    .regex(/[0-9]/, 'One number required')
-    .regex(/[^A-Za-z0-9]/, 'One special character required'),
-  confirmPassword: z.string().min(1, 'Please confirm your password'),
-  terms: z.literal(true, {
-    errorMap: () => ({ message: 'You must accept the terms & conditions' }),
-  }),
-}).refine((data) => data.password === data.confirmPassword, {
-  message: "Passwords don't match",
-  path: ['confirmPassword'],
+    .min(1, "Password is required")
+    .min(8, "Password must be at least 8 characters")
+    .max(128, "Password is too long")
+    .regex(/[A-Z]/, "Must include at least one uppercase letter (A-Z)")
+    .regex(/[a-z]/, "Must include at least one lowercase letter (a-z)")
+    .regex(/[0-9]/, "Must include at least one number (0-9)")
+    .regex(/[!@#$%^&*(),.?":{}|<>]/, "Must include at least one special character (!@#$%...)"),
+  confirmPassword: z.string()
+    .min(1, "Please confirm your password"),
+  dateOfBirth: z.string()
+    .optional()
+    .refine(val => {
+      if (!val) return true;
+      const age = new Date().getFullYear() - new Date(val).getFullYear();
+      return age >= 13;
+    }, "You must be at least 13 years old to register"),
+  gender: z.enum(['male', 'female', 'other', 'prefer_not_to_say']).optional(),
+  referralCode: z.string()
+    .regex(/^[A-Z0-9]{6,10}$/, "Invalid referral code format")
+    .optional()
+    .or(z.literal('')),
+  terms: z.boolean()
+    .refine(val => val === true, "You must accept the Terms & Conditions to continue"),
+  marketingConsent: z.boolean().optional().default(false),
+}).refine(data => data.password === data.confirmPassword, {
+  message: "Passwords do not match",
+  path: ["confirmPassword"]
 });
 
 type RegisterFormValues = z.infer<typeof registerSchema>;
@@ -47,10 +75,12 @@ export default function RegisterPage() {
     register,
     handleSubmit,
     setValue,
-    formState: { errors },
-  } = useForm<RegisterFormValues>({
+    watch,
+    formState: { errors, isValid },
+  } = useForm({
     resolver: zodResolver(registerSchema),
-    defaultValues: { fullName: '', email: '', phone: '', password: '', confirmPassword: '', terms: true },
+    mode: "onChange",
+    defaultValues: { fullName: '', email: '', phone: '', password: '', confirmPassword: '', terms: false },
   });
 
   // Capitalize first letter of each word
@@ -68,11 +98,12 @@ export default function RegisterPage() {
 
   // Check password strength
   const getPasswordStrength = () => {
+    const pwd = watch('password') || '';
     let score = 0;
-    if (passwordValue.length >= 8) score++;
-    if (/[A-Z]/.test(passwordValue)) score++;
-    if (/[0-9]/.test(passwordValue)) score++;
-    if (/[^A-Za-z0-9]/.test(passwordValue)) score++;
+    if (pwd.length >= 8) score++;
+    if (/[A-Z]/.test(pwd)) score++;
+    if (/[0-9]/.test(pwd)) score++;
+    if (/[^A-Za-z0-9]/.test(pwd)) score++;
     return score;
   };
 
@@ -157,115 +188,68 @@ export default function RegisterPage() {
 
             <form onSubmit={handleSubmit(onFormSubmit)} className="space-y-4">
               {/* Full Name */}
-              <div>
-                <label className="block text-xs font-bold text-[#1A1A1A] mb-1.5 uppercase tracking-wide">
-                  Full Name
-                </label>
-                <div className="relative">
-                  <User size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#8C8B80]" />
-                  <input
-                    type="text"
-                    {...register('fullName')}
-                    onChange={handleNameChange}
-                    className={`w-full h-12 pl-11 pr-4 rounded-xl border outline-none text-sm transition-all focus:shadow-md focus:shadow-orange-500/5 ${
-                      errors.fullName ? 'border-red-500 focus:border-red-600' : 'border-[#E5E4DE] focus:border-[#FF7A00]'
-                    }`}
-                    placeholder="Priya Sharma"
-                    disabled={loading}
-                  />
-                </div>
-                {errors.fullName && (
-                  <p className="text-xs text-red-500 mt-1">{errors.fullName.message}</p>
-                )}
-              </div>
+              <FormInput
+                label="Full Name"
+                placeholder="Priya Sharma"
+                required
+                register={register('fullName')}
+                error={errors.fullName}
+                isValid={!errors.fullName && !!watch('fullName')}
+                disabled={loading}
+                leftIcon={<User size={16} />}
+              />
 
               {/* Email */}
-              <div>
-                <label className="block text-xs font-bold text-[#1A1A1A] mb-1.5 uppercase tracking-wide">
-                  Email address
-                </label>
-                <div className="relative">
-                  <Mail size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#8C8B80]" />
-                  <input
-                    type="email"
-                    {...register('email')}
-                    className={`w-full h-12 pl-11 pr-4 rounded-xl border outline-none text-sm transition-all focus:shadow-md focus:shadow-orange-500/5 ${
-                      errors.email ? 'border-red-500 focus:border-red-600' : 'border-[#E5E4DE] focus:border-[#FF7A00]'
-                    }`}
-                    placeholder="you@email.com"
-                    disabled={loading}
-                  />
-                </div>
-                {errors.email && (
-                  <p className="text-xs text-red-500 mt-1">{errors.email.message}</p>
-                )}
-              </div>
+              <FormInput
+                label="Email address"
+                placeholder="you@email.com"
+                type="email"
+                required
+                register={register('email')}
+                error={errors.email}
+                isValid={!errors.email && !!watch('email')}
+                disabled={loading}
+                leftIcon={<Mail size={16} />}
+              />
 
               {/* Phone */}
-              <div>
-                <label className="block text-xs font-bold text-[#1A1A1A] mb-1.5 uppercase tracking-wide">
-                  Phone Number
-                </label>
-                <div className="relative">
-                  <Phone size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#8C8B80]" />
-                  <span className="absolute left-10 top-1/2 -translate-y-1/2 text-sm text-[#1A1A1A] font-semibold">
-                    +91
-                  </span>
-                  <input
-                    type="tel"
-                    {...register('phone')}
-                    onChange={handlePhoneChange}
-                    className={`w-full h-12 pl-20 pr-4 rounded-xl border outline-none text-sm transition-all focus:shadow-md focus:shadow-orange-500/5 ${
-                      errors.phone ? 'border-red-500 focus:border-red-600' : 'border-[#E5E4DE] focus:border-[#FF7A00]'
-                    }`}
-                    placeholder="98765 43210"
-                    disabled={loading}
-                  />
-                </div>
-                {errors.phone && (
-                  <p className="text-xs text-red-500 mt-1">{errors.phone.message}</p>
-                )}
-              </div>
+              <FormInput
+                label="Phone Number"
+                placeholder="98765 43210"
+                type="tel"
+                required
+                prefix="+91"
+                register={register('phone')}
+                error={errors.phone}
+                isValid={!errors.phone && !!watch('phone')}
+                disabled={loading}
+              />
 
               {/* Password */}
               <div>
-                <label className="block text-xs font-bold text-[#1A1A1A] mb-1.5 uppercase tracking-wide">
-                  Password
-                </label>
-                <div className="relative">
-                  <Lock size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#8C8B80]" />
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    {...register('password')}
-                    onChange={(e) => {
-                      register('password').onChange(e);
-                      setPasswordValue(e.target.value);
-                    }}
-                    className={`w-full h-12 pl-11 pr-12 rounded-xl border outline-none text-sm transition-all focus:shadow-md focus:shadow-orange-500/5 ${
-                      errors.password ? 'border-red-500 focus:border-red-600' : 'border-[#E5E4DE] focus:border-[#FF7A00]'
-                    }`}
-                    placeholder="Create a strong password"
-                    disabled={loading}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-[#8C8B80] hover:text-[#1A1A1A] transition-colors"
-                  >
-                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                  </button>
-                </div>
-                {passwordValue && (
+                <FormInput
+                  label="Password"
+                  placeholder="Create a strong password"
+                  type="password"
+                  required
+                  register={register('password')}
+                  error={errors.password}
+                  isValid={!errors.password && !!watch('password')}
+                  disabled={loading}
+                  leftIcon={<Lock size={16} />}
+                />
+                
+                {watch('password') && (
                   <div className="mt-2 space-y-1.5">
                     {/* Progress indicator */}
                     <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-[#8C8B80]">
                       <span>Password Strength:</span>
                       <span className={
-                        strengthScore === 1 ? 'text-red-500' :
-                        strengthScore === 2 ? 'text-orange-500' :
-                        strengthScore === 3 ? 'text-yellow-500' : 'text-green-500'
+                        getPasswordStrength() === 1 ? 'text-red-500' :
+                        getPasswordStrength() === 2 ? 'text-orange-500' :
+                        getPasswordStrength() === 3 ? 'text-yellow-500' : 'text-green-500'
                       }>
-                        {strengthLabels[Math.max(0, strengthScore - 1)]}
+                        {strengthLabels[Math.max(0, getPasswordStrength() - 1)]}
                       </span>
                     </div>
                     <div className="flex gap-1 h-1.5 w-full">
@@ -273,7 +257,7 @@ export default function RegisterPage() {
                         <div 
                           key={i} 
                           className={`flex-1 h-full rounded-full transition-all ${
-                            i < strengthScore ? strengthColors[strengthScore - 1] : 'bg-[#E5E4DE]/50'
+                            i < getPasswordStrength() ? strengthColors[getPasswordStrength() - 1] : 'bg-[#E5E4DE]/50'
                           }`}
                         />
                       ))}
@@ -281,61 +265,42 @@ export default function RegisterPage() {
                     {/* Requirements validation indicator */}
                     <div className="grid grid-cols-2 gap-x-2 gap-y-1 pt-1 text-[10px] text-[#8C8B80]">
                       <div className="flex items-center gap-1">
-                        <span className={passwordValue.length >= 8 ? 'text-green-500' : ''}>
-                          {passwordValue.length >= 8 ? '✓' : '•'} Min 8 chars
+                        <span className={(watch('password') || '').length >= 8 ? 'text-green-500' : ''}>
+                          {(watch('password') || '').length >= 8 ? '✓' : '•'} Min 8 chars
                         </span>
                       </div>
                       <div className="flex items-center gap-1">
-                        <span className={/[A-Z]/.test(passwordValue) ? 'text-green-500' : ''}>
-                          {/[A-Z]/.test(passwordValue) ? '✓' : '•'} 1 Uppercase
+                        <span className={/[A-Z]/.test(watch('password') || '') ? 'text-green-500' : ''}>
+                          {/[A-Z]/.test(watch('password') || '') ? '✓' : '•'} 1 Uppercase
                         </span>
                       </div>
                       <div className="flex items-center gap-1">
-                        <span className={/[0-9]/.test(passwordValue) ? 'text-green-500' : ''}>
-                          {/[0-9]/.test(passwordValue) ? '✓' : '•'} 1 Number
+                        <span className={/[0-9]/.test(watch('password') || '') ? 'text-green-500' : ''}>
+                          {/[0-9]/.test(watch('password') || '') ? '✓' : '•'} 1 Number
                         </span>
                       </div>
                       <div className="flex items-center gap-1">
-                        <span className={/[^A-Za-z0-9]/.test(passwordValue) ? 'text-green-500' : ''}>
-                          {/[^A-Za-z0-9]/.test(passwordValue) ? '✓' : '•'} 1 Special Char
+                        <span className={/[^A-Za-z0-9]/.test(watch('password') || '') ? 'text-green-500' : ''}>
+                          {/[^A-Za-z0-9]/.test(watch('password') || '') ? '✓' : '•'} 1 Special Char
                         </span>
                       </div>
                     </div>
                   </div>
                 )}
-                {errors.password && (
-                  <p className="text-xs text-red-500 mt-1">{errors.password.message}</p>
-                )}
               </div>
 
               {/* Confirm Password */}
-              <div>
-                <label className="block text-xs font-bold text-[#1A1A1A] mb-1.5 uppercase tracking-wide">
-                  Confirm Password
-                </label>
-                <div className="relative">
-                  <Lock size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#8C8B80]" />
-                  <input
-                    type={showConfirmPassword ? 'text' : 'password'}
-                    {...register('confirmPassword')}
-                    className={`w-full h-12 pl-11 pr-12 rounded-xl border outline-none text-sm transition-all focus:shadow-md focus:shadow-orange-500/5 ${
-                      errors.confirmPassword ? 'border-red-500 focus:border-red-600' : 'border-[#E5E4DE] focus:border-[#FF7A00]'
-                    }`}
-                    placeholder="Repeat password"
-                    disabled={loading}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-[#8C8B80] hover:text-[#1A1A1A] transition-colors"
-                  >
-                    {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                  </button>
-                </div>
-                {errors.confirmPassword && (
-                  <p className="text-xs text-red-500 mt-1">{errors.confirmPassword.message}</p>
-                )}
-              </div>
+              <FormInput
+                label="Confirm Password"
+                placeholder="Repeat password"
+                type="password"
+                required
+                register={register('confirmPassword')}
+                error={errors.confirmPassword}
+                isValid={!errors.confirmPassword && !!watch('confirmPassword')}
+                disabled={loading}
+                leftIcon={<Lock size={16} />}
+              />
 
               {/* Terms Checkbox */}
               <div className="space-y-2 pt-2">
@@ -353,7 +318,7 @@ export default function RegisterPage() {
                   </span>
                 </label>
                 {errors.terms && (
-                  <p className="text-xs text-red-500">{errors.terms.message}</p>
+                  <p className="text-xs text-red-500 flex items-center gap-1.5 mt-1.5"><AlertCircle className="w-3.5 h-3.5" />{errors.terms.message}</p>
                 )}
               </div>
 

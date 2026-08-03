@@ -38,6 +38,28 @@ const paymentUpiSchema = z.object({
 
 type AddressValues = z.infer<typeof addressSchema>;
 
+function FieldError({ message }: { message?: string }) {
+  if (!message) return null;
+  return (
+    <motion.p
+      initial={{ opacity: 0, height: 0 }}
+      animate={{ opacity: 1, height: 'auto' }}
+      className="flex items-center gap-1 text-[10px] text-red-500 mt-1 font-medium"
+      role="alert"
+    >
+      <AlertCircle className="w-3 h-3 flex-shrink-0" />
+      {message}
+    </motion.p>
+  );
+}
+
+const inputBase = (error: boolean) =>
+  `w-full h-10 px-3 rounded-lg border bg-white text-xs outline-none transition-colors ${
+    error
+      ? 'border-red-500/50 focus:border-red-500 focus:ring-1 focus:ring-red-500/20'
+      : 'border-[#E5E4DE] focus:border-[#FF7A00]'
+  }`;
+
 export default function CheckoutPage() {
   const router = useRouter();
   const { items, subtotal, totalDiscount, finalTotal, clearCart } = useCartStore();
@@ -62,6 +84,7 @@ export default function CheckoutPage() {
   // Forms
   const addressForm = useForm<AddressValues>({
     resolver: zodResolver(addressSchema),
+    mode: 'onChange',
     defaultValues: { fullName: '', phone: '', addressLine1: '', city: '', state: '', pincode: '' },
   });
 
@@ -274,63 +297,68 @@ export default function CheckoutPage() {
                     <h3 className="font-bold text-xs text-[#1A1A1A] uppercase tracking-wide">New Shipping Address</h3>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-[10px] font-bold text-[#8C8B80] uppercase mb-1">Full Name*</label>
+                        <label className="block text-[10px] font-bold text-[#8C8B80] uppercase mb-1">Full Name <span className="text-red-500">*</span></label>
                         <input 
                           {...addressForm.register('fullName')}
-                          className="w-full h-10 px-3 rounded-lg border border-[#E5E4DE] bg-white text-xs outline-none focus:border-[#FF7A00]" 
+                          className={inputBase(!!addressForm.formState.errors.fullName)} 
                         />
-                        {addressForm.formState.errors.fullName && <p className="text-[10px] text-red-500 mt-1">{addressForm.formState.errors.fullName.message}</p>}
+                        <AnimatePresence mode="wait"><FieldError message={addressForm.formState.errors.fullName?.message} /></AnimatePresence>
                       </div>
                       <div>
-                        <label className="block text-[10px] font-bold text-[#8C8B80] uppercase mb-1">Mobile Number*</label>
+                        <label className="block text-[10px] font-bold text-[#8C8B80] uppercase mb-1">Mobile Number <span className="text-red-500">*</span></label>
                         <input 
                           {...addressForm.register('phone')}
-                          className="w-full h-10 px-3 rounded-lg border border-[#E5E4DE] bg-white text-xs outline-none focus:border-[#FF7A00]" 
+                          className={inputBase(!!addressForm.formState.errors.phone)} 
                         />
-                        {addressForm.formState.errors.phone && <p className="text-[10px] text-red-500 mt-1">{addressForm.formState.errors.phone.message}</p>}
+                        <AnimatePresence mode="wait"><FieldError message={addressForm.formState.errors.phone?.message} /></AnimatePresence>
                       </div>
                       <div className="sm:col-span-2">
-                        <label className="block text-[10px] font-bold text-[#8C8B80] uppercase mb-1">Street Address*</label>
+                        <label className="block text-[10px] font-bold text-[#8C8B80] uppercase mb-1">Street Address <span className="text-red-500">*</span></label>
                         <input 
                           {...addressForm.register('addressLine1')}
-                          className="w-full h-10 px-3 rounded-lg border border-[#E5E4DE] bg-white text-xs outline-none" 
+                          className={inputBase(!!addressForm.formState.errors.addressLine1)} 
                         />
-                        {addressForm.formState.errors.addressLine1 && <p className="text-[10px] text-red-500 mt-1">{addressForm.formState.errors.addressLine1.message}</p>}
+                        <AnimatePresence mode="wait"><FieldError message={addressForm.formState.errors.addressLine1?.message} /></AnimatePresence>
                       </div>
                       <div>
-                        <label className="block text-[10px] font-bold text-[#8C8B80] uppercase mb-1">City*</label>
+                        <label className="block text-[10px] font-bold text-[#8C8B80] uppercase mb-1">City <span className="text-red-500">*</span></label>
                         <input 
                           {...addressForm.register('city')}
-                          className="w-full h-10 px-3 rounded-lg border border-[#E5E4DE] bg-white text-xs outline-none" 
+                          className={inputBase(!!addressForm.formState.errors.city)} 
                         />
+                        <AnimatePresence mode="wait"><FieldError message={addressForm.formState.errors.city?.message} /></AnimatePresence>
                       </div>
                       <div>
-                        <label className="block text-[10px] font-bold text-[#8C8B80] uppercase mb-1">State*</label>
+                        <label className="block text-[10px] font-bold text-[#8C8B80] uppercase mb-1">State <span className="text-red-500">*</span></label>
                         <input 
                           {...addressForm.register('state')}
-                          className="w-full h-10 px-3 rounded-lg border border-[#E5E4DE] bg-white text-xs outline-none" 
+                          className={inputBase(!!addressForm.formState.errors.state)} 
                         />
+                        <AnimatePresence mode="wait"><FieldError message={addressForm.formState.errors.state?.message} /></AnimatePresence>
                       </div>
                       <div>
-                        <label className="block text-[10px] font-bold text-[#8C8B80] uppercase mb-1">Pincode*</label>
+                        <label className="block text-[10px] font-bold text-[#8C8B80] uppercase mb-1">Pincode <span className="text-red-500">*</span></label>
                         <input 
                           {...addressForm.register('pincode')}
-                          className="w-full h-10 px-3 rounded-lg border border-[#E5E4DE] bg-white text-xs outline-none" 
+                          className={inputBase(!!addressForm.formState.errors.pincode)} 
                         />
-                        {addressForm.formState.errors.pincode && <p className="text-[10px] text-red-500 mt-1">{addressForm.formState.errors.pincode.message}</p>}
+                        <AnimatePresence mode="wait"><FieldError message={addressForm.formState.errors.pincode?.message} /></AnimatePresence>
                       </div>
                     </div>
                     <div className="flex gap-2 justify-end">
                       <button 
                         type="button" 
-                        onClick={() => setShowNewAddressForm(false)}
-                        className="px-4 py-2 rounded-lg text-xs font-semibold border border-[#E5E4DE]"
+                        onClick={() => { setShowNewAddressForm(false); addressForm.reset(); }}
+                        className="px-4 py-2 rounded-lg text-xs font-semibold border border-[#E5E4DE] hover:bg-white"
                       >
                         Cancel
                       </button>
                       <button 
-                        type="submit" 
-                        className="px-5 py-2 rounded-lg text-xs font-bold text-white bg-gradient-to-r from-[#FF7A00] to-[#FF4500]"
+                        type="submit"
+                        disabled={!addressForm.formState.isValid || addressForm.formState.isSubmitting}
+                        className={`px-5 py-2 rounded-lg text-xs font-bold text-white bg-gradient-to-r from-[#FF7A00] to-[#FF4500] transition-opacity ${
+                          !addressForm.formState.isValid || addressForm.formState.isSubmitting ? 'opacity-50 cursor-not-allowed' : 'hover:opacity-90'
+                        }`}
                       >
                         Save Address
                       </button>

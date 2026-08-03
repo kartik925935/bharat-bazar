@@ -98,8 +98,18 @@ export default function SellerDashboard() {
 
   if (!seller) return null;
 
-  const tier = seller.tier;
-  const score = seller.tierScore;
+  const hasOrders = seller.totalOrders > 0;
+  const orderCompletion = hasOrders ? 100 - seller.cancellationRate : 0;
+  const returnRateValue = hasOrders ? 100 - seller.returnRate : 0;
+  
+  const score = Math.round(
+    (orderCompletion / 100) * 30 +
+    (seller.rating / 5) * 25 +
+    (seller.onTimeDispatchRate / 100) * 20 +
+    (returnRateValue / 100) * 15 +
+    (seller.responseRate / 100) * 10
+  ) || 0;
+  const tier = score >= 90 ? 'platinum' : score >= 70 ? 'gold' : score >= 50 ? 'silver' : 'bronze';
   const nextTierScore = tier === 'bronze' ? 50 : tier === 'silver' ? 70 : tier === 'gold' ? 90 : 100;
   const nextTierName = tier === 'bronze' ? 'Silver' : tier === 'silver' ? 'Gold' : tier === 'gold' ? 'Platinum' : 'Max';
 
@@ -359,10 +369,10 @@ export default function SellerDashboard() {
         </div>
         <div className="space-y-3">
           {[
-            { label: 'Order Completion', value: 100 - seller.cancellationRate, max: 100, weight: 30, format: '%' },
+            { label: 'Order Completion', value: orderCompletion, max: 100, weight: 30, format: '%' },
             { label: 'Customer Rating', value: seller.rating, max: 5, weight: 25, format: '/5' },
             { label: 'On-time Dispatch', value: seller.onTimeDispatchRate, max: 100, weight: 20, format: '%' },
-            { label: 'Return Rate', value: 100 - seller.returnRate, max: 100, weight: 15, format: '%' },
+            { label: 'Return Rate', value: returnRateValue, max: 100, weight: 15, format: '%' },
             { label: 'Response Rate', value: seller.responseRate, max: 100, weight: 10, format: '%' },
           ].map((m, i) => (
             <div key={i}>

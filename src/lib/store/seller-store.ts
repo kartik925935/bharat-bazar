@@ -643,6 +643,7 @@ interface SellerState {
 
   // Auth
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  loginWithGoogle: () => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
   register: (data: Omit<SellerProfile, 'id' | 'sellerId' | 'tierScore' | 'rating' | 'totalReviews' | 'totalSales' | 'totalOrders' | 'totalRevenue' | 'returnRate' | 'cancellationRate' | 'onTimeDispatchRate' | 'responseRate' | 'joinedAt' | 'approvedAt' | 'lastActiveAt' | 'profileCompleteness' | 'kycStatus' | 'tier'>) => Promise<{ success: boolean; sellerId?: string; error?: string }>;
 
@@ -709,6 +710,28 @@ export const useSellerStore = create<SellerState>()(
           const seller = db.sellers.find(s => s.email.toLowerCase() === email.toLowerCase());
           if (!seller) return { success: false, error: 'No seller account found with this email' };
           if (seller.password !== password) return { success: false, error: 'Incorrect password' };
+          set({ seller, isAuthenticated: true });
+          get().loadSellerData(seller.id);
+          return { success: true };
+        } finally {
+          set({ isLoading: false });
+        }
+      },
+
+      loginWithGoogle: async () => {
+        set({ isLoading: true });
+        try {
+          if (typeof window === 'undefined') return { success: false, error: 'Not in browser' };
+          
+          // For demo purposes, we will mock a delay and log in as the default seed seller
+          await new Promise(resolve => setTimeout(resolve, 800));
+          
+          initializeSellers();
+          const db = getDb();
+          const seller = db.sellers[0]; // Just use the first seed seller as the "Google User"
+          
+          if (!seller) return { success: false, error: 'No seller account available' };
+          
           set({ seller, isAuthenticated: true });
           get().loadSellerData(seller.id);
           return { success: true };

@@ -1,32 +1,74 @@
 'use client';
 
 import { useState } from 'react';
-import { Search, Plus, Edit2, Archive, Activity } from 'lucide-react';
+import { Search, Plus, Edit2, Archive, Activity, AlertCircle, Loader2 } from 'lucide-react';
 import { useSuperAdminStore } from '@/lib/store/super-admin-store';
 import { formatCurrency } from '@/lib/utils/format-currency';
 import { toast } from 'sonner';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { motion, AnimatePresence } from 'framer-motion';
+
+const categorySchema = z.object({
+  name: z.string().min(2, 'Name must be at least 2 characters').max(50, 'Name cannot exceed 50 characters'),
+  slug: z
+    .string()
+    .min(2, 'Slug must be at least 2 characters')
+    .max(50, 'Slug cannot exceed 50 characters')
+    .regex(/^[a-z0-9-]+$/, 'Slug must contain only lowercase letters, numbers, and hyphens'),
+  commissionRate: z
+    .number({ invalid_type_error: 'Commission must be a number' })
+    .min(0, 'Commission cannot be negative')
+    .max(100, 'Commission cannot exceed 100%'),
+});
+
+type CategoryFormData = z.infer<typeof categorySchema>;
+
+function FieldError({ message }: { message?: string }) {
+  if (!message) return null;
+  return (
+    <motion.p
+      initial={{ opacity: 0, height: 0 }}
+      animate={{ opacity: 1, height: 'auto' }}
+      className="flex items-center gap-1 text-[10px] text-red-500 mt-1 font-medium"
+    >
+      <AlertCircle className="w-3 h-3 flex-shrink-0" />
+      {message}
+    </motion.p>
+  );
+}
 
 export default function CategoriesPage() {
   const { categories, addCategory } = useSuperAdminStore();
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [newCat, setNewCat] = useState({ name: '', slug: '', commissionRate: 10 });
+
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors, isValid, isSubmitting },
+  } = useForm<CategoryFormData>({
+    resolver: zodResolver(categorySchema),
+    mode: 'onChange',
+    defaultValues: { name: '', slug: '', commissionRate: 10 },
+  });
 
   const filtered = categories.filter(c => 
     c.name.toLowerCase().includes(search.toLowerCase()) || 
     c.slug.toLowerCase().includes(search.toLowerCase())
   );
 
-  const handleCreate = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newCat.name || !newCat.slug) return toast.error('Name and slug are required');
+  const onSubmit = async (data: CategoryFormData) => {
+    await new Promise((r) => setTimeout(r, 600));
     
     addCategory({
       id: `cat_${Math.random().toString(36).substr(2, 9)}`,
-      name: newCat.name,
-      slug: newCat.slug,
+      name: data.name,
+      slug: data.slug,
       status: 'active',
-      commission: newCat.commissionRate,
+      commission: data.commissionRate,
       products: 0,
       sellers: 0,
       gmv: 0
@@ -34,7 +76,7 @@ export default function CategoriesPage() {
     
     toast.success('Category created successfully');
     setIsModalOpen(false);
-    setNewCat({ name: '', slug: '', commissionRate: 10 });
+    reset();
   };
 
   return (
@@ -106,52 +148,59 @@ export default function CategoriesPage() {
       </div>
 
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
           <div className="bg-[#16161F] border border-[#1E1E2E] p-6 rounded-2xl w-full max-w-md shadow-2xl">
             <h2 className="text-xl font-black text-white mb-4">Add New Category</h2>
-            <form onSubmit={handleCreate} className="space-y-4">
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
               <div>
-                <label className="text-xs font-bold text-[#9898B0] uppercase block mb-1">Category Name</label>
+                <label className="text-xs font-bold text-[#9898B0] uppercase block mb-1">Name <span className="text-red-500">*</span></label>
                 <input 
-                  type="text" 
-                  value={newCat.name} 
-                  onChange={e => setNewCat({...newCat, name: e.target.value})}
-                  className="w-full bg-[#111118] border border-[#1E1E2E] rounded-xl px-4 py-2 text-sm text-white focus:outline-none focus:border-[#FF7A00]" 
-                  placeholder="e.g. Electronics" 
+                  {...register('name')}
+                  className={`w-full bg-[#111118] border rounded-xl px-4 py-2 text-sm text-white focus:outline-none transition-colors ${
+                    errors.name ? 'border-red-500/50 focus:border-red-500' : 'border-[#1E1E2E] focus:border-[#FF7A00]'
+                  }`} 
+                  placeholder="e.g. Handlooms" 
                 />
+                <AnimatePresence mode="wait"><FieldError message={errors.name?.message} /></AnimatePresence>
               </div>
               <div>
-                <label className="text-xs font-bold text-[#9898B0] uppercase block mb-1">Slug</label>
+                <label className="text-xs font-bold text-[#9898B0] uppercase block mb-1">Slug <span className="text-red-500">*</span></label>
                 <input 
-                  type="text" 
-                  value={newCat.slug} 
-                  onChange={e => setNewCat({...newCat, slug: e.target.value})}
-                  className="w-full bg-[#111118] border border-[#1E1E2E] rounded-xl px-4 py-2 text-sm text-white focus:outline-none focus:border-[#FF7A00]" 
-                  placeholder="e.g. electronics" 
+                  {...register('slug')}
+                  className={`w-full bg-[#111118] border rounded-xl px-4 py-2 text-sm text-white focus:outline-none transition-colors ${
+                    errors.slug ? 'border-red-500/50 focus:border-red-500' : 'border-[#1E1E2E] focus:border-[#FF7A00]'
+                  }`} 
+                  placeholder="e.g. handlooms-textiles" 
                 />
+                <AnimatePresence mode="wait"><FieldError message={errors.slug?.message} /></AnimatePresence>
               </div>
               <div>
-                <label className="text-xs font-bold text-[#9898B0] uppercase block mb-1">Commission Rate (%)</label>
+                <label className="text-xs font-bold text-[#9898B0] uppercase block mb-1">Commission Rate (%) <span className="text-red-500">*</span></label>
                 <input 
-                  type="number" 
-                  value={newCat.commissionRate} 
-                  onChange={e => setNewCat({...newCat, commissionRate: Number(e.target.value)})}
-                  className="w-full bg-[#111118] border border-[#1E1E2E] rounded-xl px-4 py-2 text-sm text-white focus:outline-none focus:border-[#FF7A00]" 
+                  type="number"
+                  {...register('commissionRate', { valueAsNumber: true })}
+                  className={`w-full bg-[#111118] border rounded-xl px-4 py-2 text-sm text-white focus:outline-none transition-colors ${
+                    errors.commissionRate ? 'border-red-500/50 focus:border-red-500' : 'border-[#1E1E2E] focus:border-[#FF7A00]'
+                  }`} 
                 />
+                <AnimatePresence mode="wait"><FieldError message={errors.commissionRate?.message} /></AnimatePresence>
               </div>
               <div className="flex gap-3 pt-2">
                 <button 
                   type="button" 
-                  onClick={() => setIsModalOpen(false)}
-                  className="flex-1 py-2 rounded-xl border border-[#1E1E2E] text-[#9898B0] text-sm font-bold hover:bg-[#111118] transition-colors"
+                  onClick={() => { setIsModalOpen(false); reset(); }}
+                  className="flex-1 py-2.5 rounded-xl border border-[#1E1E2E] text-[#9898B0] text-sm font-bold hover:bg-[#111118] transition-colors"
                 >
                   Cancel
                 </button>
                 <button 
                   type="submit" 
-                  className="flex-1 py-2 rounded-xl bg-gradient-to-r from-[#FF7A00] to-[#FF4500] text-white text-sm font-bold hover:opacity-90 transition-colors"
+                  disabled={!isValid || isSubmitting}
+                  className={`flex-1 py-2.5 rounded-xl bg-gradient-to-r from-[#FF7A00] to-[#FF4500] text-white text-sm font-bold flex items-center justify-center gap-2 transition-all ${
+                    (!isValid || isSubmitting) ? 'opacity-50 cursor-not-allowed' : 'hover:opacity-90 hover:-translate-y-0.5 shadow-lg shadow-orange-500/20'
+                  }`}
                 >
-                  Add Category
+                  {isSubmitting ? <><Loader2 size={16} className="animate-spin"/> Saving...</> : 'Add Category'}
                 </button>
               </div>
             </form>
