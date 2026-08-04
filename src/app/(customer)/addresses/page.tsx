@@ -1,11 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MapPin, Plus, Check, Trash2, Edit3, Home, Briefcase, Building, X, Search } from 'lucide-react';
+import { MapPin, Plus, Check, Trash2, Edit3, Home, Briefcase, Building, X, Search, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
-
-import { INITIAL_ADDRESSES } from '@/lib/mock/customer';
+import { createClient } from '@/lib/supabase/client';
+import { useAuthStore } from '@/lib/store/auth-store';
 
 interface Address {
   id: string;
@@ -20,11 +20,70 @@ interface Address {
   isDefault: boolean;
 }
 
+const INDIAN_STATES = [
+  "Andhra Pradesh",
+  "Arunachal Pradesh",
+  "Assam",
+  "Bihar",
+  "Chhattisgarh",
+  "Goa",
+  "Gujarat",
+  "Haryana",
+  "Himachal Pradesh",
+  "Jharkhand",
+  "Karnataka",
+  "Kerala",
+  "Madhya Pradesh",
+  "Maharashtra",
+  "Manipur",
+  "Meghalaya",
+  "Mizoram",
+  "Nagaland",
+  "Odisha",
+  "Punjab",
+  "Rajasthan",
+  "Sikkim",
+  "Tamil Nadu",
+  "Telangana",
+  "Tripura",
+  "Uttar Pradesh",
+  "Uttarakhand",
+  "West Bengal",
+  "Andaman and Nicobar Islands",
+  "Chandigarh",
+  "Dadra and Nagar Haveli and Daman and Diu",
+  "Delhi",
+  "Jammu and Kashmir",
+  "Ladakh",
+  "Lakshadweep",
+  "Puducherry"
+];
+
+
+/* ───── helpers to convert between DB row ↔ UI model ───── */
+function rowToAddress(row: any): Address {
+  return {
+    id: row.id,
+    name: row.full_name,
+    phone: row.phone,
+    line1: row.address_line1,
+    line2: row.address_line2 || undefined,
+    city: row.city,
+    state: row.state,
+    pincode: row.pincode,
+    type: (row.label?.toLowerCase() || 'other') as 'home' | 'work' | 'other',
+    isDefault: row.is_default,
+  };
+}
+
 export default function AddressesPage() {
-  const [addresses, setAddresses] = useState<Address[]>(INITIAL_ADDRESSES);
+  const { user } = useAuthStore();
+  const [addresses, setAddresses] = useState<Address[]>([]);
+  const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
   // Form states
   const [name, setName] = useState('');
@@ -32,11 +91,35 @@ export default function AddressesPage() {
   const [pincode, setPincode] = useState('');
   const [line1, setLine1] = useState('');
   const [line2, setLine2] = useState('');
-  const [city, setCity] = useState('Bangalore');
-  const [state, setState] = useState('Karnataka');
+  const [city, setCity] = useState('');
+  const [state, setState] = useState('');
   const [type, setType] = useState<'home' | 'work' | 'other'>('home');
   const [isDefault, setIsDefault] = useState(false);
   const [verifyingPin, setVerifyingPin] = useState(false);
+
+  /* ───── Fetch addresses from Supabase ───── */
+  const fetchAddresses = useCallback(async () => {
+    if (!user) return;
+    const supabase = createClient();
+    const { data, error } = await supabase
+      .from('addresses')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('is_default', { ascending: false })
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Failed to fetch addresses:', error);
+      toast.error('Failed to load addresses');
+    } else {
+      setAddresses((data || []).map(rowToAddress));
+    }
+    setLoading(false);
+  }, [user]);
+
+  useEffect(() => {
+    fetchAddresses();
+  }, [fetchAddresses]);
 
   const resetForm = () => {
     setName('');
@@ -44,8 +127,8 @@ export default function AddressesPage() {
     setPincode('');
     setLine1('');
     setLine2('');
-    setCity('Bangalore');
-    setState('Karnataka');
+    setCity('');
+    setState('');
     setType('home');
     setIsDefault(false);
     setEditingId(null);
@@ -84,47 +167,128 @@ export default function AddressesPage() {
     }, 500);
   };
 
-  const handleSave = (e: React.FormEvent) => {
+  /* ───── Save (insert or update) to Supabase ───── */
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name || !phone || !line1 || !pincode) {
+    if (!name || !phone || !line1 || !pincode || !user) {
       toast.error('Please fill required fields');
       return;
     }
 
+    setSaving(true);
+    const supabase = createClient();
+
+    // If marking as default, clear existing defaults first
+    if (isDefault) {
+      await supabase
+        .from('addresses')
+        .update({ is_default: false })
+        .eq('user_id', user.id)
+        .eq('is_default', true);
+    }
+
+    const payload = {
+      user_id: user.id,
+      full_name: name,
+      phone,
+      address_line1: line1,
+      address_line2: line2 || null,
+      city: city || 'Unknown',
+      state: state || 'Unknown',
+      pincode,
+      label: type,
+      is_default: isDefault || addresses.length === 0,
+    };
+
     if (editingId) {
-      setAddresses((prev) =>
-        prev.map((a) => {
-          if (a.id === editingId) {
-            return { id: a.id, name, phone, line1, line2, city, state, pincode, type, isDefault: isDefault || a.isDefault };
-          }
-          return isDefault ? { ...a, isDefault: false } : a;
-        })
-      );
+      const { error } = await supabase
+        .from('addresses')
+        .update(payload)
+        .eq('id', editingId)
+        .eq('user_id', user.id);
+
+      if (error) {
+        console.error('Failed to update address:', error);
+        toast.error('Failed to update address');
+        setSaving(false);
+        return;
+      }
       toast.success('Address updated!');
     } else {
-      const newAddr: Address = {
-        id: `addr-${Date.now()}`,
-        name, phone, line1, line2, city, state, pincode, type,
-        isDefault: isDefault || addresses.length === 0,
-      };
-      setAddresses((prev) => (isDefault ? prev.map((a) => ({ ...a, isDefault: false })).concat(newAddr) : [...prev, newAddr]));
+      const { error } = await supabase
+        .from('addresses')
+        .insert(payload);
+
+      if (error) {
+        console.error('Failed to add address:', error);
+        toast.error('Failed to add address');
+        setSaving(false);
+        return;
+      }
       toast.success('Address added!');
     }
 
+    setSaving(false);
     setModalOpen(false);
     resetForm();
+    await fetchAddresses();
   };
 
-  const handleSetDefault = (id: string) => {
-    setAddresses((prev) => prev.map((a) => ({ ...a, isDefault: a.id === id })));
+  /* ───── Set default ───── */
+  const handleSetDefault = async (id: string) => {
+    if (!user) return;
+    const supabase = createClient();
+
+    // Clear all defaults for this user
+    await supabase
+      .from('addresses')
+      .update({ is_default: false })
+      .eq('user_id', user.id)
+      .eq('is_default', true);
+
+    // Set the new default
+    const { error } = await supabase
+      .from('addresses')
+      .update({ is_default: true })
+      .eq('id', id)
+      .eq('user_id', user.id);
+
+    if (error) {
+      toast.error('Failed to update default address');
+      return;
+    }
+
     toast.success('Default address updated!');
+    await fetchAddresses();
   };
 
-  const handleDelete = (id: string) => {
-    setAddresses((prev) => prev.filter((a) => a.id !== id));
+  /* ───── Delete ───── */
+  const handleDelete = async (id: string) => {
+    if (!user) return;
+    const supabase = createClient();
+    const { error } = await supabase
+      .from('addresses')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', user.id);
+
+    if (error) {
+      toast.error('Failed to delete address');
+      return;
+    }
+
     setDeletingId(null);
     toast.success('Address deleted!');
+    await fetchAddresses();
   };
+
+  if (loading) {
+    return (
+      <div className="p-4 sm:p-6 flex items-center justify-center min-h-[200px]">
+        <Loader2 className="animate-spin text-[#FF7A00]" size={28} />
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 sm:p-6 space-y-6">
@@ -345,13 +509,19 @@ export default function AddressesPage() {
                     />
                   </div>
                   <div>
-                    <label className="font-bold text-[#8C7B6E] uppercase tracking-wider block mb-1">State</label>
-                    <input
-                      type="text"
+                    <label className="font-bold text-[#8C7B6E] uppercase tracking-wider block mb-1">State *</label>
+                    <select
                       value={state}
                       onChange={(e) => setState(e.target.value)}
-                      className="w-full h-10 px-3 rounded-xl border border-[#E8E4DE] text-sm outline-none focus:border-[#FF7A00]"
-                    />
+                      className="w-full h-10 px-3 rounded-xl border border-[#E8E4DE] text-sm outline-none focus:border-[#FF7A00] bg-white cursor-pointer"
+                    >
+                      <option value="">Select State</option>
+                      {INDIAN_STATES.map((s) => (
+                        <option key={s} value={s}>
+                          {s}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 </div>
 
@@ -393,9 +563,10 @@ export default function AddressesPage() {
                   </button>
                   <button
                     type="submit"
-                    className="flex-1 h-11 rounded-xl bg-gradient-to-r from-[#FF7A00] to-[#FF4500] text-white text-sm font-bold cursor-pointer"
+                    disabled={saving}
+                    className="flex-1 h-11 rounded-xl bg-gradient-to-r from-[#FF7A00] to-[#FF4500] text-white text-sm font-bold cursor-pointer disabled:opacity-60"
                   >
-                    Save Address
+                    {saving ? 'Saving...' : 'Save Address'}
                   </button>
                 </div>
               </form>

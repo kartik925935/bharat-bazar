@@ -7,6 +7,7 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { SellerLayout } from "./SellerSubPages";
 
 import { MOCK_SELLER_PRODUCTS as MOCK_PRODUCTS } from '@/lib/mock/sellers';
+import { useSellerStore } from '@/lib/store/seller-store';
 
 
 const STATUS_STYLE: Record<string, { bg: string; text: string; label: string }> = {
@@ -284,26 +285,14 @@ export function AddProductPage() {
 }
 
 // ─── Earnings Page ─────────────────────────────────────────
-const EARNINGS_DATA = [
-  { month: "Jul", revenue: 18400, orders: 12 },
-  { month: "Aug", revenue: 22100, orders: 15 },
-  { month: "Sep", revenue: 19800, orders: 13 },
-  { month: "Oct", revenue: 31200, orders: 22 },
-  { month: "Nov", revenue: 48600, orders: 34 },
-  { month: "Dec", revenue: 52300, orders: 38 },
-];
-
-const PAYOUTS = [
-  { id: "PAY-001", amount: 42380, date: "Nov 30, 2024", status: "paid", orders: 34, utr: "UTR123456789" },
-  { id: "PAY-002", amount: 28900, date: "Oct 31, 2024", status: "paid", orders: 22, utr: "UTR987654321" },
-  { id: "PAY-003", amount: 17820, date: "Sep 30, 2024", status: "paid", orders: 13, utr: "UTR456123789" },
-];
-
 export function SellerEarningsPage() {
   const [period, setPeriod] = useState("6M");
-  const totalRevenue = EARNINGS_DATA.reduce((s, d) => s + d.revenue, 0);
-  const totalOrders = EARNINGS_DATA.reduce((s, d) => s + d.orders, 0);
-  const avgOrder = Math.round(totalRevenue / totalOrders);
+  const { orders = [], settlements = [] } = useSellerStore();
+
+  const totalRevenue = orders.reduce((s: number, o: any) => s + Number(o.totalAmount || o.total_amount || 0), 0);
+  const totalOrdersCount = orders.length;
+  const avgOrder = totalOrdersCount > 0 ? Math.round(totalRevenue / totalOrdersCount) : 0;
+  const pendingPayout = 0;
 
   return (
     <SellerLayout title="Earnings">
@@ -315,18 +304,15 @@ export function SellerEarningsPage() {
         {/* KPI Cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           {[
-            { label: "Total Revenue (6M)", value: `₹${(totalRevenue / 100000).toFixed(2)}L`, trend: "+28%", up: true },
-            { label: "Total Orders", value: totalOrders.toString(), trend: "+18%", up: true },
-            { label: "Avg Order Value", value: `₹${avgOrder.toLocaleString()}`, trend: "+8%", up: true },
-            { label: "Pending Payout", value: "₹9,920", trend: "Due Dec 31", up: null },
+            { label: "Total Revenue", value: `₹${totalRevenue.toLocaleString()}`, trend: "0% growth", up: true },
+            { label: "Total Orders", value: totalOrdersCount.toString(), trend: "0 orders", up: true },
+            { label: "Avg Order Value", value: `₹${avgOrder.toLocaleString()}`, trend: "₹0 avg", up: true },
+            { label: "Pending Payout", value: `₹${pendingPayout.toLocaleString()}`, trend: "No pending", up: null },
           ].map(card => (
             <div key={card.label} className="bg-white rounded-2xl border border-black/5 p-5">
               <div className="text-xs text-[#8C8B80] mb-1">{card.label}</div>
               <div className="font-black text-xl mb-1" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", color: "#1C1B14" }}>{card.value}</div>
-              <div className={`text-xs font-medium flex items-center gap-1 ${card.up === true ? "text-[#1A9E4E]" : card.up === false ? "text-red-500" : "text-[#FF7A00]"}`}>
-                {card.up === true && <TrendingUp size={11} />}
-                {card.up === false && <TrendingDown size={11} />}
-                {card.up === null && <IndianRupee size={11} />}
+              <div className="text-xs font-medium flex items-center gap-1 text-[#8C8B80]">
                 {card.trend}
               </div>
             </div>
@@ -343,58 +329,76 @@ export function SellerEarningsPage() {
               ))}
             </div>
           </div>
-          <ResponsiveContainer width="100%" height={220}>
-            <AreaChart data={EARNINGS_DATA}>
-              <defs>
-                <linearGradient id="earnGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#FF7A00" stopOpacity={0.2} />
-                  <stop offset="95%" stopColor="#FF7A00" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#F5F4F0" />
-              <XAxis dataKey="month" tick={{ fontSize: 12, fill: "#8C8B80" }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 11, fill: "#8C8B80" }} axisLine={false} tickLine={false} tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}k`} />
-              <Tooltip formatter={(v: any) => [`₹${Number(v || 0).toLocaleString()}`, "Revenue"]} contentStyle={{ borderRadius: 12, border: "1px solid #F5F4F0", fontSize: 12 }} />
-              <Area type="monotone" dataKey="revenue" stroke="#FF7A00" strokeWidth={2.5} fill="url(#earnGrad)" />
-            </AreaChart>
-          </ResponsiveContainer>
+          {totalRevenue === 0 ? (
+            <div className="h-44 flex items-center justify-center text-[#8C8B80] text-sm">
+              No revenue data recorded yet
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height={220}>
+              <AreaChart data={[]}>
+                <defs>
+                  <linearGradient id="earnGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#FF7A00" stopOpacity={0.2} />
+                    <stop offset="95%" stopColor="#FF7A00" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#F5F4F0" />
+                <XAxis dataKey="month" tick={{ fontSize: 12, fill: "#8C8B80" }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 11, fill: "#8C8B80" }} axisLine={false} tickLine={false} tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}k`} />
+                <Tooltip formatter={(v: any) => [`₹${Number(v || 0).toLocaleString()}`, "Revenue"]} contentStyle={{ borderRadius: 12, border: "1px solid #F5F4F0", fontSize: 12 }} />
+                <Area type="monotone" dataKey="revenue" stroke="#FF7A00" strokeWidth={2.5} fill="url(#earnGrad)" />
+              </AreaChart>
+            </ResponsiveContainer>
+          )}
         </div>
 
         {/* Monthly Breakdown */}
         <div className="bg-white rounded-2xl border border-black/5 p-6 mb-6">
           <h3 className="font-bold text-[#1C1B14] mb-4" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Monthly Breakdown</h3>
-          <ResponsiveContainer width="100%" height={180}>
-            <BarChart data={EARNINGS_DATA} barSize={24}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#F5F4F0" />
-              <XAxis dataKey="month" tick={{ fontSize: 12, fill: "#8C8B80" }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 11, fill: "#8C8B80" }} axisLine={false} tickLine={false} tickFormatter={(v) => `${v}`} />
-              <Tooltip formatter={(v: any) => [v, "Orders"]} contentStyle={{ borderRadius: 12, border: "1px solid #F5F4F0", fontSize: 12 }} />
-              <Bar dataKey="orders" fill="#1A9E4E" radius={[6, 6, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+          {totalOrdersCount === 0 ? (
+            <div className="h-36 flex items-center justify-center text-[#8C8B80] text-sm">
+              No monthly sales data recorded yet
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height={180}>
+              <BarChart data={[]} barSize={24}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#F5F4F0" />
+                <XAxis dataKey="month" tick={{ fontSize: 12, fill: "#8C8B80" }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 11, fill: "#8C8B80" }} axisLine={false} tickLine={false} tickFormatter={(v) => `${v}`} />
+                <Tooltip formatter={(v: any) => [v, "Orders"]} contentStyle={{ borderRadius: 12, border: "1px solid #F5F4F0", fontSize: 12 }} />
+                <Bar dataKey="orders" fill="#1A9E4E" radius={[6, 6, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
         </div>
 
         {/* Payout History */}
         <div className="bg-white rounded-2xl border border-black/5 p-6">
           <h3 className="font-bold text-[#1C1B14] mb-4" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Payout History</h3>
-          <div className="space-y-3">
-            {PAYOUTS.map((payout, i) => (
-              <motion.div key={payout.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}
-                className="flex items-center gap-4 p-4 rounded-xl bg-[#FAFAF8] border border-[#F5F4F0]">
-                <div className="w-10 h-10 rounded-xl bg-[#F0FDF4] flex items-center justify-center shrink-0">
-                  <IndianRupee size={18} className="text-[#1A9E4E]" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="font-semibold text-[#1C1B14] text-sm">{payout.id}</span>
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-[#F0FDF4] text-[#1A9E4E] font-medium">Paid</span>
+          {settlements.length === 0 ? (
+            <div className="py-8 text-center text-[#8C8B80] text-sm">
+              No payout history yet. Payouts will appear here after your first completed sales settlement.
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {settlements.map((payout: any, i: number) => (
+                <motion.div key={payout.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}
+                  className="flex items-center gap-4 p-4 rounded-xl bg-[#FAFAF8] border border-[#F5F4F0]">
+                  <div className="w-10 h-10 rounded-xl bg-[#F0FDF4] flex items-center justify-center shrink-0">
+                    <IndianRupee size={18} className="text-[#1A9E4E]" />
                   </div>
-                  <div className="text-xs text-[#8C8B80]">{payout.date} · {payout.orders} orders · UTR: <span style={{ fontFamily: "'JetBrains Mono', monospace" }}>{payout.utr}</span></div>
-                </div>
-                <div className="font-bold text-[#1C1B14]" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>₹{payout.amount.toLocaleString()}</div>
-              </motion.div>
-            ))}
-          </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-[#1C1B14] text-sm">{payout.id}</span>
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-[#F0FDF4] text-[#1A9E4E] font-medium">Paid</span>
+                    </div>
+                    <div className="text-xs text-[#8C8B80]">{payout.date} · {payout.orders} orders · UTR: <span style={{ fontFamily: "'JetBrains Mono', monospace" }}>{payout.utr}</span></div>
+                  </div>
+                  <div className="font-bold text-[#1C1B14]" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>₹{payout.amount.toLocaleString()}</div>
+                </motion.div>
+              ))}
+            </div>
+          )}
         </div>
     </SellerLayout>
   );

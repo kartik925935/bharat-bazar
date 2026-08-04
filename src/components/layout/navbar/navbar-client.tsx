@@ -280,41 +280,45 @@ export function NavbarClient() {
               </div>
 
               {/* Wishlist Link */}
-              <Link
-                href="/wishlist"
-                className="relative w-10 h-10 flex items-center justify-center rounded-full text-[#555449] hover:text-[#FF7A00] hover:bg-[#FFF8F0] transition-all hidden sm:flex"
-              >
-                <Heart size={20} />
-                {displayWishlistCount > 0 && (
-                  <motion.span
-                    key={`wishlist-${displayWishlistCount}`}
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full text-[9px] font-bold text-white flex items-center justify-center bg-[#FF7A00]"
-                  >
-                    {displayWishlistCount}
-                  </motion.span>
-                )}
-              </Link>
+              {displayUser?.role !== 'seller' && (
+                <Link
+                  href="/wishlist"
+                  className="relative w-10 h-10 flex items-center justify-center rounded-full text-[#555449] hover:text-[#FF7A00] hover:bg-[#FFF8F0] transition-all hidden sm:flex"
+                >
+                  <Heart size={20} />
+                  {displayWishlistCount > 0 && (
+                    <motion.span
+                      key={`wishlist-${displayWishlistCount}`}
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full text-[9px] font-bold text-white flex items-center justify-center bg-[#FF7A00]"
+                    >
+                      {displayWishlistCount}
+                    </motion.span>
+                  )}
+                </Link>
+              )}
 
               {/* Cart Link with Bounce Animation */}
-              <Link
-                href="/cart"
-                className="relative w-10 h-10 flex items-center justify-center rounded-full text-[#555449] hover:text-[#FF7A00] hover:bg-[#FFF8F0] transition-all"
-              >
-                <ShoppingCart size={20} />
-                {displayCartCount > 0 && (
-                  <motion.span
-                    key={`cart-${displayCartCount}`}
-                    initial={{ scale: 0 }}
-                    animate={{ scale: [0, 1.3, 1] }}
-                    transition={{ duration: 0.3 }}
-                    className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full text-[9px] font-bold text-white flex items-center justify-center bg-[#FF7A00]"
-                  >
-                    {displayCartCount}
-                  </motion.span>
-                )}
-              </Link>
+              {displayUser?.role !== 'seller' && (
+                <Link
+                  href="/cart"
+                  className="relative w-10 h-10 flex items-center justify-center rounded-full text-[#555449] hover:text-[#FF7A00] hover:bg-[#FFF8F0] transition-all"
+                >
+                  <ShoppingCart size={20} />
+                  {displayCartCount > 0 && (
+                    <motion.span
+                      key={`cart-${displayCartCount}`}
+                      initial={{ scale: 0 }}
+                      animate={{ scale: [0, 1.3, 1] }}
+                      transition={{ duration: 0.3 }}
+                      className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full text-[9px] font-bold text-white flex items-center justify-center bg-[#FF7A00]"
+                    >
+                      {displayCartCount}
+                    </motion.span>
+                  )}
+                </Link>
+              )}
 
               {/* Notifications */}
               <div className="hidden md:block">
@@ -502,7 +506,7 @@ export function NavbarClient() {
           {[
             { icon: '🏠', label: 'Home', href: '/' },
             { icon: '🗂️', label: 'Browse', href: '/products' },
-            { icon: '🛒', label: 'Cart', href: '/cart', badge: displayCartCount },
+            ...(displayUser?.role !== 'seller' ? [{ icon: '🛒', label: 'Cart', href: '/cart', badge: displayCartCount }] : []),
             { icon: '📦', label: 'Orders', href: displayIsAuthenticated ? (displayUser?.role === 'seller' ? '/seller-dashboard' : '/orders') : '/login' },
             { icon: '👤', label: 'Account', href: displayIsAuthenticated ? (displayUser?.role === 'seller' ? '/seller-dashboard' : '/dashboard') : '/login' },
           ].map((item) => (

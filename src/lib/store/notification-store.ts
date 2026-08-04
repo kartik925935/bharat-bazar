@@ -50,33 +50,8 @@ interface NotificationState {
 export const useNotificationStore = create<NotificationState>()(
   persist(
     (set) => ({
-      notifications: [
-        {
-          id: 'n1',
-          type: 'order_shipped',
-          title: 'Order Shipped!',
-          body: 'Your Madhubani painting is on its way. Expected by Jan 23.',
-          read: false,
-          createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-        },
-        {
-          id: 'n2',
-          type: 'offer_alert',
-          title: 'New Offer',
-          body: 'Flash sale: 25% off on all Pottery this weekend!',
-          read: false,
-          createdAt: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(),
-        },
-        {
-          id: 'n3',
-          type: 'welcome',
-          title: 'Welcome to Bharat Bazaar!',
-          body: 'Discover 50,000+ authentic handcrafted products from Indian artisans.',
-          read: true,
-          createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-        },
-      ],
-      unreadCount: 2,
+      notifications: [],
+      unreadCount: 0,
 
       add: (notification) =>
         set((state) => {
@@ -120,6 +95,6 @@ export const useNotificationStore = create<NotificationState>()(
 
       clear: () => set({ notifications: [], unreadCount: 0 }),
     }),
-    { name: 'bb-notifications' }
+    { name: 'bb-notifications-v2' }
   )
 );

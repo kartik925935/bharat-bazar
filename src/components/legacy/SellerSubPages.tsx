@@ -1,7 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   LayoutDashboard, Package, ShoppingBag, RotateCcw, Star, Tag,
@@ -11,14 +11,18 @@ import {
   Store, ImageIcon, Globe, Phone, Mail, MapPin, Shield
 } from "lucide-react";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { useAuthStore } from '@/lib/store/auth-store';
+import { useSellerStore } from '@/lib/store/seller-store';
+import { useNotificationStore } from '@/lib/store/notification-store';
+import { getSellerTier } from '@/lib/utils/seller-tier';
 
 const SELLER_NAV = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/seller-dashboard" },
   { icon: Store, label: "My Shop", href: "/seller-shop" },
   { icon: Package, label: "Products", href: "/seller-products" },
-  { icon: ShoppingBag, label: "Orders", href: "/seller-orders", badge: 3 },
+  { icon: ShoppingBag, label: "Orders", href: "/seller-orders" },
   { icon: Package, label: "Inventory", href: "/seller-inventory" },
-  { icon: RotateCcw, label: "Returns", href: "/seller-returns", badge: 1 },
+  { icon: RotateCcw, label: "Returns", href: "/seller-returns" },
   { icon: Star, label: "Reviews", href: "/seller-reviews" },
   { icon: Tag, label: "Coupons", href: "/seller-coupons" },
   { icon: TrendingUp, label: "Performance", href: "/seller-performance" },
@@ -29,17 +33,36 @@ const SELLER_NAV = [
 
 function SidebarLinks({ onLinkClick }: { onLinkClick?: () => void }) {
   const pathname = usePathname();
+  const { orders = [], returns = [] } = useSellerStore();
+  const { notifications = [] } = useNotificationStore();
+
+  const pendingOrders = orders.filter((o: any) => o.status === 'pending' || o.status === 'processing').length;
+  const pendingReturns = returns.filter((r: any) => r.status === 'requested').length;
+  const unreadNotifs = notifications.filter((n: any) => !n.read).length;
+
+  const getBadgeCount = (href: string) => {
+    if (href === '/seller-orders') return pendingOrders;
+    if (href === '/seller-returns') return pendingReturns;
+    if (href === '/seller-notifications') return unreadNotifs;
+    return 0;
+  };
+
   return (
     <nav className="flex-1 px-2 py-3 space-y-0.5 overflow-y-auto">
       {SELLER_NAV.map(item => {
         const isActive = pathname === item.href;
+        const count = getBadgeCount(item.href);
         return (
           <Link key={item.label} href={item.href} onClick={onLinkClick}
             className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all ${isActive ? "font-medium" : "text-white/60 hover:text-white hover:bg-white/5"}`}
             style={isActive ? { background: "rgba(255,122,0,0.15)", color: "#FF7A00" } : {}}>
             <item.icon size={16} />
             <span className="flex-1">{item.label}</span>
-            {item.badge != null && <span className="w-5 h-5 rounded-full bg-[#FF7A00] text-white text-[10px] font-bold flex items-center justify-center">{item.badge}</span>}
+            {count > 0 && (
+              <span className="w-5 h-5 rounded-full bg-[#FF7A00] text-white text-[10px] font-bold flex items-center justify-center">
+                {count}
+              </span>
+            )}
           </Link>
         );
       })}
@@ -51,6 +74,12 @@ export function SellerLayout({ children, title }: { children: React.ReactNode; t
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
+  const { user } = useAuthStore();
+
+  const shopName = user?.seller?.shops?.name || user?.seller?.shops?.[0]?.name || user?.seller?.shop_name || user?.name || "Seller";
+  const initials = shopName.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase() || "SL";
+  const salesCount = user?.seller?.total_sales ?? user?.seller?.totalSales ?? user?.seller?.sales_count ?? 0;
+  const tierInfo = getSellerTier(salesCount, user?.seller?.tier);
 
   return (
     <div className="min-h-screen bg-[#FAFAF8] pt-20 pb-20 lg:pb-0 flex">
@@ -77,7 +106,7 @@ export function SellerLayout({ children, title }: { children: React.ReactNode; t
       </div>
 
       {/* Desktop Sidebar */}
-      <aside className="hidden lg:flex flex-col w-60 bg-[#1C1B14] min-h-screen shrink-0">
+      <aside className="hidden lg:flex flex-col w-60 bg-[#1C1B14] h-[calc(100vh-5rem)] sticky top-20 shrink-0">
         <div className="px-4 py-5 border-b border-white/10">
           <div className="flex items-center gap-2 mb-3">
             <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-black text-sm" style={{ background: "linear-gradient(135deg, #FF7A00, #FF4500)" }}>BB</div>
@@ -87,10 +116,10 @@ export function SellerLayout({ children, title }: { children: React.ReactNode; t
             </div>
           </div>
           <div className="flex items-center gap-2 bg-white/5 rounded-xl p-2.5">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-white font-bold text-sm shrink-0">MH</div>
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-white font-bold text-sm shrink-0">{initials}</div>
             <div className="min-w-0">
-              <div className="text-white text-xs font-semibold truncate">Meena Handicrafts</div>
-              <div className="text-amber-400 text-[10px] font-medium">⭐ Gold Seller</div>
+              <div className="text-white text-xs font-semibold truncate">{shopName}</div>
+              <div className="text-amber-400 text-[10px] font-medium">{tierInfo.icon} {tierInfo.label}</div>
             </div>
           </div>
         </div>
@@ -119,18 +148,35 @@ export function SellerLayout({ children, title }: { children: React.ReactNode; t
 
 // ─── My Shop (Public Store Editor) ────────────────────────
 export function SellerShopPage() {
+  const { user } = useAuthStore();
   const [saved, setSaved] = useState(false);
   const [shop, setShop] = useState({
-    name: "Meena Handicrafts",
-    tagline: "Authentic Rajasthani Bandhani & Block Print",
-    description: "We are a third-generation family of Bandhani artisans from Jaipur. Every piece we create carries 60 years of tradition and love.",
-    phone: "+91 98765 43210",
-    email: "meena@meenahandicrafts.com",
-    location: "Jaipur, Rajasthan",
+    name: "Seller Shop",
+    tagline: "Authentic Handicrafts & Heritage Collection",
+    description: "Every piece we list carries tradition and love.",
+    phone: "",
+    email: "",
+    location: "India",
     website: "",
     returnPolicy: "10 days",
     processingTime: "2-3 days",
   });
+
+  useEffect(() => {
+    if (user) {
+      setShop({
+        name: user.seller?.shops?.name || user.seller?.shops?.[0]?.name || user.seller?.shop_name || user.name || "Seller Shop",
+        tagline: user.seller?.shops?.tagline || user.seller?.shops?.[0]?.tagline || "Authentic Handicrafts & Heritage Collection",
+        description: user.seller?.shops?.description || user.seller?.shops?.[0]?.description || "Every piece we list carries tradition and love.",
+        phone: user.phone || user.seller?.phone || "",
+        email: user.email || "",
+        location: user.seller?.shops?.city ? `${user.seller.shops.city}, ${user.seller.shops.state || ''}` : "India",
+        website: user.seller?.shops?.website || "",
+        returnPolicy: "10 days",
+        processingTime: "2-3 days",
+      });
+    }
+  }, [user]);
 
   const set = (k: string, v: string) => setShop(p => ({ ...p, [k]: v }));
 
@@ -142,7 +188,7 @@ export function SellerShopPage() {
             <h1 className="text-[#1C1B14] font-bold text-xl" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>My Shop Profile</h1>
             <p className="text-sm text-[#8C8B80]">This is what customers see on your public storefront</p>
           </div>
-          <Link href="/seller/meena-handicrafts" target="_blank" className="flex items-center gap-2 px-4 py-2 rounded-xl border border-[#D4D3CB] text-sm text-[#555449] hover:border-[#FF7A00] transition-all">
+          <Link href={`/seller/${user?.seller?.id || "meena-handicrafts"}`} target="_blank" className="flex items-center gap-2 px-4 py-2 rounded-xl border border-[#D4D3CB] text-sm text-[#555449] hover:border-[#FF7A00] transition-all">
             <Eye size={14} /> Preview Shop
           </Link>
         </div>
@@ -164,7 +210,17 @@ export function SellerShopPage() {
             </div>
             <div>
               <div className="font-bold text-[#1C1B14]" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>{shop.name}</div>
-              <div className="text-xs text-amber-600 font-medium">⭐ Gold Seller · 4.8★ (1,284 reviews)</div>
+              {(() => {
+                const sales = user?.seller?.total_sales ?? user?.seller?.totalSales ?? user?.seller?.sales_count ?? 0;
+                const ratingVal = user?.seller?.rating ?? 0;
+                const reviewsVal = user?.seller?.total_reviews ?? user?.seller?.totalReviews ?? user?.seller?.reviews_count ?? 0;
+                const tInfo = getSellerTier(sales, user?.seller?.tier);
+                return (
+                  <div className="text-xs text-amber-600 font-medium">
+                    {tInfo.icon} {tInfo.label} · {reviewsVal > 0 ? `${ratingVal.toFixed(1)}★ (${reviewsVal.toLocaleString()} reviews)` : '0 Sales · No reviews yet'}
+                  </div>
+                );
+              })()}
             </div>
           </div>
         </div>

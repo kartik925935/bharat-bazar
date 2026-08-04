@@ -1,7 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
   LayoutDashboard, Package, ShoppingBag, RotateCcw, Star, Tag,
@@ -13,9 +13,22 @@ import {
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { MOCK_SELLER_EARNINGS as PERF_DATA, SELLER_NOTIFS } from '@/lib/mock/sellers';
 import { SellerLayout } from './SellerSubPages';
+import { useNotificationStore, getNotificationIcon } from '@/lib/store/notification-store';
+import { useAuthStore } from '@/lib/store/auth-store';
 
+
+import { useSellerStore } from '@/lib/store/seller-store';
 
 export function SellerPerformancePage() {
+  const { products = [] } = useSellerStore();
+  const totalViews = products.reduce((s, p) => s + (p.views || 0), 0);
+
+  const topProducts = products
+    .filter(p => (p.views || 0) > 0)
+    .sort((a, b) => (b.views || 0) - (a.views || 0))
+    .slice(0, 3)
+    .map(p => [p.name, `${p.views} views`]);
+
   return (
     <SellerLayout title="Performance">
       <div className="mb-6">
@@ -25,54 +38,64 @@ export function SellerPerformancePage() {
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         {[
-          { label: "Page Views", value: "1,100", change: "+16%", up: true },
-          { label: "Product Clicks", value: "410", change: "+20%", up: true },
-          { label: "Conversion Rate", value: "4.1%", change: "+0.5%", up: true },
-          { label: "Avg Response Time", value: "1.8h", change: "-0.3h", up: true },
+          { label: "Page Views", value: totalViews.toLocaleString(), change: "Total views", up: true },
+          { label: "Product Clicks", value: "0", change: "0 vs last month", up: true },
+          { label: "Conversion Rate", value: "0%", change: "0% vs last month", up: true },
+          { label: "Avg Response Time", value: "N/A", change: "No data", up: true },
         ].map(kpi => (
-          <div key={kpi.label} className="bg-white rounded-2xl border border-black/5 p-5">
+          <div key={kpi.label} className="bg-[#FFFFFF] rounded-2xl border border-black/5 p-5">
             <div className="text-xs text-[#8C8B80] mb-1">{kpi.label}</div>
             <div className="font-black text-xl mb-1" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>{kpi.value}</div>
-            <div className={`text-xs font-medium ${kpi.up ? "text-[#1A9E4E]" : "text-red-500"}`}>{kpi.change} vs last month</div>
+            <div className="text-xs font-medium text-[#8C8B80]">{kpi.change}</div>
           </div>
         ))}
       </div>
 
       <div className="bg-white rounded-2xl border border-black/5 p-6 mb-6">
         <h3 className="font-bold text-[#1C1B14] mb-4 text-sm" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Traffic & Conversions</h3>
-        <ResponsiveContainer width="100%" height={220}>
-          <AreaChart data={PERF_DATA}>
-            <defs>
-              <linearGradient id="vg" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#FF7A00" stopOpacity={0.15} /><stop offset="95%" stopColor="#FF7A00" stopOpacity={0} /></linearGradient>
-              <linearGradient id="cg" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#1A9E4E" stopOpacity={0.15} /><stop offset="95%" stopColor="#1A9E4E" stopOpacity={0} /></linearGradient>
-            </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="#F5F4F0" />
-            <XAxis dataKey="month" tick={{ fontSize: 12, fill: "#8C8B80" }} axisLine={false} tickLine={false} />
-            <YAxis tick={{ fontSize: 11, fill: "#8C8B80" }} axisLine={false} tickLine={false} />
-            <Tooltip contentStyle={{ borderRadius: 12, border: "1px solid #F5F4F0", fontSize: 12 }} />
-            <Area key="pp-area-views" type="monotone" dataKey="views" stroke="#FF7A00" strokeWidth={2} fill="url(#vg)" name="Views" />
-            <Area key="pp-area-clicks" type="monotone" dataKey="clicks" stroke="#1A9E4E" strokeWidth={2} fill="url(#cg)" name="Clicks" />
-          </AreaChart>
-        </ResponsiveContainer>
+        {totalViews === 0 ? (
+          <div className="h-44 flex items-center justify-center text-[#8C8B80] text-sm">
+            No traffic data recorded yet
+          </div>
+        ) : (
+          <ResponsiveContainer width="100%" height={220}>
+            <AreaChart data={PERF_DATA}>
+              <defs>
+                <linearGradient id="vg" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#FF7A00" stopOpacity={0.15} /><stop offset="95%" stopColor="#FF7A00" stopOpacity={0} /></linearGradient>
+                <linearGradient id="cg" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#1A9E4E" stopOpacity={0.15} /><stop offset="95%" stopColor="#1A9E4E" stopOpacity={0} /></linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="#F5F4F0" />
+              <XAxis dataKey="month" tick={{ fontSize: 12, fill: "#8C8B80" }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fontSize: 11, fill: "#8C8B80" }} axisLine={false} tickLine={false} />
+              <Tooltip contentStyle={{ borderRadius: 12, border: "1px solid #F5F4F0", fontSize: 12 }} />
+              <Area key="pp-area-views" type="monotone" dataKey="views" stroke="#FF7A00" strokeWidth={2} fill="url(#vg)" name="Views" />
+              <Area key="pp-area-clicks" type="monotone" dataKey="clicks" stroke="#1A9E4E" strokeWidth={2} fill="url(#cg)" name="Clicks" />
+            </AreaChart>
+          </ResponsiveContainer>
+        )}
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {[
-          { title: "Top Products by Views", items: [["Bandhani Silk Saree", "342 views"], ["Block Print Dupatta", "198 views"], ["Natural Dye Kurta", "156 views"]] },
-          { title: "Customer Demographics", items: [["Women 25-34", "42%"], ["Women 35-44", "28%"], ["Men 25-44", "18%"], ["Others", "12%"]] },
-        ].map(section => (
-          <div key={section.title} className="bg-white rounded-2xl border border-black/5 p-5">
-            <h4 className="font-bold text-[#1C1B14] mb-3 text-sm" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>{section.title}</h4>
+        <div className="bg-white rounded-2xl border border-black/5 p-5">
+          <h4 className="font-bold text-[#1C1B14] mb-3 text-sm" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Top Products by Views</h4>
+          {topProducts.length === 0 ? (
+            <div className="text-xs text-[#8C8B80] py-4 text-center">No product views yet</div>
+          ) : (
             <div className="space-y-2">
-              {section.items.map(([label, value]) => (
+              {topProducts.map(([label, value]) => (
                 <div key={label} className="flex justify-between text-sm">
                   <span className="text-[#555449]">{label}</span>
                   <span className="font-semibold text-[#1C1B14]">{value}</span>
                 </div>
               ))}
             </div>
-          </div>
-        ))}
+          )}
+        </div>
+
+        <div className="bg-white rounded-2xl border border-black/5 p-5">
+          <h4 className="font-bold text-[#1C1B14] mb-3 text-sm" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Customer Demographics</h4>
+          <div className="text-xs text-[#8C8B80] py-4 text-center">Data will populate after initial sales</div>
+        </div>
       </div>
     </SellerLayout>
   );
@@ -81,31 +104,38 @@ export function SellerPerformancePage() {
 
 
 export function SellerNotificationsPage() {
-  const [notifs, setNotifs] = useState<any[]>([]) /* SELLER_NOTIFS */;
-  const markRead = (id: string) => setNotifs(prev => prev.map(n => n.id === id ? { ...n, unread: false } : n));
+  const { notifications, markRead, markAllRead } = useNotificationStore();
 
   return (
     <SellerLayout title="Notifications">
       <div className="flex items-center justify-between mb-6">
         <h1 className="font-bold text-xl text-[#1C1B14]" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Notifications</h1>
-        <button onClick={() => setNotifs(prev => prev.map(n => ({ ...n, unread: false })))} className="text-sm font-medium" style={{ color: "#FF7A00" }}>Mark all read</button>
+        {notifications.length > 0 && (
+          <button onClick={markAllRead} className="text-sm font-medium" style={{ color: "#FF7A00" }}>Mark all read</button>
+        )}
       </div>
       <div className="space-y-2 max-w-2xl">
-        {notifs.map(n => (
-          <motion.div key={n.id} onClick={() => markRead(n.id)} className={`flex gap-4 p-4 rounded-2xl cursor-pointer transition-all hover:shadow-sm ${n.unread ? "bg-[#FFF8F0] border border-[#FFD4A8]" : "bg-white border border-black/5"}`}>
-            <div className="w-10 h-10 rounded-xl bg-[#FFF8F0] flex items-center justify-center text-xl shrink-0">{n.icon}</div>
-            <div className="flex-1">
-              <div className="flex items-start gap-2">
-                <div className="flex-1">
-                  <div className="text-sm font-semibold text-[#1C1B14] mb-0.5">{n.title}</div>
-                  <div className="text-xs text-[#8C8B80]">{n.body}</div>
+        {notifications.length === 0 ? (
+          <div className="bg-white rounded-2xl border border-black/5 p-8 text-center text-[#8C8B80]">
+            <p className="text-sm font-medium">No new notifications</p>
+          </div>
+        ) : (
+          notifications.map(n => (
+            <motion.div key={n.id} onClick={() => markRead(n.id)} className={`flex gap-4 p-4 rounded-2xl cursor-pointer transition-all hover:shadow-sm ${!n.read ? "bg-[#FFF8F0] border border-[#FFD4A8]" : "bg-white border border-black/5"}`}>
+              <div className="w-10 h-10 rounded-xl bg-[#FFF8F0] flex items-center justify-center text-xl shrink-0">{getNotificationIcon(n.type)}</div>
+              <div className="flex-1">
+                <div className="flex items-start gap-2">
+                  <div className="flex-1">
+                    <div className="text-sm font-semibold text-[#1C1B14] mb-0.5">{n.title}</div>
+                    <div className="text-xs text-[#8C8B80]">{n.body}</div>
+                  </div>
+                  {!n.read && <div className="w-2 h-2 rounded-full shrink-0 mt-1.5" style={{ background: "#FF7A00" }} />}
                 </div>
-                {n.unread && <div className="w-2 h-2 rounded-full shrink-0 mt-1.5" style={{ background: "#FF7A00" }} />}
+                <div className="text-xs text-[#B0AFA5] mt-1.5">{new Date(n.createdAt).toLocaleDateString()}</div>
               </div>
-              <div className="text-xs text-[#B0AFA5] mt-1.5">{n.time}</div>
-            </div>
-          </motion.div>
-        ))}
+            </motion.div>
+          ))
+        )}
       </div>
     </SellerLayout>
   );
@@ -113,8 +143,26 @@ export function SellerNotificationsPage() {
 
 // ─── Seller Settings Page ──────────────────────────────────
 export function SellerSettingsPage() {
+  const { user } = useAuthStore();
   const [saved, setSaved] = useState(false);
-  const [settings, setSettings] = useState({ payoutFrequency: "monthly", upi: "meena@upi", autoAccept: true, lowStockAlert: true, orderNotifs: true, reviewNotifs: true });
+  const [settings, setSettings] = useState({
+    payoutFrequency: "monthly",
+    upi: "",
+    autoAccept: true,
+    lowStockAlert: true,
+    orderNotifs: true,
+    reviewNotifs: true,
+  });
+
+  useEffect(() => {
+    if (user) {
+      const upiId = user.seller?.bank_accounts?.[0]?.upi_id || user.seller?.bank_accounts?.upi_id || "";
+      setSettings(prev => ({
+        ...prev,
+        upi: upiId,
+      }));
+    }
+  }, [user]);
 
   const set = (k: string, v: string | boolean) => setSettings(p => ({ ...p, [k]: v }));
 

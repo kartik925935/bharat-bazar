@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Wallet, Gift, ArrowUpRight, ArrowDownLeft, Copy, Check, X, Plus, CreditCard, Smartphone, ChevronRight } from 'lucide-react';
+import { Wallet, Gift, ArrowUpRight, ArrowDownLeft, Copy, Check, X, Plus, CreditCard, Smartphone, ChevronRight, QrCode, ArrowLeft, Timer, RefreshCw } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils/format-currency';
 import { toast } from 'sonner';
 import { MOCK_TRANSACTIONS, MOCK_USER_LOYALTY, type MockTransaction } from '@/lib/mock/customer';
@@ -12,6 +12,14 @@ const PAYMENT_METHODS = [
   { id: 'upi', label: 'UPI (GPay, PhonePe, Paytm)', icon: '📱' },
   { id: 'card', label: 'Credit / Debit Card', icon: '💳' },
   { id: 'netbanking', label: 'Net Banking', icon: '🏦' },
+];
+
+const UPI_PROVIDERS = [
+  { id: 'gpay', label: 'Google Pay', handle: '@okaxis', icon: '📱' },
+  { id: 'phonepe', label: 'PhonePe', handle: '@ybl', icon: '⚡' },
+  { id: 'paytm', label: 'Paytm', handle: '@paytm', icon: '💸' },
+  { id: 'bhim', label: 'BHIM UPI', handle: '@upi', icon: '🏦' },
+  { id: 'custom', label: 'Custom UPI ID', handle: '', icon: '⚙️' },
 ];
 
 export default function WalletPage() {
@@ -27,6 +35,13 @@ export default function WalletPage() {
   const [paymentMethod, setPaymentMethod] = useState('upi');
   const [addingMoney, setAddingMoney] = useState(false);
 
+  // UPI payment specific states
+  const [selectedUpiProvider, setSelectedUpiProvider] = useState('gpay');
+  const [upiId, setUpiId] = useState('');
+  const [upiInputMode, setUpiInputMode] = useState<'qr' | 'collect'>('collect');
+  const [showUpiGatewaySim, setShowUpiGatewaySim] = useState(false);
+  const [simTimer, setSimTimer] = useState(300);
+
   // Redeem modal
   const [showRedeem, setShowRedeem] = useState(false);
   const [redeemPoints, setRedeemPoints] = useState('');
@@ -34,6 +49,23 @@ export default function WalletPage() {
 
   // How to Use modal
   const [showHowToUse, setShowHowToUse] = useState(false);
+
+  // UPI Simulator timer effect
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (showUpiGatewaySim && simTimer > 0) {
+      interval = setInterval(() => {
+        setSimTimer((prev) => {
+          if (prev <= 1) {
+            handleUpiFailure('Payment session expired');
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [showUpiGatewaySim, simTimer]);
 
   const handleCopyCode = () => {
     navigator.clipboard.writeText(loyalty.referralCode);
@@ -46,6 +78,27 @@ export default function WalletPage() {
     e.preventDefault();
     const amt = parseFloat(addAmount);
     if (!amt || amt < 10) { toast.error('Enter at least ₹10'); return; }
+
+    if (paymentMethod === 'upi') {
+      if (upiInputMode === 'collect') {
+        const provider = UPI_PROVIDERS.find(p => p.id === selectedUpiProvider);
+        const fullUpi = upiId.includes('@') ? upiId : `${upiId}${provider?.handle}`;
+        if (!upiId) {
+          toast.error('Please enter your UPI ID prefix');
+          return;
+        }
+        const upiPattern = /^[\w.\-_]+@[\w.\-_]+$/;
+        if (!upiPattern.test(fullUpi)) {
+          toast.error('Please enter a valid UPI ID (e.g. user@paytm)');
+          return;
+        }
+      }
+      setShowAddMoney(false);
+      setShowUpiGatewaySim(true);
+      setSimTimer(300);
+      return;
+    }
+
     setAddingMoney(true);
     setTimeout(() => {
       setWalletBalance((prev) => prev + amt);
@@ -63,6 +116,40 @@ export default function WalletPage() {
       setAddingMoney(false);
       toast.success(`₹${amt} added to your wallet! 🎉`);
     }, 1200);
+  };
+
+  const handleUpiSuccess = () => {
+    const amt = parseFloat(addAmount);
+    setWalletBalance((prev) => prev + amt);
+    const provider = UPI_PROVIDERS.find(p => p.id === selectedUpiProvider);
+    const resolvedUpiId = upiInputMode === 'collect'
+      ? (upiId.includes('@') ? upiId : `${upiId}${provider?.handle}`)
+      : 'Bharat Bazaar QR Code';
+
+    const newTx: MockTransaction = {
+      id: `tx-${Date.now()}`,
+      type: 'credit',
+      title: 'Wallet Top-up (UPI)',
+      amount: amt,
+      date: new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }),
+      source: `UPI • ${resolvedUpiId}`,
+    };
+    setTransactions((prev) => [newTx, ...prev]);
+    setShowUpiGatewaySim(false);
+    setAddAmount('');
+    setUpiId('');
+    toast.success(`₹${amt} added to your wallet! 🎉`);
+  };
+
+  const handleUpiFailure = (reason: string = 'Payment failed or declined') => {
+    setShowUpiGatewaySim(false);
+    toast.error(reason);
+  };
+
+  const formatTimer = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
   const handleRedeem = (e: React.FormEvent) => {
@@ -274,6 +361,54 @@ export default function WalletPage() {
                   </div>
                 </div>
 
+                {paymentMethod === 'upi' && (
+                  <div className="space-y-3 p-3 bg-[#FAFAF8] border border-[#E8E4DE] rounded-xl">
+                    <div className="flex gap-2 p-1 bg-[#F5F4F0] rounded-lg">
+                      <button type="button" onClick={() => setUpiInputMode('collect')}
+                        className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-all cursor-pointer ${upiInputMode === 'collect' ? 'bg-white text-[#FF7A00] shadow-sm' : 'text-[#8C7B6E] hover:text-[#1A0A00]'}`}>
+                        Pay via UPI ID
+                      </button>
+                      <button type="button" onClick={() => setUpiInputMode('qr')}
+                        className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-all cursor-pointer ${upiInputMode === 'qr' ? 'bg-white text-[#FF7A00] shadow-sm' : 'text-[#8C7B6E] hover:text-[#1A0A00]'}`}>
+                        Scan QR Code
+                      </button>
+                    </div>
+
+                    {upiInputMode === 'collect' ? (
+                      <div className="space-y-3">
+                        <label className="text-[10px] font-bold text-[#8C7B6E] uppercase tracking-wider block">Choose UPI App</label>
+                        <div className="grid grid-cols-5 gap-1">
+                          {UPI_PROVIDERS.map((provider) => (
+                            <button key={provider.id} type="button" onClick={() => { setSelectedUpiProvider(provider.id); setUpiId(''); }}
+                              className={`py-2 px-1 rounded-lg border flex flex-col items-center justify-center transition-all cursor-pointer ${selectedUpiProvider === provider.id ? 'border-[#FF7A00] bg-[#FFF3E8] text-[#FF7A00]' : 'border-[#E8E4DE] bg-white text-[#4A3728] hover:border-[#FF7A00]/40'}`}>
+                              <span className="text-base">{provider.icon}</span>
+                              <span className="text-[9px] font-bold truncate w-full text-center mt-1">{provider.label.split(' ')[0]}</span>
+                            </button>
+                          ))}
+                        </div>
+
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold text-[#8C7B6E] uppercase tracking-wider block">Enter UPI ID</label>
+                          <div className="relative flex items-center">
+                            <input type="text" value={upiId} onChange={(e) => setUpiId(e.target.value)}
+                              placeholder={selectedUpiProvider === 'custom' ? "username@bank" : "Enter UPI username"}
+                              className="w-full h-10 px-3 rounded-lg border border-[#E8E4DE] text-xs font-semibold outline-none focus:border-[#FF7A00]" />
+                            {selectedUpiProvider !== 'custom' && (
+                              <span className="absolute right-3 text-xs font-bold text-[#8C7B6E]">
+                                {UPI_PROVIDERS.find(p => p.id === selectedUpiProvider)?.handle}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-center py-2">
+                        <p className="text-xs text-[#8C7B6E]">We'll generate a secure QR code for you to scan and complete the payment.</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 <button type="submit" disabled={addingMoney || !addAmount}
                   className="w-full h-12 rounded-xl bg-gradient-to-r from-[#FF7A00] to-[#FF4500] text-white font-bold text-sm cursor-pointer hover:opacity-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
                   {addingMoney ? (
@@ -283,6 +418,137 @@ export default function WalletPage() {
                   )}
                 </button>
               </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── UPI Gateway Simulator Modal ────────────────────────────────────── */}
+      <AnimatePresence>
+        {showUpiGatewaySim && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4 backdrop-blur-sm">
+            <motion.div initial={{ scale: 0.95, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95 }}
+              className="bg-white rounded-2xl max-w-md w-full p-6 space-y-6 shadow-2xl border border-[#E8E4DE]"
+              onClick={(e) => e.stopPropagation()}>
+              
+              {/* Header */}
+              <div className="flex items-center justify-between border-b border-[#F5F4F0] pb-4">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-lg bg-[#FF7A00]/10 flex items-center justify-center text-[#FF7A00]">
+                    <Wallet size={18} />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-[#1A0A00]">Bharat Bazaar Pay</h3>
+                    <p className="text-[10px] text-[#8C7B6E] font-medium">Gateway Transaction ID: BB-TX-{Math.floor(100000 + Math.random() * 900000)}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1.5 bg-[#FFF3E8] text-[#FF7A00] px-2.5 py-1 rounded-full text-xs font-bold">
+                  <Timer size={14} className="animate-pulse" />
+                  <span>{formatTimer(simTimer)}</span>
+                </div>
+              </div>
+
+              {/* Amount Display */}
+              <div className="text-center py-4 bg-[#FAFAF8] border border-[#F5F4F0] rounded-2xl">
+                <p className="text-[10px] font-bold text-[#8C7B6E] uppercase tracking-wider">Amount to Add</p>
+                <h2 className="text-4xl font-black text-[#FF7A00] mt-1">{formatCurrency(parseFloat(addAmount) || 0)}</h2>
+              </div>
+
+              {/* Status & Instructions */}
+              <div className="space-y-4">
+                {upiInputMode === 'qr' ? (
+                  <div className="flex flex-col items-center justify-center space-y-3">
+                    <p className="text-xs font-bold text-[#1A0A00]">Scan QR Code to Pay</p>
+                    
+                    {/* Mock QR Code SVG */}
+                    <div className="p-3 bg-white border border-[#E8E4DE] rounded-xl shadow-inner">
+                      <svg width="160" height="160" viewBox="0 0 100 100" className="text-[#1A0A00]">
+                        {/* Background Finder patterns */}
+                        <path d="M0,0 h30 v10 h-20 v20 h-10 z M70,0 h30 v30 h-10 v-20 h-20 z M0,70 h10 v20 h20 v10 h-30 z M90,90 v-20 h10 v30 h-30 v-10 z" fill="currentColor" />
+                        {/* QR Code modules pattern mockup */}
+                        <rect x="15" y="15" width="15" height="15" fill="currentColor" />
+                        <rect x="15" y="70" width="15" height="15" fill="currentColor" />
+                        <rect x="70" y="15" width="15" height="15" fill="currentColor" />
+                        <rect x="20" y="20" width="5" height="5" fill="white" />
+                        <rect x="20" y="75" width="5" height="5" fill="white" />
+                        <rect x="75" y="20" width="5" height="5" fill="white" />
+                        
+                        {/* Random center modules */}
+                        <rect x="40" y="20" width="10" height="5" fill="currentColor" />
+                        <rect x="55" y="15" width="5" height="15" fill="currentColor" />
+                        <rect x="45" y="35" width="15" height="15" fill="currentColor" />
+                        <rect x="15" y="45" width="10" height="10" fill="currentColor" />
+                        <rect x="75" y="45" width="10" height="10" fill="currentColor" />
+                        <rect x="35" y="60" width="20" height="5" fill="currentColor" />
+                        <rect x="40" y="75" width="15" height="10" fill="currentColor" />
+                        <rect x="65" y="70" width="10" height="15" fill="currentColor" />
+                        
+                        {/* Logo Box in center */}
+                        <rect x="40" y="40" width="20" height="20" fill="white" rx="3" />
+                        <text x="50" y="54" fontSize="11" fontWeight="black" textAnchor="middle" fill="#FF7A00" style={{fontFamily: "sans-serif"}}>BB</text>
+                      </svg>
+                    </div>
+
+                    <p className="text-[10px] text-[#8C7B6E] text-center max-w-xs">
+                      Open GPay, PhonePe, Paytm, or any UPI App. Scan this QR code and complete your payment.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-3 p-3 bg-[#F0FDF4] border border-[#DCFCE7] rounded-xl">
+                      <div className="w-8 h-8 rounded-full bg-[#16A34A]/10 flex items-center justify-center text-[#16A34A] shrink-0">
+                        <Smartphone size={16} className="animate-bounce" />
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold text-[#16A34A]">Collect Request Sent</p>
+                        <p className="text-[10px] text-[#16A34A]/80">
+                          To: <span className="font-mono font-semibold">{upiId.includes('@') ? upiId : `${upiId}${UPI_PROVIDERS.find(p => p.id === selectedUpiProvider)?.handle}`}</span>
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="text-xs text-[#4A3728] space-y-2.5 px-1 bg-[#FAFAF8] p-3 rounded-xl border border-[#F5F4F0]">
+                      <p className="font-bold text-[#1A0A00] text-[10px] uppercase tracking-wider">How to approve:</p>
+                      <div className="flex gap-2">
+                        <span className="w-4 h-4 rounded-full bg-[#E8E4DE] text-[10px] font-bold flex items-center justify-center shrink-0">1</span>
+                        <p className="text-[11px] text-[#555449]">Open your selected UPI App (Paytm, GPay, PhonePe, etc.) on your phone.</p>
+                      </div>
+                      <div className="flex gap-2">
+                        <span className="w-4 h-4 rounded-full bg-[#E8E4DE] text-[10px] font-bold flex items-center justify-center shrink-0">2</span>
+                        <p className="text-[11px] text-[#555449]">Check your app notifications or pending UPI payment requests.</p>
+                      </div>
+                      <div className="flex gap-2">
+                        <span className="w-4 h-4 rounded-full bg-[#E8E4DE] text-[10px] font-bold flex items-center justify-center shrink-0">3</span>
+                        <p className="text-[11px] text-[#555449]">Approve the request for <span className="font-bold text-[#FF7A00]">{formatCurrency(parseFloat(addAmount) || 0)}</span>, enter your UPI PIN and complete payment.</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Simulation Sandbox Controls */}
+              <div className="border-t border-[#F5F4F0] pt-5 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold text-[#8C7B6E] uppercase tracking-wider">Simulation Sandbox Controls</span>
+                  <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 font-bold">DEV ONLY</span>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <button type="button" onClick={handleUpiSuccess}
+                    className="h-11 rounded-xl bg-[#16A34A] text-white text-xs font-bold cursor-pointer hover:bg-[#15803D] flex items-center justify-center gap-1.5 shadow-md animate-pulse">
+                    <Check size={16} /> Simulate Success
+                  </button>
+                  <button type="button" onClick={() => handleUpiFailure('Payment declined by user')}
+                    className="h-11 rounded-xl bg-white border-2 border-[#FEF2F2] text-[#DC2626] text-xs font-bold cursor-pointer hover:bg-[#FEF2F2] flex items-center justify-center gap-1.5">
+                    <X size={16} /> Simulate Decline
+                  </button>
+                </div>
+                <button type="button" onClick={() => handleUpiFailure('Payment request cancelled')}
+                  className="w-full py-2.5 rounded-lg text-xs font-bold text-[#8C7B6E] hover:text-[#1A0A00] cursor-pointer text-center">
+                  Cancel Transaction
+                </button>
+              </div>
+
             </motion.div>
           </motion.div>
         )}

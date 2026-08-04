@@ -167,7 +167,7 @@ export function SellerReturnsPage() {
 
 
 export function SellerReviewsPage() {
-  const [reviews, setReviews] = useState(SELLER_REVIEWS.map(r => ({ ...r, replyText: "" })));
+  const [reviews, setReviews] = useState<any[]>([]);
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
 
   const submitReply = (id: string) => {
@@ -175,14 +175,15 @@ export function SellerReviewsPage() {
     setReplyingTo(null);
   };
 
-  const avgRating = (SELLER_REVIEWS.reduce((s, r) => s + r.rating, 0) / SELLER_REVIEWS.length).toFixed(1);
+  const reviewCount = reviews.length;
+  const avgRating = reviewCount > 0 ? (reviews.reduce((s, r) => s + (r.rating || 0), 0) / reviewCount).toFixed(1) : "0.0";
 
   return (
     <SellerLayout title="Reviews">
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="font-bold text-xl text-[#1C1B14]" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Customer Reviews</h1>
-          <p className="text-sm text-[#8C8B80]">{SELLER_REVIEWS.length} reviews · {avgRating}★ average</p>
+          <p className="text-sm text-[#8C8B80]">{reviewCount} reviews · {avgRating}★ average</p>
         </div>
       </div>
 
@@ -192,16 +193,17 @@ export function SellerReviewsPage() {
           <div className="flex gap-0.5 justify-center my-1">
             {Array.from({ length: 5 }, (_, i) => <Star key={i} size={14} className={i < Math.floor(Number(avgRating)) ? "fill-amber-400 text-amber-400" : "text-[#D4D3CB]"} />)}
           </div>
-          <div className="text-xs text-[#8C8B80]">{SELLER_REVIEWS.length} reviews</div>
+          <div className="text-xs text-[#8C8B80]">{reviewCount} reviews</div>
         </div>
         <div className="flex-1 min-w-40 space-y-1.5">
           {[5, 4, 3, 2, 1].map(s => {
-            const count = SELLER_REVIEWS.filter(r => r.rating === s).length;
+            const count = reviews.filter(r => r.rating === s).length;
+            const pct = reviewCount > 0 ? (count / reviewCount) * 100 : 0;
             return (
               <div key={s} className="flex items-center gap-2 text-xs">
                 <span className="text-[#555449] w-4">{s}★</span>
                 <div className="flex-1 h-1.5 bg-[#F5F4F0] rounded-full overflow-hidden">
-                  <div className="h-full bg-amber-400 rounded-full" style={{ width: `${(count / SELLER_REVIEWS.length) * 100}%` }} />
+                  <div className="h-full bg-amber-400 rounded-full" style={{ width: `${pct}%` }} />
                 </div>
                 <span className="text-[#B0AFA5] w-4">{count}</span>
               </div>
@@ -210,49 +212,57 @@ export function SellerReviewsPage() {
         </div>
       </div>
 
-      <div className="space-y-4">
-        {reviews.map((review, i) => (
-          <motion.div key={review.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }} className="bg-white rounded-2xl border border-black/5 p-5">
-            <div className="flex gap-3 mb-3">
-              <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center text-[#FF7A00] shrink-0 font-bold">
-                {review.customer.charAt(0)}
-              </div>
-              <div className="flex-1">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="font-semibold text-sm text-[#1C1B14]">{review.customer}</span>
-                  <span className="text-xs text-[#8C8B80]">on <em>{review.product}</em></span>
+      {reviewCount === 0 ? (
+        <div className="bg-white rounded-2xl border border-black/5 p-12 text-center text-[#8C8B80]">
+          <Star size={36} className="mx-auto mb-3 text-[#D4D3CB]" />
+          <h3 className="font-bold text-[#1C1B14] text-base mb-1" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>No customer reviews yet</h3>
+          <p className="text-xs">When customers purchase and review your products, their feedback will appear here.</p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {reviews.map((review, i) => (
+            <motion.div key={review.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }} className="bg-white rounded-2xl border border-black/5 p-5">
+              <div className="flex gap-3 mb-3">
+                <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center text-[#FF7A00] shrink-0 font-bold">
+                  {review.customer?.charAt(0) || 'U'}
                 </div>
-                <div className="flex gap-0.5 mt-0.5">
-                  {Array.from({ length: 5 }, (_, i) => <Star key={i} size={12} className={i < review.rating ? "fill-amber-400 text-amber-400" : "text-[#D4D3CB]"} />)}
-                </div>
-              </div>
-            </div>
-            <p className="text-sm text-[#555449] leading-relaxed mb-3">{review.comment}</p>
-
-            {review.replied && (
-              <div className="ml-3 pl-3 border-l-2 border-[#FF7A00]/30 bg-[#FFF8F0] rounded-r-xl p-3 text-sm text-[#555449]">
-                <span className="font-semibold text-[#FF7A00] text-xs block mb-0.5">Your Reply:</span>
-                Thank you for your feedback! We're glad you liked the product.
-              </div>
-            )}
-
-            {!review.replied && (
-              replyingTo === review.id ? (
-                <div className="mt-2">
-                  <textarea rows={2} value={review.replyText} onChange={e => setReviews(prev => prev.map(r => r.id === review.id ? { ...r, replyText: e.target.value } : r))}
-                    placeholder="Write a reply..." className="w-full px-3 py-2 rounded-xl border-2 border-[#FF7A00]/30 focus:border-[#FF7A00] outline-none text-sm resize-none mb-2" />
-                  <div className="flex gap-2">
-                    <button onClick={() => submitReply(review.id)} className="px-4 py-1.5 rounded-xl text-xs font-semibold text-white" style={{ background: "#FF7A00" }}>Post Reply</button>
-                    <button onClick={() => setReplyingTo(null)} className="px-4 py-1.5 rounded-xl text-xs border border-[#D4D3CB] text-[#555449]">Cancel</button>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-semibold text-sm text-[#1C1B14]">{review.customer}</span>
+                    <span className="text-xs text-[#8C8B80]">on <em>{review.product}</em></span>
+                  </div>
+                  <div className="flex gap-0.5 mt-0.5">
+                    {Array.from({ length: 5 }, (_, i) => <Star key={i} size={12} className={i < review.rating ? "fill-amber-400 text-amber-400" : "text-[#D4D3CB]"} />)}
                   </div>
                 </div>
-              ) : (
-                <button onClick={() => setReplyingTo(review.id)} className="text-xs text-[#FF7A00] font-medium hover:underline">Reply to review →</button>
-              )
-            )}
-          </motion.div>
-        ))}
-      </div>
+              </div>
+              <p className="text-sm text-[#555449] leading-relaxed mb-3">{review.comment}</p>
+
+              {review.replied && (
+                <div className="ml-3 pl-3 border-l-2 border-[#FF7A00]/30 bg-[#FFF8F0] rounded-r-xl p-3 text-sm text-[#555449]">
+                  <span className="font-semibold text-[#FF7A00] text-xs block mb-0.5">Your Reply:</span>
+                  {review.reply || "Thank you for your feedback!"}
+                </div>
+              )}
+
+              {!review.replied && (
+                replyingTo === review.id ? (
+                  <div className="mt-2">
+                    <textarea rows={2} value={review.replyText} onChange={e => setReviews(prev => prev.map(r => r.id === review.id ? { ...r, replyText: e.target.value } : r))}
+                      placeholder="Write a reply..." className="w-full px-3 py-2 rounded-xl border-2 border-[#FF7A00]/30 focus:border-[#FF7A00] outline-none text-sm resize-none mb-2" />
+                    <div className="flex gap-2">
+                      <button onClick={() => submitReply(review.id)} className="px-4 py-1.5 rounded-xl text-xs font-semibold text-white" style={{ background: "#FF7A00" }}>Post Reply</button>
+                      <button onClick={() => setReplyingTo(null)} className="px-4 py-1.5 rounded-xl text-xs border border-[#D4D3CB] text-[#555449]">Cancel</button>
+                    </div>
+                  </div>
+                ) : (
+                  <button onClick={() => setReplyingTo(review.id)} className="text-xs text-[#FF7A00] font-medium hover:underline">Reply to review →</button>
+                )
+              )}
+            </motion.div>
+          ))}
+        </div>
+      )}
     </SellerLayout>
   );
 }

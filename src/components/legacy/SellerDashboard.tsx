@@ -118,12 +118,15 @@ export function SellerDashboard() {
           .eq('seller_id', sellerId)
           .maybeSingle();
 
+        const reviewsCount = perf ? Number(perf.total_reviews || 0) : 0;
+        const ratingVal = reviewsCount > 0 ? Number(perf?.avg_rating || 0) : 0;
+
         setStats({
           totalRevenue: totalRev,
           ordersCount: uniqueOrderIds.size,
           productsCount: prodList.length,
-          shopRating: perf ? Number(perf.avg_rating) : 5.0,
-          reviewsCount: perf ? 12 : 0
+          shopRating: ratingVal,
+          reviewsCount: reviewsCount
         });
 
       } catch (err) {
@@ -220,17 +223,23 @@ export function SellerDashboard() {
           {/* Sales Chart */}
           <div className="bg-white p-6 rounded-3xl border border-black/5 shadow-sm mb-8">
             <h3 className="font-bold text-[#1C1B14] text-base mb-4" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Revenue Performance</h3>
-            <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={revenueData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#F0F0EA" />
-                  <XAxis dataKey="day" tick={{ fontSize: 12, fill: "#8C8B80" }} />
-                  <YAxis tick={{ fontSize: 12, fill: "#8C8B80" }} />
-                  <Tooltip />
-                  <Line type="monotone" dataKey="revenue" stroke="#FF7A00" strokeWidth={3} dot={{ r: 4, fill: "#FF7A00" }} />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
+            {stats.totalRevenue === 0 ? (
+              <div className="h-48 flex items-center justify-center text-[#8C8B80] text-sm border border-dashed border-[#E5E4DE] rounded-2xl">
+                No revenue data recorded yet
+              </div>
+            ) : (
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={revenueData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#F0F0EA" />
+                    <XAxis dataKey="day" tick={{ fontSize: 12, fill: "#8C8B80" }} />
+                    <YAxis tick={{ fontSize: 12, fill: "#8C8B80" }} />
+                    <Tooltip />
+                    <Line type="monotone" dataKey="revenue" stroke="#FF7A00" strokeWidth={3} dot={{ r: 4, fill: "#FF7A00" }} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            )}
           </div>
 
           {/* Recent Orders */}
@@ -242,23 +251,29 @@ export function SellerDashboard() {
               </Link>
             </div>
 
-            <div className="space-y-3">
-              {ordersList.map((ord) => (
-                <div key={ord.id} className="flex items-center justify-between p-4 rounded-2xl border border-black/5 bg-[#FAFAF8]">
-                  <div>
-                    <div className="font-mono text-xs text-[#8C8B80]">{ord.id}</div>
-                    <div className="text-sm font-semibold text-[#1C1B14] mt-0.5">{ord.customer} · {ord.product}</div>
-                    <div className="text-xs text-[#B0AFA5] mt-0.5">{ord.date}</div>
+            {ordersList.length === 0 ? (
+              <div className="py-8 text-center text-[#8C8B80] text-sm">
+                No orders yet. Orders placed for your products will appear here.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {ordersList.map((ord) => (
+                  <div key={ord.id} className="flex items-center justify-between p-4 rounded-2xl border border-black/5 bg-[#FAFAF8]">
+                    <div>
+                      <div className="font-mono text-xs text-[#8C8B80]">{ord.id}</div>
+                      <div className="text-sm font-semibold text-[#1C1B14] mt-0.5">{ord.customer} · {ord.product}</div>
+                      <div className="text-xs text-[#B0AFA5] mt-0.5">{ord.date}</div>
+                    </div>
+                    <div className="text-right">
+                      <div className="font-bold text-sm text-[#1C1B14]">₹{ord.amount.toLocaleString()}</div>
+                      <span className="inline-block mt-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 uppercase">
+                        {ord.status}
+                      </span>
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <div className="font-bold text-sm text-[#1C1B14]">₹{ord.amount.toLocaleString()}</div>
-                    <span className="inline-block mt-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 uppercase">
-                      {ord.status}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         </>
       )}

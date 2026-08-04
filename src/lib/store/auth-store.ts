@@ -13,6 +13,8 @@ export interface User {
   avatar?: string;
   role: 'customer' | 'seller' | 'admin' | 'super_admin' | 'delivery';
   phone?: string;
+  dob?: string;
+  gender?: string;
   createdAt: string;
   seller?: any;
 }
@@ -78,7 +80,7 @@ export const useAuthStore = create<AuthState>()(
           // 1. Fetch profile from database
           const { data: profile, error: profileError } = await supabase
             .from('profiles')
-            .select('full_name, phone, avatar_url, created_at')
+            .select('full_name, phone, avatar_url, date_of_birth, gender, created_at')
             .eq('id', authUser.id)
             .maybeSingle();
 
@@ -129,6 +131,8 @@ export const useAuthStore = create<AuthState>()(
             avatar: profile?.avatar_url,
             role: userRole,
             phone: profile?.phone,
+            dob: profile?.date_of_birth || undefined,
+            gender: profile?.gender || undefined,
             createdAt: profile?.created_at || authUser.created_at,
             seller: sellerInfo,
           };
@@ -317,22 +321,27 @@ export const useAuthStore = create<AuthState>()(
 
         try {
           const supabase = createClient();
+          const updatePayload: Record<string, any> = {};
+          if (profileData.name !== undefined)   updatePayload.full_name = profileData.name;
+          if (profileData.phone !== undefined)  updatePayload.phone = profileData.phone;
+          if (profileData.avatar !== undefined) updatePayload.avatar_url = profileData.avatar;
+          if (profileData.dob !== undefined)    updatePayload.date_of_birth = profileData.dob || null;
+          if (profileData.gender !== undefined) updatePayload.gender = profileData.gender || null;
+
           const { error: profileError } = await supabase
             .from('profiles')
-            .update({
-              full_name: profileData.name,
-              phone: profileData.phone,
-              avatar_url: profileData.avatar,
-            })
+            .update(updatePayload)
             .eq('id', currentUser.id);
 
           if (profileError) throw profileError;
 
           const updatedUser: User = {
             ...currentUser,
-            name: profileData.name || currentUser.name,
-            phone: profileData.phone || currentUser.phone,
-            avatar: profileData.avatar || currentUser.avatar,
+            name: profileData.name ?? currentUser.name,
+            phone: profileData.phone ?? currentUser.phone,
+            avatar: profileData.avatar ?? currentUser.avatar,
+            dob: profileData.dob ?? currentUser.dob,
+            gender: profileData.gender ?? currentUser.gender,
           };
 
           set({ user: updatedUser });
