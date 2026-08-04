@@ -55,20 +55,27 @@ function SectionCard({ title, children, editMode, onEdit, onSave, onCancel, savi
   );
 }
 
-function Field({ label, value, editMode, type = 'text', onChange, readOnly, badge }: {
+function Field({ label, value, editMode, type = 'text', onChange, readOnly, badge, error, placeholder }: {
   label: string; value: string; editMode: boolean; type?: string;
   onChange?: (v: string) => void; readOnly?: boolean; badge?: React.ReactNode;
+  error?: string; placeholder?: string;
 }) {
   return (
     <div>
       <label className="text-[11px] font-bold text-[#8C7B6E] uppercase tracking-wider mb-1.5 block">{label}</label>
       {editMode && !readOnly ? (
-        <input
-          type={type}
-          value={value}
-          onChange={e => onChange?.(e.target.value)}
-          className="w-full h-11 px-4 rounded-xl border border-[#E8E4DE] text-sm text-[#1A0A00] outline-none focus:border-[#FF7A00] bg-[#FAFAF8] transition-colors"
-        />
+        <>
+          <input
+            type={type}
+            value={value}
+            onChange={e => onChange?.(e.target.value)}
+            placeholder={placeholder}
+            className={`w-full h-11 px-4 rounded-xl border text-sm text-[#1A0A00] outline-none bg-[#FAFAF8] transition-colors ${
+              error ? 'border-red-500 focus:border-red-500' : 'border-[#E8E4DE] focus:border-[#FF7A00]'
+            }`}
+          />
+          {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
+        </>
       ) : (
         <div className="flex items-center gap-2 h-11 px-4 rounded-xl bg-[#F5F4F0] text-sm text-[#1A0A00]">
           <span className="flex-1">{value || <span className="text-[#B5A99A]">Not set</span>}</span>
@@ -97,6 +104,7 @@ export default function ProfilePage() {
 
   const [deleteConfirm, setDeleteConfirm] = useState('');
   const [showDelete, setShowDelete]       = useState(false);
+  const [fieldErrors, setFieldErrors]     = useState<Record<string, string>>({});
 
   if (!user) return null;
 
@@ -110,9 +118,46 @@ export default function ProfilePage() {
   completion = Math.min(100, completion);
 
   const handleSavePersonal = async () => {
+    const errors: Record<string, string> = {};
+
+    // Full Name: at least 2 characters, letters and spaces only
+    const trimmedName = name.trim();
+    if (!trimmedName) {
+      errors.name = 'Full name is required';
+    } else if (trimmedName.length < 2) {
+      errors.name = 'Name must be at least 2 characters';
+    } else if (!/^[A-Za-z\s]+$/.test(trimmedName)) {
+      errors.name = 'Name can only contain letters and spaces';
+    }
+
+    // Mobile Number: valid 10-digit Indian number starting with 6-9
+    const digitsOnly = phone.replace(/[\s\-+()]/g, '');
+    const cleanPhone = digitsOnly.startsWith('91') && digitsOnly.length === 12
+      ? digitsOnly.slice(2)
+      : digitsOnly;
+    if (!cleanPhone) {
+      errors.phone = 'Mobile number is required';
+    } else if (!/^[6-9]\d{9}$/.test(cleanPhone)) {
+      errors.phone = 'Enter a valid 10-digit Indian mobile number (starting with 6-9)';
+    }
+
+    // Date of Birth: cannot be in the future
+    if (dob) {
+      const dobDate = new Date(dob);
+      if (dobDate > new Date()) {
+        errors.dob = 'Date of birth cannot be in the future';
+      }
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      return;
+    }
+
+    setFieldErrors({});
     setSaving(true);
     await new Promise(r => setTimeout(r, 700));
-    await updateProfile({ name, phone });
+    await updateProfile({ name: trimmedName, phone: cleanPhone });
     setSaving(false);
     setPersonalEdit(false);
     toast.success('Profile updated! 🙏');
@@ -194,11 +239,11 @@ export default function ProfilePage() {
         editMode={personalEdit}
         onEdit={() => setPersonalEdit(true)}
         onSave={handleSavePersonal}
-        onCancel={() => { setPersonalEdit(false); setName(user.name); setPhone(user.phone||''); }}
+        onCancel={() => { setPersonalEdit(false); setName(user.name); setPhone(user.phone||''); setFieldErrors({}); }}
         saving={saving}
       >
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Field label="Full Name" value={name} editMode={personalEdit} onChange={setName} />
+          <Field label="Full Name" value={name} editMode={personalEdit} onChange={setName} error={fieldErrors.name} placeholder="e.g. Priya Sharma" />
           <Field
             label="Email Address"
             value={user.email}
@@ -207,7 +252,8 @@ export default function ProfilePage() {
             badge={<span className="text-[10px] font-bold text-[#16A34A] bg-[#F0FDF4] px-1.5 py-0.5 rounded-full">✓ Verified</span>}
           />
           <Field label="Mobile Number" value={phone} editMode={personalEdit} type="tel" onChange={setPhone}
-            badge={phone ? <span className="text-[10px] font-bold text-[#16A34A] bg-[#F0FDF4] px-1.5 py-0.5 rounded-full">✓</span> : undefined}
+            error={fieldErrors.phone} placeholder="e.g. 9876543210"
+            badge={phone && !fieldErrors.phone ? <span className="text-[10px] font-bold text-[#16A34A] bg-[#F0FDF4] px-1.5 py-0.5 rounded-full">✓</span> : undefined}
           />
           <div>
             <label className="text-[11px] font-bold text-[#8C7B6E] uppercase tracking-wider mb-1.5 block">Date of Birth</label>

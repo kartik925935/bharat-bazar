@@ -1,6 +1,8 @@
 'use server';
 
 import { createAdminClient } from '@/lib/supabase/admin';
+import { encryptField } from '@/lib/utils/encryption.server';
+import bcrypt from 'bcryptjs';
 
 export interface SellerRegisterInput {
   fullName: string;
@@ -23,12 +25,13 @@ export interface SellerRegisterInput {
 
 /**
  * Registers a new seller using the Supabase Admin client.
+ * - Hashes the password with bcrypt for platform-level verification.
+ * - Encrypts sensitive fields (Aadhaar, PAN, bank account) with AES-GCM
+ *   before passing through user_metadata, so the `handle_new_user` trigger
+ *   stores ciphertext — never plaintext.
  * - Creates the auth user with email_confirm: true so the seller
  *   can log in immediately without waiting for email verification.
- * - Passes all seller metadata in user_metadata so the database
- *   trigger (handle_new_user) can atomically create:
- *   profiles, user_roles, sellers, shops, bank_accounts,
- *   seller_performance, and seller_documents.
+ * - After creation, updates the sellers row with the bcrypt password hash.
  */
 export async function registerSeller(input: SellerRegisterInput): Promise<{
   success: boolean;
@@ -43,7 +46,25 @@ export async function registerSeller(input: SellerRegisterInput): Promise<{
     const firstName = nameParts[0];
     const lastName = nameParts.slice(1).join(' ') || '';
 
-    // Create auth user via admin API — email_confirm: true skips verification email
+    // --- Hash password with bcrypt ---
+    const passwordHash = await bcrypt.hash(input.password, 10);
+
+    // --- Encrypt sensitive fields with AES-GCM ---
+    const encryptedAadhar = input.aadhar
+      ? await encryptField(input.aadhar)
+      : undefined;
+    const encryptedPan = input.pan
+      ? await encryptField(input.pan)
+      : undefined;
+    const encryptedAccountNumber = input.accountNumber
+      ? await encryptField(input.accountNumber)
+      : undefined;
+
+    // Create auth user via admin API — email_confirm: true skips verification email.
+    // The handle_new_user trigger provisions profiles, user_roles, sellers,
+    // shops, bank_accounts, seller_performance, and seller_documents.
+    // Encrypted values are passed through user_metadata so the trigger
+    // stores ciphertext, not plaintext.
     const { data: createData, error: createError } = await adminSupabase.auth.admin.createUser({
       email: input.email.toLowerCase().trim(),
       password: input.password,
@@ -62,10 +83,10 @@ export async function registerSeller(input: SellerRegisterInput): Promise<{
         experience: input.experience,
         account_name: input.accountName,
         bank_name: input.bank,
-        account_number: input.accountNumber,
+        account_number: encryptedAccountNumber ?? '000000000000',
         ifsc: input.ifsc,
-        aadhar: input.aadhar,
-        pan: input.pan || '',
+        aadhar: encryptedAadhar,
+        pan: encryptedPan ?? '',
       },
     });
 
@@ -77,6 +98,25 @@ export async function registerSeller(input: SellerRegisterInput): Promise<{
     const userId = createData.user?.id;
     if (!userId) {
       return { success: false, error: 'User creation succeeded but no user ID was returned.' };
+    }
+
+    // --- Post-creation: store bcrypt hash on the sellers row ---
+    const { data: sellerRow, error: sellerLookupErr } = await adminSupabase
+      .from('sellers')
+      .select('id')
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (sellerRow && !sellerLookupErr) {
+      const { error: hashUpdateErr } = await adminSupabase
+        .from('sellers')
+        .update({ password_hash: passwordHash })
+        .eq('id', sellerRow.id);
+
+      if (hashUpdateErr) {
+        console.error('[registerSeller] Failed to store password hash:', hashUpdateErr.message);
+        // Non-fatal: the user is created, they can log in — hash can be set later
+      }
     }
 
     return { success: true, userId };

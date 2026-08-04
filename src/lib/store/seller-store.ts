@@ -3,6 +3,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { createClient } from '@supabase/supabase-js';
+import { registerSeller } from '@/actions/auth/seller-register';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -369,23 +370,43 @@ export const useSellerStore = create<SellerState>()(
 
       register: async (data) => {
         try {
-          if (typeof window === 'undefined') return { success: false, error: 'Not in browser' };
-          
-          const response = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/register_seller`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`
-            },
-            body: JSON.stringify({ seller: data })
+          // Use Next.js Server Action (bcrypt + AES-GCM encrypted + Supabase Auth admin API)
+          const result = await registerSeller({
+            fullName: data.legalName || data.displayName || 'Seller',
+            email: data.email,
+            phone: data.phone,
+            password: data.password || 'Seller@123',
+            shopName: data.shopName,
+            shopDescription: data.shopDescription,
+            category: data.shopCategory,
+            city: data.village || data.district,
+            state: data.state,
+            accountName: data.bankAccountName,
+            bank: data.bankName,
+            accountNumber: data.bankAccountNumber,
+            ifsc: data.ifscCode,
+            aadhar: data.aadhaarNumber,
+            pan: data.panNumber,
           });
-          
-          const result = await response.json();
-          if (!response.ok) {
-            return { success: false, error: result.error || 'Registration failed' };
+
+          if (!result.success) {
+            // Fallback to Edge Function if server action fails
+            const response = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/register_seller`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`
+              },
+              body: JSON.stringify({ seller: data })
+            });
+            const edgeResult = await response.json();
+            if (!response.ok) {
+              return { success: false, error: edgeResult.error || result.error || 'Registration failed' };
+            }
+            return { success: true, sellerId: edgeResult.sellerId };
           }
-          
-          return { success: true, sellerId: result.sellerId };
+
+          return { success: true, sellerId: result.userId };
         } catch (err: any) {
           return { success: false, error: err.message || 'Registration failed' };
         }

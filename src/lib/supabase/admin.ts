@@ -1,5 +1,9 @@
 import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 
+if (typeof globalThis.WebSocket === 'undefined') {
+  (globalThis as any).WebSocket = class WebSocket {}
+}
+
 /**
  * Service Role client with full administrative privileges.
  * Bypasses Row Level Security (RLS) entirely.
