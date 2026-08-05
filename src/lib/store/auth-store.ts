@@ -48,7 +48,7 @@ interface AuthState {
   // Auth Actions
   signIn: (email: string, password: string, role?: string) => Promise<{ success: boolean; error?: string }>;
   signUp: (data: SignUpData) => Promise<{ success: boolean; error?: string }>;
-  signInWithGoogle: () => Promise<{ success: boolean; error?: string }>;
+  signInWithGoogle: (nextPath?: string, role?: string) => Promise<{ success: boolean; error?: string }>;
   signOut: () => Promise<void>;
   updateProfile: (data: Partial<User>) => Promise<{ success: boolean }>;
   resetPassword: (email: string) => Promise<{ success: boolean }>;
@@ -273,14 +273,21 @@ export const useAuthStore = create<AuthState>()(
         }
       },
 
-      signInWithGoogle: async () => {
+      signInWithGoogle: async (nextPath?: string, role?: string) => {
         get().setLoading(true);
         try {
           const supabase = createClient();
+          const callbackUrl = `${window.location.origin}/auth/callback`;
+          const params = new URLSearchParams();
+          if (nextPath) params.set('next', nextPath);
+          if (role) params.set('role', role);
+          const queryString = params.toString();
+          const redirectTo = queryString ? `${callbackUrl}?${queryString}` : callbackUrl;
+
           const { error } = await supabase.auth.signInWithOAuth({
             provider: 'google',
             options: {
-              redirectTo: `${window.location.origin}/auth/callback`,
+              redirectTo,
               queryParams: {
                 prompt: 'select_account',
               },

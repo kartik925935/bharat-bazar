@@ -9,6 +9,8 @@ import { SellerTopbar } from '@/components/seller/seller-topbar';
 import { Clock, CheckCircle2, LogOut, MessageSquare, Store } from 'lucide-react';
 import { toast } from 'sonner';
 
+import { useAuthStore } from '@/lib/store/auth-store';
+
 function PendingApprovalPage() {
   const { seller, logout } = useSellerStore();
   const router = useRouter();
@@ -71,8 +73,71 @@ function MobileBottomNav() {
 export default function SellerLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const { isAuthenticated, seller, loadSellerData } = useSellerStore();
+  const { isAuthenticated: isUserAuthed, user } = useAuthStore();
 
   useEffect(() => {
+    // Synchronize Supabase user seller details if authenticated but not yet populated in seller store
+    if (isUserAuthed && user?.role === 'seller' && !isAuthenticated) {
+      const dbSeller = user.seller;
+      if (dbSeller) {
+        useSellerStore.setState({
+          seller: {
+            id: dbSeller.id,
+            sellerId: dbSeller.seller_id || dbSeller.id,
+            legalName: dbSeller.legal_name || user.name,
+            displayName: dbSeller.display_name || user.name,
+            email: user.email,
+            phone: dbSeller.phone || user.phone || '',
+            shopName: dbSeller.shops?.[0]?.name || dbSeller.shop_name || 'My Shop',
+            shopDescription: dbSeller.shops?.[0]?.description || dbSeller.shop_description || '',
+            shopCategory: dbSeller.shop_category || '',
+            pincode: dbSeller.pincode || '',
+            district: dbSeller.district || '',
+            state: dbSeller.state || '',
+            fullAddress: dbSeller.full_address || '',
+            panNumber: dbSeller.pan_number || '',
+            aadhaarNumber: dbSeller.aadhaar_number || '',
+            bankAccountName: dbSeller.bank_accounts?.[0]?.account_name || '',
+            bankName: dbSeller.bank_accounts?.[0]?.bank_name || '',
+            bankAccountNumber: dbSeller.bank_accounts?.[0]?.account_number || '',
+            ifscCode: dbSeller.bank_accounts?.[0]?.ifsc_code || '',
+            accountType: dbSeller.account_type || 'savings',
+            status: dbSeller.status || 'approved',
+            kycStatus: dbSeller.kyc_status || 'verified',
+            tier: dbSeller.tier || 'bronze',
+            tierScore: dbSeller.tier_score || 0,
+            rating: dbSeller.rating || 5.0,
+            totalReviews: dbSeller.total_reviews || 0,
+            totalSales: dbSeller.total_sales || 0,
+            totalOrders: dbSeller.total_orders || 0,
+            totalRevenue: dbSeller.total_revenue || 0,
+            returnRate: dbSeller.return_rate || 0,
+            cancellationRate: dbSeller.cancellation_rate || 0,
+            onTimeDispatchRate: dbSeller.on_time_dispatch_rate || 100,
+            responseRate: dbSeller.response_rate || 100,
+            avatar: dbSeller.avatar_url || user.avatar || null,
+            sellerType: dbSeller.seller_type || 'shop_owner',
+            shopLogo: dbSeller.shops?.[0]?.logo_url || null,
+            shopBanner: dbSeller.shops?.[0]?.banner_url || null,
+            subCategories: [],
+            village: dbSeller.village || '',
+            gstNumber: dbSeller.gst_number || null,
+            shippingAreas: ['All India'],
+            processingDays: 2,
+            vacationMode: dbSeller.vacation_mode || false,
+            vacationMessage: dbSeller.vacation_message || null,
+            joinedAt: dbSeller.created_at || new Date().toISOString(),
+            approvedAt: dbSeller.approved_at || null,
+            lastActiveAt: new Date().toISOString(),
+            profileCompleteness: dbSeller.profile_completeness || 100,
+            password: '',
+          },
+          isAuthenticated: true
+        });
+        return;
+      }
+    }
+
     if (!isAuthenticated) {
       router.replace('/seller-login');
       return;
@@ -80,7 +145,7 @@ export default function SellerLayout({ children }: { children: React.ReactNode }
     if (seller) {
       loadSellerData(seller.id);
     }
-  }, [isAuthenticated, seller]);
+  }, [isAuthenticated, seller, isUserAuthed, user]);
 
   if (!isAuthenticated || !seller) return null;
   // Bypassed for testing so we don't get stuck on the review screen
