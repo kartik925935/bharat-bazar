@@ -68,18 +68,28 @@ export default function SuperAdminLoginPage() {
     setLoading(true);
     setShake(false);
     
-    // Demo bypass for frontend-only testing
-    if (values.email === 'admin@bharatbazaar.com' && values.password === 'Admin@12345678' && values.adminAccessCode === 'ACCESS12345678') {
-      await new Promise(r => setTimeout(r, 1000)); // Simulate network
+    // Demo bypass for frontend-only testing & multi-account support
+    const isDemoAdmin = 
+      values.adminAccessCode === 'ACCESS12345678' ||
+      values.email.endsWith('@bharatbazaar.com') ||
+      values.email === 'sysadmin@bharatbazaar.com' ||
+      values.email === 'admin@bharatbazaar.com';
+
+    if (isDemoAdmin) {
+      await new Promise(r => setTimeout(r, 600)); // Simulate network latency
+      const roleTitle = values.email.split('@')[0].replace('.', ' ').toUpperCase();
+      
       setUser({
-        id: 'demo-admin-1',
-        email: 'admin@bharatbazaar.com',
-        name: 'Super Admin',
+        id: `demo-admin-${Date.now()}`,
+        email: values.email || 'sysadmin@bharatbazaar.com',
+        name: roleTitle ? `Admin (${roleTitle})` : 'Super Admin',
         role: 'admin',
         createdAt: new Date().toISOString(),
       });
-      toast.success('Authentication successful. Welcome Commander.');
+
+      toast.success(`Authentication successful. Welcome, ${roleTitle || 'Commander'}.`);
       setLoading(false);
+      router.replace(returnUrl);
       return;
     }
 
@@ -96,7 +106,7 @@ export default function SuperAdminLoginPage() {
       }
       
       toast.success('Authentication successful. Welcome Commander.');
-      // router.replace is handled by useEffect
+      router.replace(returnUrl);
     } else {
       setShake(true);
       toast.error('INVALID CREDENTIALS');
@@ -104,12 +114,12 @@ export default function SuperAdminLoginPage() {
     }
   };
 
-  const autofillDemo = () => {
-    setValue('email', 'admin@bharatbazaar.com', { shouldValidate: true });
+  const autofillDemo = (email = 'sysadmin@bharatbazaar.com') => {
+    setValue('email', email, { shouldValidate: true });
     setValue('password', 'Admin@12345678', { shouldValidate: true });
     setValue('adminAccessCode', 'ACCESS12345678', { shouldValidate: true });
     setValue('ipWhitelistAck', true, { shouldValidate: true });
-    toast.info('Super Admin credentials injected.');
+    toast.info(`Injected profile: ${email}`);
   };
 
   return (
@@ -216,14 +226,40 @@ export default function SuperAdminLoginPage() {
               </button>
             </form>
 
-            <div className="mt-8 pt-6 border-t border-[#1E1E2E] text-center">
-              <button
-                type="button"
-                onClick={autofillDemo}
-                className="text-xs font-bold text-[#5C5C78] hover:text-[#FF7A00] transition-colors underline decoration-dashed underline-offset-4"
-              >
-                Inject Demo Administrator Profile
-              </button>
+            <div className="mt-8 pt-6 border-t border-[#1E1E2E]">
+              <p className="text-[10px] font-bold text-[#5C5C78] uppercase tracking-widest text-center mb-3">
+                Quick Inject Administrator Profiles
+              </p>
+              <div className="flex flex-wrap gap-2 justify-center">
+                <button
+                  type="button"
+                  onClick={() => autofillDemo('sysadmin@bharatbazaar.com')}
+                  className="px-2.5 py-1 rounded-lg bg-[#1A1A24] border border-[#2A2A3A] text-[11px] font-mono text-[#F0F0F8] hover:border-[#FF7A00] hover:text-[#FF7A00] transition-all cursor-pointer"
+                >
+                  sysadmin
+                </button>
+                <button
+                  type="button"
+                  onClick={() => autofillDemo('admin@bharatbazaar.com')}
+                  className="px-2.5 py-1 rounded-lg bg-[#1A1A24] border border-[#2A2A3A] text-[11px] font-mono text-[#F0F0F8] hover:border-[#FF7A00] hover:text-[#FF7A00] transition-all cursor-pointer"
+                >
+                  admin
+                </button>
+                <button
+                  type="button"
+                  onClick={() => autofillDemo('commander@bharatbazaar.com')}
+                  className="px-2.5 py-1 rounded-lg bg-[#1A1A24] border border-[#2A2A3A] text-[11px] font-mono text-[#F0F0F8] hover:border-[#FF7A00] hover:text-[#FF7A00] transition-all cursor-pointer"
+                >
+                  commander
+                </button>
+                <button
+                  type="button"
+                  onClick={() => autofillDemo('finance.admin@bharatbazaar.com')}
+                  className="px-2.5 py-1 rounded-lg bg-[#1A1A24] border border-[#2A2A3A] text-[11px] font-mono text-[#F0F0F8] hover:border-[#FF7A00] hover:text-[#FF7A00] transition-all cursor-pointer"
+                >
+                  finance.admin
+                </button>
+              </div>
             </div>
           </div>
           
