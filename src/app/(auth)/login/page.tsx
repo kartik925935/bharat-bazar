@@ -37,8 +37,6 @@ export default function LoginPage() {
   const { signIn, signInWithGoogle, error } = useAuthStore();
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [showDemo, setShowDemo] = useState(false);
-  const [copiedText, setCopiedText] = useState('');
   const [shake, setShake] = useState(false);
 
   const {
@@ -93,18 +91,6 @@ export default function LoginPage() {
     }
   };
 
-  const copyToClipboard = (text: string, type: string) => {
-    navigator.clipboard.writeText(text);
-    setCopiedText(type);
-    toast.success(`Copied ${type} to clipboard!`);
-    setTimeout(() => setCopiedText(''), 2000);
-  };
-
-  const autofillDemo = (email: string, pass: string) => {
-    setValue('email', email, { shouldValidate: true });
-    setValue('password', pass, { shouldValidate: true });
-    toast.info('Demo credentials loaded!');
-  };
 
   return (
     <RedirectIfAuthed>
@@ -283,50 +269,7 @@ export default function LoginPage() {
               </Link>
             </div>
 
-            {/* Development / Demo credentials Box */}
-            <div className="border border-orange-200 bg-[#FFF7ED] rounded-xl p-4 space-y-2">
-              <button 
-                type="button"
-                onClick={() => setShowDemo(!showDemo)}
-                className="w-full flex items-center justify-between text-xs font-bold text-orange-800 hover:text-orange-950 outline-none"
-              >
-                <span>🛠️ Development Demo Credentials</span>
-                <span>{showDemo ? 'Hide' : 'Show'}</span>
-              </button>
 
-              {showDemo && (
-                <div className="text-[11px] text-orange-900 space-y-2 pt-2 border-t border-orange-200">
-                  {[
-                    { role: 'Customer', email: 'customer@test.com', pass: 'Test@123' },
-                    { role: 'Seller', email: 'seller@test.com', pass: 'Test@123' },
-                    { role: 'Admin', email: 'admin@bharatbazaar.com', pass: 'Admin@123' },
-                  ].map((demo) => (
-                    <div key={demo.role} className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 bg-white/50 p-2 rounded-lg border border-orange-200/40">
-                      <div>
-                        <span className="font-bold uppercase text-[9px] bg-orange-100 px-1 py-0.5 rounded text-orange-800 mr-1">{demo.role}</span>
-                        <span>{demo.email}</span>
-                      </div>
-                      <div className="flex gap-1.5 self-end sm:self-center">
-                        <button
-                          type="button"
-                          onClick={() => autofillDemo(demo.email, demo.pass)}
-                          className="bg-orange-600 hover:bg-orange-700 text-white font-bold px-1.5 py-0.5 rounded text-[10px] cursor-pointer transition-colors"
-                        >
-                          Autofill
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => copyToClipboard(demo.email, `${demo.role} Email`)}
-                          className="bg-orange-100 hover:bg-orange-200 text-orange-800 font-bold px-1.5 py-0.5 rounded text-[10px] cursor-pointer transition-colors flex items-center gap-0.5"
-                        >
-                          {copiedText === `${demo.role} Email` ? <Check size={10} /> : 'Copy'}
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
           </motion.div>
         </div>
       </div>

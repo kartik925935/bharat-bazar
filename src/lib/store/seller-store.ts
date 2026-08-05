@@ -721,20 +721,13 @@ export const useSellerStore = create<SellerState>()(
       loginWithGoogle: async () => {
         set({ isLoading: true });
         try {
-          if (typeof window === 'undefined') return { success: false, error: 'Not in browser' };
+          // TODO: Implement Supabase OAuth integration here
+          // Example: const { data, error } = await supabase.auth.signInWithOAuth({ provider: 'google' });
           
-          // For demo purposes, we will mock a delay and log in as the default seed seller
-          await new Promise(resolve => setTimeout(resolve, 800));
-          
-          initializeSellers();
-          const db = getDb();
-          const seller = db.sellers[0]; // Just use the first seed seller as the "Google User"
-          
-          if (!seller) return { success: false, error: 'No seller account available' };
-          
-          set({ seller, isAuthenticated: true });
-          get().loadSellerData(seller.id);
-          return { success: true };
+          await new Promise(resolve => setTimeout(resolve, 500));
+          return { success: false, error: 'Google authentication (Supabase OAuth) is pending integration' };
+        } catch (error: any) {
+          return { success: false, error: error.message || 'Google Login failed' };
         } finally {
           set({ isLoading: false });
         }

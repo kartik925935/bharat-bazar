@@ -69,11 +69,6 @@ export default function SellerLoginPage() {
     }
   };
 
-  const fillDemo = () => {
-    setValue('email', 'seller@test.com', { shouldValidate: true });
-    setValue('password', 'Seller@123', { shouldValidate: true });
-    toast.info('Demo Seller Account Injected');
-  };
 
   return (
     <div className="min-h-screen bg-white flex flex-col md:flex-row">
@@ -113,17 +108,7 @@ export default function SellerLoginPage() {
           <h2 className="text-3xl font-black text-[#1A1A1A] mb-2">Welcome Back, Artisan! 🙏</h2>
           <p className="text-sm text-[#9B8F84] mb-8">Sign in to manage your shop</p>
 
-          {/* Demo creds */}
-          <div className="bg-[#FFF7ED] border border-orange-200 rounded-xl p-4 mb-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-bold text-[#FF7A00] mb-1">🧪 Demo Seller Account</p>
-                <p className="text-xs text-[#4A4540]">Email: seller@test.com</p>
-                <p className="text-xs text-[#4A4540]">Pass: Seller@123</p>
-              </div>
-              <button onClick={fillDemo} type="button" className="px-3 py-1.5 bg-white border border-orange-200 text-[#FF7A00] text-xs font-bold rounded-lg hover:bg-orange-50 transition-colors cursor-pointer">Fill</button>
-            </div>
-          </div>
+
 
           <form onSubmit={handleSubmit(onFormSubmit)} className="space-y-4">
             <FormInput
@@ -187,6 +172,8 @@ export default function SellerLoginPage() {
               </svg>
               Continue with Google
             </button>
+            
+
           </form>
 
           <div className="mt-8 text-center text-sm text-[#9B8F84]">
