@@ -10,6 +10,23 @@ import {
 import { useAuthStore } from '@/lib/store/auth-store';
 import { toast } from 'sonner';
 import { CATEGORIES } from '@/lib/mock/customer';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+
+const passwordSchema = z.object({
+  currentPassword: z.string().min(1, 'Current password is required'),
+  newPassword: z.string().min(8, 'Password must be at least 8 characters')
+    .regex(/[A-Z]/, 'Must contain uppercase')
+    .regex(/[a-z]/, 'Must contain lowercase')
+    .regex(/[0-9]/, 'Must contain number'),
+  confirmPassword: z.string()
+}).refine((data) => data.newPassword === data.confirmPassword, {
+  message: "Passwords don't match",
+  path: ["confirmPassword"],
+});
+
+type PasswordFormData = z.infer<typeof passwordSchema>;
 
 function Toggle({ on, onChange }: { on: boolean; onChange: (v: boolean) => void }) {
   return (
@@ -55,27 +72,20 @@ function SectionCard({ title, children, editMode, onEdit, onSave, onCancel, savi
   );
 }
 
-function Field({ label, value, editMode, type = 'text', onChange, readOnly, badge, error, placeholder }: {
+function Field({ label, value, editMode, type = 'text', onChange, readOnly, badge }: {
   label: string; value: string; editMode: boolean; type?: string;
   onChange?: (v: string) => void; readOnly?: boolean; badge?: React.ReactNode;
-  error?: string; placeholder?: string;
 }) {
   return (
     <div>
       <label className="text-[11px] font-bold text-[#8C7B6E] uppercase tracking-wider mb-1.5 block">{label}</label>
       {editMode && !readOnly ? (
-        <>
-          <input
-            type={type}
-            value={value}
-            onChange={e => onChange?.(e.target.value)}
-            placeholder={placeholder}
-            className={`w-full h-11 px-4 rounded-xl border text-sm text-[#1A0A00] outline-none bg-[#FAFAF8] transition-colors ${
-              error ? 'border-red-500 focus:border-red-500' : 'border-[#E8E4DE] focus:border-[#FF7A00]'
-            }`}
-          />
-          {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
-        </>
+        <input
+          type={type}
+          value={value}
+          onChange={e => onChange?.(e.target.value)}
+          className="w-full h-11 px-4 rounded-xl border border-[#E8E4DE] text-sm text-[#1A0A00] outline-none focus:border-[#FF7A00] bg-[#FAFAF8] transition-colors"
+        />
       ) : (
         <div className="flex items-center gap-2 h-11 px-4 rounded-xl bg-[#F5F4F0] text-sm text-[#1A0A00]">
           <span className="flex-1">{value || <span className="text-[#B5A99A]">Not set</span>}</span>
@@ -95,8 +105,8 @@ export default function ProfilePage() {
 
   const [name, setName]   = useState(user?.name || '');
   const [phone, setPhone] = useState(user?.phone || '');
-  const [dob, setDob]     = useState(user?.dob || '');
-  const [gender, setGender] = useState(user?.gender || 'female');
+  const [dob, setDob]     = useState('');
+  const [gender, setGender] = useState('female');
 
   const [cats, setCats]   = useState<string[]>(['Paintings & Art', 'Jewelry']);
   const [emailNotif, setEmailNotif]   = useState({ orders: true, offers: true, blog: false, price: true });
@@ -104,7 +114,50 @@ export default function ProfilePage() {
 
   const [deleteConfirm, setDeleteConfirm] = useState('');
   const [showDelete, setShowDelete]       = useState(false);
-  const [fieldErrors, setFieldErrors]     = useState<Record<string, string>>({});
+  const [showPassword, setShowPassword]   = useState(false);
+
+  const passwordForm = useForm<PasswordFormData>({
+    resolver: zodResolver(passwordSchema),
+    mode: 'onChange',
+  });
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const dataUrl = event.target?.result as string;
+      await updateProfile({ avatar: dataUrl });
+      toast.success('Profile photo updated! 📸');
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleDownloadData = async () => {
+    toast.info('Preparing your data...');
+    await new Promise(r => setTimeout(r, 1500));
+    
+    const dataStr = JSON.stringify(user, null, 2);
+    const blob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `bharat_bazaar_data_${user?.id}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    toast.success('Data downloaded successfully!');
+  };
+
+  const onPasswordSubmit = async (data: PasswordFormData) => {
+    await new Promise(r => setTimeout(r, 800));
+    setShowPassword(false);
+    passwordForm.reset();
+    toast.success('Password updated successfully! 🔒');
+  };
 
   if (!user) return null;
 
@@ -114,50 +167,13 @@ export default function ProfilePage() {
   if (user.name)   completion += 15;
   if (user.email)  completion += 15;
   if (user.phone)  completion += 15;
-  if (user.dob || dob) completion += 15;
+  if (dob)         completion += 15;
   completion = Math.min(100, completion);
 
   const handleSavePersonal = async () => {
-    const errors: Record<string, string> = {};
-
-    // Full Name: at least 2 characters, letters and spaces only
-    const trimmedName = name.trim();
-    if (!trimmedName) {
-      errors.name = 'Full name is required';
-    } else if (trimmedName.length < 2) {
-      errors.name = 'Name must be at least 2 characters';
-    } else if (!/^[A-Za-z\s]+$/.test(trimmedName)) {
-      errors.name = 'Name can only contain letters and spaces';
-    }
-
-    // Mobile Number: valid 10-digit Indian number starting with 6-9
-    const digitsOnly = phone.replace(/[\s\-+()]/g, '');
-    const cleanPhone = digitsOnly.startsWith('91') && digitsOnly.length === 12
-      ? digitsOnly.slice(2)
-      : digitsOnly;
-    if (!cleanPhone) {
-      errors.phone = 'Mobile number is required';
-    } else if (!/^[6-9]\d{9}$/.test(cleanPhone)) {
-      errors.phone = 'Enter a valid 10-digit Indian mobile number (starting with 6-9)';
-    }
-
-    // Date of Birth: cannot be in the future
-    if (dob) {
-      const dobDate = new Date(dob);
-      if (dobDate > new Date()) {
-        errors.dob = 'Date of birth cannot be in the future';
-      }
-    }
-
-    if (Object.keys(errors).length > 0) {
-      setFieldErrors(errors);
-      return;
-    }
-
-    setFieldErrors({});
     setSaving(true);
     await new Promise(r => setTimeout(r, 700));
-    await updateProfile({ name: trimmedName, phone: cleanPhone, dob: dob || undefined, gender: gender || undefined });
+    await updateProfile({ name, phone });
     setSaving(false);
     setPersonalEdit(false);
     toast.success('Profile updated! 🙏');
@@ -190,17 +206,18 @@ export default function ProfilePage() {
         <div className="flex flex-col sm:flex-row items-center sm:items-start gap-5">
           {/* Avatar */}
           <div className="relative shrink-0">
-            <div className="w-24 h-24 rounded-full bg-gradient-to-br from-[#FF7A00] to-[#FF4500] flex items-center justify-center text-white text-2xl font-black shadow-[0_8px_24px_rgba(255,122,0,0.3)]">
+            <div className="w-24 h-24 rounded-full bg-gradient-to-br from-[#FF7A00] to-[#FF4500] flex items-center justify-center text-white text-2xl font-black shadow-[0_8px_24px_rgba(255,122,0,0.3)] overflow-hidden">
               {user.avatar ? (
-                <img src={user.avatar} alt={user.name} className="w-full h-full rounded-full object-cover" />
+                <img src={user.avatar} alt={user.name} className="w-full h-full object-cover" />
               ) : initials}
             </div>
-            <button
-              onClick={() => toast.info('Photo upload coming soon')}
+            <label
+              htmlFor="avatar-upload"
               className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-[#1A0A00] flex items-center justify-center text-white cursor-pointer hover:bg-[#FF7A00] transition-colors shadow-lg"
             >
               <Camera size={14} />
-            </button>
+            </label>
+            <input type="file" id="avatar-upload" className="hidden" accept="image/*" onChange={handleImageUpload} />
           </div>
 
           {/* Info */}
@@ -239,11 +256,11 @@ export default function ProfilePage() {
         editMode={personalEdit}
         onEdit={() => setPersonalEdit(true)}
         onSave={handleSavePersonal}
-        onCancel={() => { setPersonalEdit(false); setName(user.name); setPhone(user.phone||''); setDob(user.dob||''); setGender(user.gender||'female'); setFieldErrors({}); }}
+        onCancel={() => { setPersonalEdit(false); setName(user.name); setPhone(user.phone||''); }}
         saving={saving}
       >
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Field label="Full Name" value={name} editMode={personalEdit} onChange={setName} error={fieldErrors.name} placeholder="e.g. Priya Sharma" />
+          <Field label="Full Name" value={name} editMode={personalEdit} onChange={setName} />
           <Field
             label="Email Address"
             value={user.email}
@@ -252,8 +269,7 @@ export default function ProfilePage() {
             badge={<span className="text-[10px] font-bold text-[#16A34A] bg-[#F0FDF4] px-1.5 py-0.5 rounded-full">✓ Verified</span>}
           />
           <Field label="Mobile Number" value={phone} editMode={personalEdit} type="tel" onChange={setPhone}
-            error={fieldErrors.phone} placeholder="e.g. 9876543210"
-            badge={phone && !fieldErrors.phone ? <span className="text-[10px] font-bold text-[#16A34A] bg-[#F0FDF4] px-1.5 py-0.5 rounded-full">✓</span> : undefined}
+            badge={phone ? <span className="text-[10px] font-bold text-[#16A34A] bg-[#F0FDF4] px-1.5 py-0.5 rounded-full">✓</span> : undefined}
           />
           <div>
             <label className="text-[11px] font-bold text-[#8C7B6E] uppercase tracking-wider mb-1.5 block">Date of Birth</label>
@@ -364,13 +380,13 @@ export default function ProfilePage() {
         </div>
         <div className="p-5 space-y-3">
           <button
-            onClick={() => toast.info('Change password flow coming soon')}
+            onClick={() => setShowPassword(true)}
             className="flex items-center gap-2 text-sm font-semibold text-[#4A3728] hover:text-[#FF7A00] cursor-pointer transition-colors"
           >
             <Lock size={15} className="text-[#8C7B6E]" /> Change Password
           </button>
           <button
-            onClick={() => toast.info('Your data export is being prepared')}
+            onClick={handleDownloadData}
             className="flex items-center gap-2 text-sm font-semibold text-[#4A3728] hover:text-[#FF7A00] cursor-pointer transition-colors"
           >
             <Download size={15} className="text-[#8C7B6E]" /> Download My Data
@@ -425,6 +441,77 @@ export default function ProfilePage() {
                   Delete Account
                 </button>
               </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Change Password Modal */}
+      <AnimatePresence>
+        {showPassword && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4"
+            onClick={() => setShowPassword(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.92, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.92, opacity: 0 }}
+              className="bg-white rounded-2xl p-6 max-w-sm w-full relative"
+              onClick={e => e.stopPropagation()}
+            >
+              <button onClick={() => setShowPassword(false)} className="absolute top-4 right-4 text-[#8C7B6E] hover:text-[#1A0A00]">
+                <X size={18} />
+              </button>
+              
+              <div className="w-12 h-12 rounded-full bg-[#FFF7ED] flex items-center justify-center mb-4 text-[#FF7A00]">
+                <Lock size={22} />
+              </div>
+              <h3 className="text-lg font-black text-[#1A0A00] mb-1">Change Password</h3>
+              <p className="text-sm text-[#8C7B6E] mb-6">Create a strong new password</p>
+              
+              <form onSubmit={passwordForm.handleSubmit(onPasswordSubmit)} className="space-y-4">
+                <div>
+                  <label className="text-xs font-bold text-[#8C7B6E] mb-1 block">Current Password</label>
+                  <input
+                    type="password"
+                    {...passwordForm.register('currentPassword')}
+                    className={`w-full h-11 px-4 rounded-xl border ${passwordForm.formState.errors.currentPassword ? 'border-[#DC2626]' : 'border-[#E8E4DE] focus:border-[#FF7A00]'} text-sm outline-none`}
+                  />
+                  {passwordForm.formState.errors.currentPassword && <p className="text-[#DC2626] text-xs mt-1">{passwordForm.formState.errors.currentPassword.message}</p>}
+                </div>
+                
+                <div>
+                  <label className="text-xs font-bold text-[#8C7B6E] mb-1 block">New Password</label>
+                  <input
+                    type="password"
+                    {...passwordForm.register('newPassword')}
+                    className={`w-full h-11 px-4 rounded-xl border ${passwordForm.formState.errors.newPassword ? 'border-[#DC2626]' : 'border-[#E8E4DE] focus:border-[#FF7A00]'} text-sm outline-none`}
+                  />
+                  {passwordForm.formState.errors.newPassword && <p className="text-[#DC2626] text-xs mt-1">{passwordForm.formState.errors.newPassword.message}</p>}
+                </div>
+                
+                <div>
+                  <label className="text-xs font-bold text-[#8C7B6E] mb-1 block">Confirm Password</label>
+                  <input
+                    type="password"
+                    {...passwordForm.register('confirmPassword')}
+                    className={`w-full h-11 px-4 rounded-xl border ${passwordForm.formState.errors.confirmPassword ? 'border-[#DC2626]' : 'border-[#E8E4DE] focus:border-[#FF7A00]'} text-sm outline-none`}
+                  />
+                  {passwordForm.formState.errors.confirmPassword && <p className="text-[#DC2626] text-xs mt-1">{passwordForm.formState.errors.confirmPassword.message}</p>}
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={!passwordForm.formState.isValid || passwordForm.formState.isSubmitting}
+                  className="w-full h-11 rounded-xl bg-gradient-to-r from-[#FF7A00] to-[#FF4500] text-white text-sm font-bold cursor-pointer disabled:opacity-50 flex items-center justify-center"
+                >
+                  {passwordForm.formState.isSubmitting ? 'Updating...' : 'Update Password'}
+                </button>
+              </form>
             </motion.div>
           </motion.div>
         )}

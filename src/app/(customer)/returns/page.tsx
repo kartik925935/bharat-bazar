@@ -1,12 +1,45 @@
 'use client';
 
 import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import { motion, AnimatePresence } from 'framer-motion';
-import { RotateCcw, Truck, RefreshCw, X, ChevronRight, ChevronDown, Package, Check } from 'lucide-react';
+import { RotateCcw, Truck, RefreshCw, X, ChevronRight, ChevronDown, Package, Check, AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { formatCurrency } from '@/lib/utils/format-currency';
 import { toast } from 'sonner';
-import { MOCK_RETURNS, type MockReturn } from '@/lib/mock/customer';
+
+// ─── Schema ─────────────────────────────────────────────────────────────────
+const returnSchema = z.object({
+  returnReason: z.string().min(1, 'Please select a return reason'),
+  additionalInfo: z
+    .string()
+    .min(1, 'Please describe the issue')
+    .min(30, 'Please provide at least 30 characters describing the issue')
+    .max(500, 'Description cannot exceed 500 characters'),
+  refundMethod: z.string().min(1, 'Please select preferred refund method'),
+  returnPolicyAgreed: z
+    .boolean()
+    .refine((v) => v === true, 'Please agree to the return policy to proceed'),
+});
+type ReturnFormData = z.infer<typeof returnSchema>;
+
+function FieldError({ message }: { message?: string }) {
+  if (!message) return null;
+  return (
+    <motion.p
+      initial={{ opacity: 0, y: -4 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="flex items-center gap-1.5 text-sm text-red-600 mt-1.5"
+      role="alert"
+    >
+      <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
+      {message}
+    </motion.p>
+  );
+}
+
 
 const STATUS_BADGES: Record<string, { label: string; bg: string; text: string }> = {
   under_review:     { label: 'Under Review',     bg: '#FEFCE8', text: '#CA8A04' },
@@ -34,21 +67,53 @@ const REFUND_METHODS = [
   'Wallet Credits',
 ];
 
-// Mock delivered orders for return request
-const DELIVERED_ORDERS = [
-  { orderNumber: 'BB-2025-78234', productName: 'Handcrafted Wooden Toys Set', productImage: 'https://images.unsplash.com/photo-1596461404969-9ae70f2830c1?w=300&auto=format&fit=crop', price: 1299, date: '18 Jan 2025' },
-  { orderNumber: 'BB-2025-69145', productName: 'Madhubani Art Painting', productImage: 'https://images.unsplash.com/photo-1582571352032-448f40b9e26c?w=300&auto=format&fit=crop', price: 2400, date: '12 Jan 2025' },
-];
+import { MOCK_RETURNS, DELIVERED_ORDERS, type MockReturn } from '@/lib/mock/customer';
 
 export default function ReturnsPage() {
   const [returns, setReturns] = useState<MockReturn[]>(MOCK_RETURNS);
   const [tab, setTab] = useState<'all' | 'active' | 'completed'>('all');
   const [showRequestModal, setShowRequestModal] = useState(false);
-  const [selectedOrder, setSelectedOrder] = useState(DELIVERED_ORDERS[0]);
-  const [reason, setReason] = useState(RETURN_REASONS[0]);
-  const [refundMethod, setRefundMethod] = useState(REFUND_METHODS[0]);
-  const [additionalInfo, setAdditionalInfo] = useState('');
-  const [submitting, setSubmitting] = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState<any>(DELIVERED_ORDERS[0] || null);
+
+  const form = useForm<ReturnFormData>({
+    resolver: zodResolver(returnSchema),
+    mode: 'onChange',
+    reValidateMode: 'onChange',
+    defaultValues: {
+      returnReason: RETURN_REASONS[0],
+      additionalInfo: '',
+      refundMethod: REFUND_METHODS[0],
+      returnPolicyAgreed: false,
+    },
+  });
+
+  const { register, handleSubmit, watch, reset,
+    formState: { errors, touchedFields, isSubmitting, isValid } } = form;
+
+  const watchedInfo = watch('additionalInfo', '');
+  const watchedAgreed = watch('returnPolicyAgreed', false);
+
+  const onSubmitReturn = async (data: ReturnFormData) => {
+    if (!selectedOrder) { toast.error('Please select an order to return.'); return; }
+    await new Promise((r) => setTimeout(r, 1200));
+    const newReturn: MockReturn = {
+      id: `ret-${Date.now()}`,
+      returnNumber: `RET-2025-${Math.floor(Math.random() * 900 + 100)}`,
+      orderNumber: selectedOrder.orderNumber,
+      productName: selectedOrder.productName,
+      productImage: selectedOrder.productImage,
+      reason: data.returnReason,
+      refundAmount: selectedOrder.price,
+      status: 'under_review',
+      date: new Date().toISOString().split('T')[0],
+      expectedRefundMethod: data.refundMethod,
+    };
+    setReturns((prev) => [newReturn, ...prev]);
+    setShowRequestModal(false);
+    reset();
+    toast.success("Return request submitted! We'll review it within 24 hours. 📦");
+  };
+
 
   const filtered = returns.filter((r) => {
     if (tab === 'active') return ['under_review', 'approved', 'pickup_scheduled', 'received'].includes(r.status);
@@ -56,29 +121,6 @@ export default function ReturnsPage() {
     return true;
   });
 
-  const handleSubmitReturn = (e: React.FormEvent) => {
-    e.preventDefault();
-    setSubmitting(true);
-    setTimeout(() => {
-      const newReturn: MockReturn = {
-        id: `ret-${Date.now()}`,
-        returnNumber: `RET-2025-${Math.floor(Math.random() * 900 + 100)}`,
-        orderNumber: selectedOrder.orderNumber,
-        productName: selectedOrder.productName,
-        productImage: selectedOrder.productImage,
-        reason,
-        refundAmount: selectedOrder.price,
-        status: 'under_review',
-        date: new Date().toISOString().split('T')[0],
-        expectedRefundMethod: refundMethod,
-      };
-      setReturns((prev) => [newReturn, ...prev]);
-      setShowRequestModal(false);
-      setSubmitting(false);
-      setAdditionalInfo('');
-      toast.success('Return request submitted! We\'ll review it within 24 hours. 📦');
-    }, 1200);
-  };
 
   return (
     <div className="p-4 sm:p-6 space-y-6">
@@ -204,64 +246,107 @@ export default function ReturnsPage() {
                 <button onClick={() => setShowRequestModal(false)} className="text-[#8C7B6E] hover:text-[#1A0A00] cursor-pointer"><X size={20} /></button>
               </div>
 
-              <form onSubmit={handleSubmitReturn} className="space-y-4 text-xs">
+              <form onSubmit={handleSubmit(onSubmitReturn)} className="space-y-4 text-xs" noValidate>
                 {/* Select Order */}
                 <div>
-                  <label className="font-bold text-[#8C7B6E] uppercase tracking-wider block mb-2">Select Delivered Order</label>
+                  <label className="font-bold text-[#8C7B6E] uppercase tracking-wider block mb-2">Select Delivered Order <span className="text-red-500">*</span></label>
                   <div className="space-y-2">
-                    {DELIVERED_ORDERS.map((order) => (
-                      <button key={order.orderNumber} type="button" onClick={() => setSelectedOrder(order)}
-                        className={`w-full flex items-center gap-3 p-3 rounded-xl border text-left transition-all cursor-pointer ${selectedOrder.orderNumber === order.orderNumber ? 'border-[#FF7A00] bg-[#FFFBF7]' : 'border-[#E8E4DE] hover:border-[#FF7A00]/30'}`}>
-                        <img src={order.productImage} alt={order.productName} className="w-12 h-12 rounded-xl object-cover shrink-0" />
-                        <div className="flex-1 min-w-0">
-                          <p className="font-bold text-[#1A0A00] truncate">{order.productName}</p>
-                          <p className="text-[#8C7B6E]">Order #{order.orderNumber} · {order.date}</p>
-                          <p className="font-black text-[#FF7A00]">{formatCurrency(order.price)}</p>
-                        </div>
-                        {selectedOrder.orderNumber === order.orderNumber && <Check size={16} className="text-[#FF7A00] shrink-0" />}
-                      </button>
-                    ))}
+                    {DELIVERED_ORDERS.length === 0 ? (
+                      <div className="text-center p-4 border border-dashed border-[#E8E4DE] rounded-xl text-sm text-[#8C7B6E]">
+                        You have no delivered orders to return.
+                      </div>
+                    ) : (
+                      DELIVERED_ORDERS.map((order: any) => (
+                        <button key={order.orderNumber} type="button" onClick={() => setSelectedOrder(order)}
+                          className={`w-full flex items-center gap-3 p-3 rounded-xl border-2 text-left transition-all cursor-pointer ${
+                            selectedOrder?.orderNumber === order.orderNumber ? 'border-[#FF7A00] bg-[#FFFBF7]' : 'border-[#E8E4DE] hover:border-[#FF7A00]/30'
+                          }`}>
+                          <img src={order.productImage} alt={order.productName} className="w-12 h-12 rounded-xl object-cover shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <p className="font-bold text-[#1A0A00] truncate">{order.productName}</p>
+                            <p className="text-[#8C7B6E]">Order #{order.orderNumber} · {order.date}</p>
+                            <p className="font-black text-[#FF7A00]">{formatCurrency(order.price)}</p>
+                          </div>
+                          {selectedOrder?.orderNumber === order.orderNumber && <Check size={16} className="text-[#FF7A00] shrink-0" />}
+                        </button>
+                      ))
+                    )}
                   </div>
                 </div>
 
                 {/* Reason */}
                 <div>
-                  <label className="font-bold text-[#8C7B6E] uppercase tracking-wider block mb-1">Return Reason</label>
-                  <select value={reason} onChange={(e) => setReason(e.target.value)}
-                    className="w-full h-10 px-3 rounded-xl border border-[#E8E4DE] text-sm font-semibold text-[#1A0A00] bg-white outline-none focus:border-[#FF7A00]">
+                  <label htmlFor="returnReason" className="font-bold text-[#8C7B6E] uppercase tracking-wider block mb-1">Return Reason <span className="text-red-500">*</span></label>
+                  <select id="returnReason" {...register('returnReason')}
+                    className={`w-full h-12 px-3 rounded-xl border-2 text-base font-semibold text-[#1A0A00] bg-white outline-none transition-all duration-200 focus:ring-4 ${
+                      errors.returnReason ? 'border-red-500 focus:ring-red-500/20' : 'border-[#E8E4DE] focus:border-[#FF7A00] focus:ring-[#FF7A00]/20'
+                    }`}>
                     {RETURN_REASONS.map((r) => <option key={r} value={r}>{r}</option>)}
                   </select>
                 </div>
 
                 {/* Additional Info */}
                 <div>
-                  <label className="font-bold text-[#8C7B6E] uppercase tracking-wider block mb-1">Additional Details (Optional)</label>
-                  <textarea rows={3} value={additionalInfo} onChange={(e) => setAdditionalInfo(e.target.value)}
-                    placeholder="Describe the issue in more detail…"
-                    className="w-full p-3 rounded-xl border border-[#E8E4DE] text-sm outline-none focus:border-[#FF7A00] resize-none" />
+                  <div className="flex items-center justify-between mb-1">
+                    <label htmlFor="additionalInfo" className="font-bold text-[#8C7B6E] uppercase tracking-wider">Describe the Issue <span className="text-red-500">*</span></label>
+                    <span className={`text-[11px] font-semibold ${watchedInfo.length > 450 ? 'text-red-500' : 'text-[#8C7B6E]'}`}>
+                      {watchedInfo.length}/500
+                    </span>
+                  </div>
+                  <textarea id="additionalInfo" rows={3} maxLength={500}
+                    placeholder="Describe the issue in detail (minimum 30 characters)…"
+                    {...register('additionalInfo')}
+                    className={`w-full p-3 rounded-xl border-2 text-base outline-none transition-all duration-200 focus:ring-4 resize-none ${
+                      errors.additionalInfo
+                        ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20'
+                        : touchedFields.additionalInfo && !errors.additionalInfo
+                        ? 'border-green-500 focus:border-green-500 focus:ring-green-500/20'
+                        : 'border-[#E8E4DE] focus:border-[#FF7A00] focus:ring-[#FF7A00]/20'
+                    }`} />
+                  <AnimatePresence mode="wait">
+                    {errors.additionalInfo ? <FieldError key="e" message={errors.additionalInfo.message} /> : touchedFields.additionalInfo && !errors.additionalInfo ? (
+                      <motion.p key="s" initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} className="flex items-center gap-1.5 text-sm text-green-600 mt-1.5">
+                        <CheckCircle2 className="w-3.5 h-3.5" /> Looks good!
+                      </motion.p>
+                    ) : null}
+                  </AnimatePresence>
                 </div>
 
                 {/* Refund Method */}
                 <div>
-                  <label className="font-bold text-[#8C7B6E] uppercase tracking-wider block mb-1">Preferred Refund Method</label>
-                  <select value={refundMethod} onChange={(e) => setRefundMethod(e.target.value)}
-                    className="w-full h-10 px-3 rounded-xl border border-[#E8E4DE] text-sm font-semibold text-[#1A0A00] bg-white outline-none focus:border-[#FF7A00]">
+                  <label htmlFor="refundMethod" className="font-bold text-[#8C7B6E] uppercase tracking-wider block mb-1">Preferred Refund Method <span className="text-red-500">*</span></label>
+                  <select id="refundMethod" {...register('refundMethod')}
+                    className="w-full h-12 px-3 rounded-xl border-2 border-[#E8E4DE] text-base font-semibold text-[#1A0A00] bg-white outline-none focus:border-[#FF7A00] focus:ring-4 focus:ring-[#FF7A00]/20 transition-all duration-200">
                     {REFUND_METHODS.map((m) => <option key={m} value={m}>{m}</option>)}
                   </select>
                 </div>
 
                 <div className="bg-[#FFF3E8] rounded-xl p-3 text-[11px] text-[#8C7B6E]">
-                  💡 Refund of <strong className="text-[#FF7A00]">{formatCurrency(selectedOrder.price)}</strong> will be processed within 5–7 business days after item is received.
+                  💡 Refund of <strong className="text-[#FF7A00]">{formatCurrency(selectedOrder?.price || 0)}</strong> will be processed within 5–7 business days after item is received.
                 </div>
 
+                {/* Return Policy Agreement */}
+                <label className="flex items-start gap-3 cursor-pointer select-none">
+                  <input type="checkbox" {...register('returnPolicyAgreed')}
+                    className="mt-0.5 w-4 h-4 rounded border-2 border-[#E8E4DE] text-[#FF7A00] focus:ring-[#FF7A00] cursor-pointer shrink-0" />
+                  <span className="text-xs font-semibold text-[#4A3728] leading-relaxed">
+                    I have read and agree to the <span className="text-[#FF7A00] underline cursor-pointer">Bharat Bazaar Return Policy</span>. I confirm the item is in its original condition with all tags and packaging intact.
+                  </span>
+                </label>
+                <AnimatePresence mode="wait">
+                  {errors.returnPolicyAgreed ? <FieldError key="e" message={errors.returnPolicyAgreed.message} /> : null}
+                </AnimatePresence>
+
                 <div className="flex gap-3 pt-1">
-                  <button type="button" onClick={() => setShowRequestModal(false)}
-                    className="flex-1 h-11 rounded-xl border border-[#E8E4DE] text-sm font-semibold text-[#4A3728] cursor-pointer">
+                  <button type="button" onClick={() => { setShowRequestModal(false); reset(); }}
+                    className="flex-1 h-12 rounded-xl border-2 border-[#E8E4DE] text-sm font-semibold text-[#4A3728] cursor-pointer">
                     Cancel
                   </button>
-                  <button type="submit" disabled={submitting}
-                    className="flex-1 h-11 rounded-xl bg-gradient-to-r from-[#FF7A00] to-[#FF4500] text-white text-sm font-bold cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2">
-                    {submitting ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : 'Submit Return Request'}
+                  <button type="submit" disabled={!isValid || isSubmitting || !selectedOrder}
+                    className={`flex-1 h-12 rounded-xl bg-gradient-to-r from-[#FF7A00] to-[#FF4500] text-white text-sm font-bold flex items-center justify-center gap-2 shadow-lg shadow-orange-500/30 active:scale-[0.98] transition-all ${
+                      (!isValid || isSubmitting || !selectedOrder) ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:opacity-95'
+                    }`}>
+                    {isSubmitting ? <><Loader2 className="w-4 h-4 animate-spin" /> Submitting...</> : 'Submit Return Request'}
                   </button>
                 </div>
               </form>

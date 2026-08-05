@@ -139,6 +139,8 @@ export const MOCK_TRANSACTIONS: MockTransaction[] = [];
 
 export const MOCK_RETURNS: MockReturn[] = [];
 
+export const DELIVERED_ORDERS = [] as any[];
+
 export const MOCK_REVIEWS: MockReview[] = [];
 
 export const PENDING_REVIEWS: MockPendingReview[] = [];

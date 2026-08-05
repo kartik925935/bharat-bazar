@@ -1,12 +1,98 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MapPin, Plus, Check, Trash2, Edit3, Home, Briefcase, Building, X, Search, Loader2 } from 'lucide-react';
+import {
+  MapPin, Plus, Check, Trash2, Edit3, Home, Briefcase, Building,
+  X, Loader2, AlertCircle, CheckCircle2,
+} from 'lucide-react';
 import { toast } from 'sonner';
-import { createClient } from '@/lib/supabase/client';
-import { useAuthStore } from '@/lib/store/auth-store';
+import { INITIAL_ADDRESSES } from '@/lib/mock/customer';
 
+// ─── Indian States ────────────────────────────────────────────────────────────
+const INDIAN_STATES = [
+  'Andaman and Nicobar Islands', 'Andhra Pradesh', 'Arunachal Pradesh',
+  'Assam', 'Bihar', 'Chandigarh', 'Chhattisgarh', 'Dadra and Nagar Haveli',
+  'Daman and Diu', 'Delhi', 'Goa', 'Gujarat', 'Haryana', 'Himachal Pradesh',
+  'Jammu and Kashmir', 'Jharkhand', 'Karnataka', 'Kerala', 'Ladakh',
+  'Lakshadweep', 'Madhya Pradesh', 'Maharashtra', 'Manipur', 'Meghalaya',
+  'Mizoram', 'Nagaland', 'Odisha', 'Puducherry', 'Punjab', 'Rajasthan',
+  'Sikkim', 'Tamil Nadu', 'Telangana', 'Tripura', 'Uttar Pradesh',
+  'Uttarakhand', 'West Bengal',
+] as const;
+
+// ─── Zod Schema ───────────────────────────────────────────────────────────────
+const addressSchema = z.object({
+  fullName: z
+    .string()
+    .min(1, "Receiver's full name is required")
+    .min(2, 'Name must be at least 2 characters')
+    .max(50, 'Name cannot exceed 50 characters')
+    .regex(/^[a-zA-Z\s'-]+$/, "Name can only contain letters, spaces, hyphens and apostrophes"),
+
+  phone: z
+    .string()
+    .min(1, 'Mobile number is required')
+    .regex(/^[6-9]\d{9}$/, 'Enter valid 10-digit Indian mobile number (starts with 6–9)'),
+
+  alternatePhone: z
+    .string()
+    .regex(/^[6-9]\d{9}$/, 'Enter valid 10-digit Indian mobile number')
+    .optional()
+    .or(z.literal('')),
+
+  pincode: z
+    .string()
+    .min(1, 'PIN code is required')
+    .regex(/^[1-9][0-9]{5}$/, 'Enter valid 6-digit PIN code (cannot start with 0)'),
+
+  addressLine1: z
+    .string()
+    .min(1, 'Address is required')
+    .min(10, 'Please enter complete address (house/flat no. and street name)')
+    .max(100, 'Address line 1 cannot exceed 100 characters'),
+
+  addressLine2: z.string().max(100, 'Address line 2 cannot exceed 100 characters').optional(),
+
+  landmark: z.string().max(100, 'Landmark cannot exceed 100 characters').optional(),
+
+  city: z
+    .string()
+    .min(1, 'City is required')
+    .min(2, 'City name must be at least 2 characters')
+    .max(100, 'City name too long')
+    .regex(/^[a-zA-Z\s'-]+$/, 'City name can only contain letters and spaces'),
+
+  state: z.enum(INDIAN_STATES, {
+    required_error: 'Please select your state',
+    invalid_type_error: 'Please select a valid Indian state',
+  }),
+
+  addressType: z
+    .enum(['home', 'work', 'other'], {
+      required_error: 'Please select address type',
+    })
+    .default('home'),
+
+  customLabel: z.string().max(30, 'Label cannot exceed 30 characters').optional(),
+
+  isDefault: z.boolean().default(false),
+})
+  .refine(
+    (data) => !(data.addressType === 'other' && !data.customLabel?.trim()),
+    { message: "Please enter a label for this address (e.g. 'Parents Home')", path: ['customLabel'] }
+  )
+  .refine(
+    (data) => !(data.alternatePhone && data.alternatePhone === data.phone),
+    { message: 'Alternate number must differ from primary mobile number', path: ['alternatePhone'] }
+  );
+
+type AddressFormData = z.infer<typeof addressSchema>;
+
+// ─── Address type (internal) ─────────────────────────────────────────────────
 interface Address {
   id: string;
   name: string;
@@ -20,275 +106,212 @@ interface Address {
   isDefault: boolean;
 }
 
-const INDIAN_STATES = [
-  "Andhra Pradesh",
-  "Arunachal Pradesh",
-  "Assam",
-  "Bihar",
-  "Chhattisgarh",
-  "Goa",
-  "Gujarat",
-  "Haryana",
-  "Himachal Pradesh",
-  "Jharkhand",
-  "Karnataka",
-  "Kerala",
-  "Madhya Pradesh",
-  "Maharashtra",
-  "Manipur",
-  "Meghalaya",
-  "Mizoram",
-  "Nagaland",
-  "Odisha",
-  "Punjab",
-  "Rajasthan",
-  "Sikkim",
-  "Tamil Nadu",
-  "Telangana",
-  "Tripura",
-  "Uttar Pradesh",
-  "Uttarakhand",
-  "West Bengal",
-  "Andaman and Nicobar Islands",
-  "Chandigarh",
-  "Dadra and Nagar Haveli and Daman and Diu",
-  "Delhi",
-  "Jammu and Kashmir",
-  "Ladakh",
-  "Lakshadweep",
-  "Puducherry"
-];
-
-
-/* ───── helpers to convert between DB row ↔ UI model ───── */
-function rowToAddress(row: any): Address {
-  return {
-    id: row.id,
-    name: row.full_name,
-    phone: row.phone,
-    line1: row.address_line1,
-    line2: row.address_line2 || undefined,
-    city: row.city,
-    state: row.state,
-    pincode: row.pincode,
-    type: (row.label?.toLowerCase() || 'other') as 'home' | 'work' | 'other',
-    isDefault: row.is_default,
-  };
+// ─── Reusable field components ────────────────────────────────────────────────
+function cn(...classes: (string | boolean | undefined | null)[]): string {
+  return classes.filter(Boolean).join(' ');
 }
 
+function FieldError({ message }: { message?: string }) {
+  if (!message) return null;
+  return (
+    <motion.p
+      initial={{ opacity: 0, y: -4 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="flex items-center gap-1.5 text-sm text-red-600 mt-1.5"
+      role="alert"
+    >
+      <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
+      {message}
+    </motion.p>
+  );
+}
+
+function FieldSuccess() {
+  return (
+    <motion.p
+      initial={{ opacity: 0, y: -4 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="flex items-center gap-1.5 text-sm text-green-600 mt-1.5"
+    >
+      <CheckCircle2 className="w-3.5 h-3.5" />
+      Looks good!
+    </motion.p>
+  );
+}
+
+function Label({ children, htmlFor }: { children: React.ReactNode; htmlFor?: string }) {
+  return (
+    <label
+      htmlFor={htmlFor}
+      className="block text-xs font-bold text-[#8C7B6E] uppercase tracking-wider mb-1"
+    >
+      {children}
+    </label>
+  );
+}
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
 export default function AddressesPage() {
-  const { user } = useAuthStore();
-  const [addresses, setAddresses] = useState<Address[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [addresses, setAddresses] = useState<Address[]>(INITIAL_ADDRESSES);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
+  const [pincodeLoading, setPincodeLoading] = useState(false);
 
-  // Form states
-  const [name, setName] = useState('');
-  const [phone, setPhone] = useState('');
-  const [pincode, setPincode] = useState('');
-  const [line1, setLine1] = useState('');
-  const [line2, setLine2] = useState('');
-  const [city, setCity] = useState('');
-  const [state, setState] = useState('');
-  const [type, setType] = useState<'home' | 'work' | 'other'>('home');
-  const [isDefault, setIsDefault] = useState(false);
-  const [verifyingPin, setVerifyingPin] = useState(false);
+  const form = useForm<AddressFormData>({
+    resolver: zodResolver(addressSchema),
+    mode: 'onChange',
+    reValidateMode: 'onChange',
+    defaultValues: {
+      fullName: '',
+      phone: '',
+      alternatePhone: '',
+      pincode: '',
+      addressLine1: '',
+      addressLine2: '',
+      landmark: '',
+      city: '',
+      state: undefined,
+      addressType: 'home',
+      customLabel: '',
+      isDefault: false,
+    },
+  });
 
-  /* ───── Fetch addresses from Supabase ───── */
-  const fetchAddresses = useCallback(async () => {
-    if (!user) return;
-    const supabase = createClient();
-    const { data, error } = await supabase
-      .from('addresses')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('is_default', { ascending: false })
-      .order('created_at', { ascending: false });
+  const {
+    register,
+    handleSubmit,
+    watch,
+    setValue,
+    reset,
+    trigger,
+    formState: { errors, touchedFields, isSubmitting, isValid, dirtyFields },
+  } = form;
 
-    if (error) {
-      console.error('Failed to fetch addresses:', error);
-      toast.error('Failed to load addresses');
-    } else {
-      setAddresses((data || []).map(rowToAddress));
+  const watchedPincode = watch('pincode');
+  const watchedAddressType = watch('addressType');
+  const watchedIsDefault = watch('isDefault');
+
+  // ─── Auto-fetch city/state from pincode ──────────────────────────────────
+  const handlePincodeBlur = useCallback(async () => {
+    const pin = watchedPincode;
+    if (!pin || pin.length !== 6 || !/^[1-9][0-9]{5}$/.test(pin)) return;
+    setPincodeLoading(true);
+    try {
+      const res = await fetch(`https://api.postalpincode.in/pincode/${pin}`);
+      const data = await res.json();
+      if (data[0]?.Status === 'Success') {
+        const postOffice = data[0].PostOffice[0];
+        setValue('city', postOffice.District, { shouldValidate: true, shouldDirty: true });
+        const matchedState = INDIAN_STATES.find(
+          (s) => s.toLowerCase() === postOffice.State.toLowerCase()
+        );
+        if (matchedState) {
+          setValue('state', matchedState, { shouldValidate: true, shouldDirty: true });
+        }
+        toast.success(`📍 Location set: ${postOffice.District}, ${postOffice.State}`);
+      } else {
+        toast.error('PIN code not found — please verify');
+      }
+    } catch {
+      // silently fail; user can fill manually
+    } finally {
+      setPincodeLoading(false);
     }
-    setLoading(false);
-  }, [user]);
+  }, [watchedPincode, setValue]);
 
-  useEffect(() => {
-    fetchAddresses();
-  }, [fetchAddresses]);
-
-  const resetForm = () => {
-    setName('');
-    setPhone('');
-    setPincode('');
-    setLine1('');
-    setLine2('');
-    setCity('');
-    setState('');
-    setType('home');
-    setIsDefault(false);
-    setEditingId(null);
-  };
-
+  // ─── Open modals ───────────────────────────────────────────────────────────
   const openAdd = () => {
-    resetForm();
+    reset({
+      fullName: '', phone: '', alternatePhone: '', pincode: '',
+      addressLine1: '', addressLine2: '', landmark: '', city: '',
+      state: undefined, addressType: 'home', customLabel: '',
+      isDefault: addresses.length === 0,
+    });
+    setEditingId(null);
     setModalOpen(true);
   };
 
   const openEdit = (addr: Address) => {
     setEditingId(addr.id);
-    setName(addr.name);
-    setPhone(addr.phone);
-    setPincode(addr.pincode);
-    setLine1(addr.line1);
-    setLine2(addr.line2 || '');
-    setCity(addr.city);
-    setState(addr.state);
-    setType(addr.type);
-    setIsDefault(addr.isDefault);
+    reset({
+      fullName: addr.name,
+      phone: addr.phone,
+      alternatePhone: '',
+      pincode: addr.pincode,
+      addressLine1: addr.line1,
+      addressLine2: addr.line2 || '',
+      landmark: '',
+      city: addr.city,
+      state: addr.state as (typeof INDIAN_STATES)[number],
+      addressType: addr.type,
+      customLabel: '',
+      isDefault: addr.isDefault,
+    });
     setModalOpen(true);
   };
 
-  const handleVerifyPin = () => {
-    if (!pincode || pincode.length !== 6) {
-      toast.error('Enter valid 6-digit Pincode');
-      return;
-    }
-    setVerifyingPin(true);
-    setTimeout(() => {
-      setVerifyingPin(false);
-      setCity('Bangalore');
-      setState('Karnataka');
-      toast.success('Pincode verified! Location set.');
-    }, 500);
-  };
-
-  /* ───── Save (insert or update) to Supabase ───── */
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!name || !phone || !line1 || !pincode || !user) {
-      toast.error('Please fill required fields');
-      return;
-    }
-
-    setSaving(true);
-    const supabase = createClient();
-
-    // If marking as default, clear existing defaults first
-    if (isDefault) {
-      await supabase
-        .from('addresses')
-        .update({ is_default: false })
-        .eq('user_id', user.id)
-        .eq('is_default', true);
-    }
-
-    const payload = {
-      user_id: user.id,
-      full_name: name,
-      phone,
-      address_line1: line1,
-      address_line2: line2 || null,
-      city: city || 'Unknown',
-      state: state || 'Unknown',
-      pincode,
-      label: type,
-      is_default: isDefault || addresses.length === 0,
-    };
+  // ─── Submit ────────────────────────────────────────────────────────────────
+  const onSubmit = async (data: AddressFormData) => {
+    await new Promise((r) => setTimeout(r, 600)); // simulate API
 
     if (editingId) {
-      const { error } = await supabase
-        .from('addresses')
-        .update(payload)
-        .eq('id', editingId)
-        .eq('user_id', user.id);
-
-      if (error) {
-        console.error('Failed to update address:', error);
-        toast.error('Failed to update address');
-        setSaving(false);
-        return;
-      }
-      toast.success('Address updated!');
+      setAddresses((prev) =>
+        prev.map((a) => {
+          if (a.id === editingId) {
+            return {
+              ...a, name: data.fullName, phone: data.phone,
+              line1: data.addressLine1, line2: data.addressLine2,
+              city: data.city, state: data.state, pincode: data.pincode,
+              type: data.addressType, isDefault: data.isDefault || a.isDefault,
+            };
+          }
+          return data.isDefault ? { ...a, isDefault: false } : a;
+        })
+      );
+      toast.success('Address updated! ✅');
     } else {
-      const { error } = await supabase
-        .from('addresses')
-        .insert(payload);
-
-      if (error) {
-        console.error('Failed to add address:', error);
-        toast.error('Failed to add address');
-        setSaving(false);
-        return;
-      }
-      toast.success('Address added!');
+      const newAddr: Address = {
+        id: `addr-${Date.now()}`,
+        name: data.fullName, phone: data.phone,
+        line1: data.addressLine1, line2: data.addressLine2,
+        city: data.city, state: data.state, pincode: data.pincode,
+        type: data.addressType, isDefault: data.isDefault || addresses.length === 0,
+      };
+      setAddresses((prev) =>
+        data.isDefault
+          ? prev.map((a) => ({ ...a, isDefault: false })).concat(newAddr)
+          : [...prev, newAddr]
+      );
+      toast.success('Address added! 🏠');
     }
-
-    setSaving(false);
     setModalOpen(false);
-    resetForm();
-    await fetchAddresses();
   };
 
-  /* ───── Set default ───── */
-  const handleSetDefault = async (id: string) => {
-    if (!user) return;
-    const supabase = createClient();
-
-    // Clear all defaults for this user
-    await supabase
-      .from('addresses')
-      .update({ is_default: false })
-      .eq('user_id', user.id)
-      .eq('is_default', true);
-
-    // Set the new default
-    const { error } = await supabase
-      .from('addresses')
-      .update({ is_default: true })
-      .eq('id', id)
-      .eq('user_id', user.id);
-
-    if (error) {
-      toast.error('Failed to update default address');
-      return;
-    }
-
+  const handleSetDefault = (id: string) => {
+    setAddresses((prev) => prev.map((a) => ({ ...a, isDefault: a.id === id })));
     toast.success('Default address updated!');
-    await fetchAddresses();
   };
 
-  /* ───── Delete ───── */
-  const handleDelete = async (id: string) => {
-    if (!user) return;
-    const supabase = createClient();
-    const { error } = await supabase
-      .from('addresses')
-      .delete()
-      .eq('id', id)
-      .eq('user_id', user.id);
-
-    if (error) {
-      toast.error('Failed to delete address');
-      return;
-    }
-
+  const handleDelete = (id: string) => {
+    setAddresses((prev) => prev.filter((a) => a.id !== id));
     setDeletingId(null);
     toast.success('Address deleted!');
-    await fetchAddresses();
   };
 
-  if (loading) {
-    return (
-      <div className="p-4 sm:p-6 flex items-center justify-center min-h-[200px]">
-        <Loader2 className="animate-spin text-[#FF7A00]" size={28} />
-      </div>
+  const isFieldValid = (fieldName: keyof AddressFormData) =>
+    touchedFields[fieldName] && !errors[fieldName];
+
+  const inputClass = (fieldName: keyof AddressFormData) =>
+    cn(
+      'w-full h-12 px-4 rounded-xl border-2 text-base outline-none transition-all duration-200 bg-white',
+      'focus:ring-4 focus:ring-[#FF7A00]/20',
+      errors[fieldName]
+        ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20'
+        : isFieldValid(fieldName)
+        ? 'border-green-500 focus:border-green-500 focus:ring-green-500/20'
+        : 'border-[#E8E4DE] focus:border-[#FF7A00]'
     );
-  }
 
   return (
     <div className="p-4 sm:p-6 space-y-6">
@@ -296,20 +319,17 @@ export default function AddressesPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-black text-[#1A0A00]" style={{ fontFamily: "'Playfair Display', serif" }}>
-            📍 My Addresses
+            My Addresses
           </h1>
           <p className="text-sm text-[#8C7B6E] mt-0.5">Manage your delivery addresses</p>
         </div>
-        <button
-          onClick={openAdd}
-          className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#FF7A00] to-[#FF4500] text-white text-xs font-bold shadow-[0_4px_12px_rgba(255,122,0,0.25)] hover:opacity-95 cursor-pointer"
-        >
-          <Plus size={15} /> Add Address
-        </button>
+        <span className="text-xs font-bold text-[#8C7B6E] bg-[#F5F4F0] px-3 py-1.5 rounded-full">
+          {addresses.length}/5 saved
+        </span>
       </div>
 
-      {/* Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {/* Address Grid */}
+      <div className="grid sm:grid-cols-2 gap-4">
         {addresses.map((addr) => {
           const isFlipped = deletingId === addr.id;
           return (
@@ -318,7 +338,9 @@ export default function AddressesPage() {
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               className={`relative bg-white rounded-2xl border p-5 transition-all ${
-                addr.isDefault ? 'border-[#FF7A00] shadow-[0_4px_20px_rgba(255,122,0,0.08)]' : 'border-[#E8E4DE]'
+                addr.isDefault
+                  ? 'border-[#FF7A00] shadow-[0_4px_20px_rgba(255,122,0,0.08)]'
+                  : 'border-[#E8E4DE]'
               }`}
             >
               {!isFlipped ? (
@@ -337,32 +359,33 @@ export default function AddressesPage() {
                     ) : (
                       <button
                         onClick={() => handleSetDefault(addr.id)}
-                        className="text-xs font-semibold text-[#8C7B6E] hover:text-[#FF7A00] cursor-pointer"
+                        className="text-xs font-semibold text-[#8C7B6E] hover:text-[#FF7A00] cursor-pointer transition-colors"
+                        aria-label="Set as default"
                       >
                         Set Default
                       </button>
                     )}
                   </div>
-
                   <p className="text-sm font-bold text-[#1A0A00]">{addr.name}</p>
                   <p className="text-xs text-[#4A3728] mt-1 leading-relaxed">
                     {addr.line1}
                     {addr.line2 && <><br />{addr.line2}</>}
                     <br />
-                    {addr.city}, {addr.state} {addr.pincode}
+                    {addr.city}, {addr.state} — {addr.pincode}
                   </p>
-                  <p className="text-xs text-[#8C7B6E] mt-2 font-medium">📞 {addr.phone}</p>
-
+                  <p className="text-xs text-[#8C7B6E] mt-2 font-medium">📞 +91 {addr.phone}</p>
                   <div className="flex items-center gap-3 mt-4 pt-3 border-t border-[#F5F4F0]">
                     <button
                       onClick={() => openEdit(addr)}
-                      className="flex items-center gap-1 text-xs font-semibold text-[#4A3728] hover:text-[#FF7A00] cursor-pointer"
+                      className="flex items-center gap-1 text-xs font-semibold text-[#4A3728] hover:text-[#FF7A00] cursor-pointer transition-colors"
+                      aria-label="Edit address"
                     >
                       <Edit3 size={13} /> Edit
                     </button>
                     <button
                       onClick={() => setDeletingId(addr.id)}
                       className="flex items-center gap-1 text-xs font-semibold text-[#DC2626] hover:underline cursor-pointer"
+                      aria-label="Delete address"
                     >
                       <Trash2 size={13} /> Delete
                     </button>
@@ -392,15 +415,18 @@ export default function AddressesPage() {
         })}
 
         {/* Add Card Button */}
-        <button
-          onClick={openAdd}
-          className="border-2 border-dashed border-[#E8E4DE] hover:border-[#FF7A00] rounded-2xl p-6 flex flex-col items-center justify-center gap-2 text-[#8C7B6E] hover:text-[#FF7A00] transition-colors cursor-pointer min-h-[180px]"
-        >
-          <div className="w-10 h-10 rounded-full bg-[#FFF3E8] flex items-center justify-center text-[#FF7A00]">
-            <Plus size={20} />
-          </div>
-          <span className="text-sm font-bold">Add New Address</span>
-        </button>
+        {addresses.length < 5 && (
+          <button
+            onClick={openAdd}
+            className="border-2 border-dashed border-[#E8E4DE] hover:border-[#FF7A00] rounded-2xl p-6 flex flex-col items-center justify-center gap-2 text-[#8C7B6E] hover:text-[#FF7A00] transition-colors cursor-pointer min-h-[180px]"
+            aria-label="Add new address"
+          >
+            <div className="w-10 h-10 rounded-full bg-[#FFF3E8] flex items-center justify-center text-[#FF7A00]">
+              <Plus size={20} />
+            </div>
+            <span className="text-sm font-bold">Add New Address</span>
+          </button>
+        )}
       </div>
 
       {/* Modal */}
@@ -411,162 +437,303 @@ export default function AddressesPage() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4"
-            onClick={() => setModalOpen(false)}
+            onClick={() => !isSubmitting && setModalOpen(false)}
           >
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white rounded-2xl max-w-lg w-full p-6 space-y-4 max-h-[90vh] overflow-y-auto"
+              className="bg-white rounded-2xl max-w-lg w-full p-6 space-y-5 max-h-[90vh] overflow-y-auto"
               onClick={(e) => e.stopPropagation()}
             >
+              {/* Modal Header */}
               <div className="flex items-center justify-between border-b border-[#F0EDE8] pb-3">
                 <h3 className="text-lg font-black text-[#1A0A00]" style={{ fontFamily: "'Playfair Display', serif" }}>
+                  <MapPin className="inline w-5 h-5 text-[#FF7A00] mr-1.5 -mt-0.5" />
                   {editingId ? 'Edit Address' : 'Add New Address'}
                 </h3>
-                <button onClick={() => setModalOpen(false)} className="text-[#8C7B6E] hover:text-[#1A0A00] cursor-pointer">
+                <button
+                  onClick={() => !isSubmitting && setModalOpen(false)}
+                  className="text-[#8C7B6E] hover:text-[#1A0A00] cursor-pointer transition-colors"
+                  aria-label="Close modal"
+                >
                   <X size={18} />
                 </button>
               </div>
 
-              <form onSubmit={handleSave} className="space-y-4 text-xs">
-                {/* Pincode verification */}
+              {/* Form */}
+              <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
+
+                {/* Pincode — auto-fill trigger */}
                 <div>
-                  <label className="font-bold text-[#8C7B6E] uppercase tracking-wider block mb-1">Pincode *</label>
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      maxLength={6}
-                      value={pincode}
-                      onChange={(e) => setPincode(e.target.value)}
-                      placeholder="e.g. 560034"
-                      className="flex-1 h-10 px-3 rounded-xl border border-[#E8E4DE] text-sm outline-none focus:border-[#FF7A00]"
-                    />
-                    <button
-                      type="button"
-                      onClick={handleVerifyPin}
-                      disabled={verifyingPin}
-                      className="px-4 h-10 rounded-xl bg-[#FFF3E8] text-[#FF7A00] font-bold hover:bg-[#FFE4CC] cursor-pointer"
-                    >
-                      {verifyingPin ? 'Checking...' : 'Verify'}
-                    </button>
+                  <Label htmlFor="pincode">PIN Code <span className="text-red-500">*</span></Label>
+                  <div className="relative flex gap-2 items-start">
+                    <div className="flex-1 relative">
+                      <input
+                        id="pincode"
+                        type="text"
+                        maxLength={6}
+                        inputMode="numeric"
+                        placeholder="e.g. 560034"
+                        {...register('pincode', {
+                          onBlur: handlePincodeBlur,
+                        })}
+                        className={cn(inputClass('pincode'), 'pr-10')}
+                      />
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                        {pincodeLoading ? (
+                          <Loader2 className="w-4 h-4 text-[#FF7A00] animate-spin" />
+                        ) : errors.pincode ? (
+                          <AlertCircle className="w-4 h-4 text-red-500" />
+                        ) : isFieldValid('pincode') ? (
+                          <CheckCircle2 className="w-4 h-4 text-green-500" />
+                        ) : null}
+                      </div>
+                    </div>
                   </div>
+                  <AnimatePresence mode="wait">
+                    {errors.pincode ? (
+                      <FieldError key="e" message={errors.pincode.message} />
+                    ) : isFieldValid('pincode') ? (
+                      <FieldSuccess key="s" />
+                    ) : (
+                      <motion.p key="h" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-xs text-[#8C7B6E] mt-1.5">
+                        We'll auto-fill city & state from PIN
+                      </motion.p>
+                    )}
+                  </AnimatePresence>
                 </div>
 
+                {/* Full Name + Phone */}
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="font-bold text-[#8C7B6E] uppercase tracking-wider block mb-1">Full Name *</label>
-                    <input
-                      type="text"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      placeholder="Receiver's Name"
-                      className="w-full h-10 px-3 rounded-xl border border-[#E8E4DE] text-sm outline-none focus:border-[#FF7A00]"
-                    />
+                    <Label htmlFor="fullName">Receiver's Name <span className="text-red-500">*</span></Label>
+                    <div className="relative">
+                      <input
+                        id="fullName"
+                        type="text"
+                        placeholder="Full Name"
+                        {...register('fullName')}
+                        className={inputClass('fullName')}
+                      />
+                    </div>
+                    <AnimatePresence mode="wait">
+                      {errors.fullName ? <FieldError key="e" message={errors.fullName.message} /> : isFieldValid('fullName') ? <FieldSuccess key="s" /> : null}
+                    </AnimatePresence>
                   </div>
                   <div>
-                    <label className="font-bold text-[#8C7B6E] uppercase tracking-wider block mb-1">Phone Number *</label>
-                    <input
-                      type="tel"
-                      value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
-                      placeholder="+91 98765 43210"
-                      className="w-full h-10 px-3 rounded-xl border border-[#E8E4DE] text-sm outline-none focus:border-[#FF7A00]"
-                    />
+                    <Label htmlFor="phone">Mobile Number <span className="text-red-500">*</span></Label>
+                    <div className="relative">
+                      <input
+                        id="phone"
+                        type="tel"
+                        inputMode="numeric"
+                        maxLength={10}
+                        placeholder="9876543210"
+                        {...register('phone')}
+                        className={inputClass('phone')}
+                      />
+                    </div>
+                    <AnimatePresence mode="wait">
+                      {errors.phone ? <FieldError key="e" message={errors.phone.message} /> : isFieldValid('phone') ? <FieldSuccess key="s" /> : null}
+                    </AnimatePresence>
                   </div>
                 </div>
 
+                {/* Alternate Phone */}
                 <div>
-                  <label className="font-bold text-[#8C7B6E] uppercase tracking-wider block mb-1">Address Line 1 *</label>
+                  <Label htmlFor="alternatePhone">Alternate Mobile (Optional)</Label>
                   <input
-                    type="text"
-                    value={line1}
-                    onChange={(e) => setLine1(e.target.value)}
-                    placeholder="Flat/House No., Building, Street"
-                    className="w-full h-10 px-3 rounded-xl border border-[#E8E4DE] text-sm outline-none focus:border-[#FF7A00]"
+                    id="alternatePhone"
+                    type="tel"
+                    inputMode="numeric"
+                    maxLength={10}
+                    placeholder="Another number (optional)"
+                    {...register('alternatePhone')}
+                    className={inputClass('alternatePhone')}
                   />
+                  <AnimatePresence mode="wait">
+                    {errors.alternatePhone ? <FieldError key="e" message={errors.alternatePhone.message} /> : null}
+                  </AnimatePresence>
                 </div>
 
+                {/* Address Line 1 */}
                 <div>
-                  <label className="font-bold text-[#8C7B6E] uppercase tracking-wider block mb-1">Address Line 2 (Optional)</label>
+                  <Label htmlFor="addressLine1">Address Line 1 <span className="text-red-500">*</span></Label>
                   <input
+                    id="addressLine1"
                     type="text"
-                    value={line2}
-                    onChange={(e) => setLine2(e.target.value)}
-                    placeholder="Landmark, Area, Colony"
-                    className="w-full h-10 px-3 rounded-xl border border-[#E8E4DE] text-sm outline-none focus:border-[#FF7A00]"
+                    placeholder="Flat / House No., Building, Street Name"
+                    {...register('addressLine1')}
+                    className={inputClass('addressLine1')}
                   />
+                  <AnimatePresence mode="wait">
+                    {errors.addressLine1 ? <FieldError key="e" message={errors.addressLine1.message} /> : isFieldValid('addressLine1') ? <FieldSuccess key="s" /> : null}
+                  </AnimatePresence>
                 </div>
 
+                {/* Address Line 2 + Landmark */}
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="font-bold text-[#8C7B6E] uppercase tracking-wider block mb-1">City</label>
+                    <Label htmlFor="addressLine2">Area / Colony (Optional)</Label>
                     <input
+                      id="addressLine2"
                       type="text"
-                      value={city}
-                      onChange={(e) => setCity(e.target.value)}
-                      className="w-full h-10 px-3 rounded-xl border border-[#E8E4DE] text-sm outline-none focus:border-[#FF7A00]"
+                      placeholder="Sector, Colony, Area"
+                      {...register('addressLine2')}
+                      className={inputClass('addressLine2')}
                     />
+                    <AnimatePresence mode="wait">
+                      {errors.addressLine2 ? <FieldError key="e" message={errors.addressLine2.message} /> : null}
+                    </AnimatePresence>
                   </div>
                   <div>
-                    <label className="font-bold text-[#8C7B6E] uppercase tracking-wider block mb-1">State *</label>
+                    <Label htmlFor="landmark">Landmark (Optional)</Label>
+                    <input
+                      id="landmark"
+                      type="text"
+                      placeholder="Near school, temple..."
+                      {...register('landmark')}
+                      className={inputClass('landmark')}
+                    />
+                  </div>
+                </div>
+
+                {/* City + State */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label htmlFor="city">City <span className="text-red-500">*</span></Label>
+                    <input
+                      id="city"
+                      type="text"
+                      placeholder="City"
+                      {...register('city')}
+                      className={inputClass('city')}
+                    />
+                    <AnimatePresence mode="wait">
+                      {errors.city ? <FieldError key="e" message={errors.city.message} /> : isFieldValid('city') ? <FieldSuccess key="s" /> : null}
+                    </AnimatePresence>
+                  </div>
+                  <div>
+                    <Label htmlFor="state">State <span className="text-red-500">*</span></Label>
                     <select
-                      value={state}
-                      onChange={(e) => setState(e.target.value)}
-                      className="w-full h-10 px-3 rounded-xl border border-[#E8E4DE] text-sm outline-none focus:border-[#FF7A00] bg-white cursor-pointer"
+                      id="state"
+                      {...register('state')}
+                      className={cn(
+                        'w-full h-12 px-4 rounded-xl border-2 text-base outline-none transition-all duration-200 bg-white appearance-none cursor-pointer',
+                        'focus:ring-4 focus:ring-[#FF7A00]/20',
+                        errors.state
+                          ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20'
+                          : isFieldValid('state')
+                          ? 'border-green-500 focus:border-green-500 focus:ring-green-500/20'
+                          : 'border-[#E8E4DE] focus:border-[#FF7A00]'
+                      )}
                     >
-                      <option value="">Select State</option>
+                      <option value="">Select state</option>
                       {INDIAN_STATES.map((s) => (
-                        <option key={s} value={s}>
-                          {s}
-                        </option>
+                        <option key={s} value={s}>{s}</option>
                       ))}
                     </select>
+                    <AnimatePresence mode="wait">
+                      {errors.state ? <FieldError key="e" message={errors.state.message} /> : isFieldValid('state') ? <FieldSuccess key="s" /> : null}
+                    </AnimatePresence>
                   </div>
                 </div>
 
+                {/* Address Type */}
                 <div>
-                  <label className="font-bold text-[#8C7B6E] uppercase tracking-wider block mb-1">Address Type</label>
+                  <Label>Address Type <span className="text-red-500">*</span></Label>
                   <div className="flex gap-2">
-                    {(['home', 'work', 'other'] as const).map((t) => (
-                      <button
-                        key={t}
-                        type="button"
-                        onClick={() => setType(t)}
-                        className={`flex-1 h-9 rounded-xl border font-bold capitalize transition-all cursor-pointer ${
-                          type === t ? 'border-[#FF7A00] bg-[#FFF3E8] text-[#FF7A00]' : 'border-[#E8E4DE] text-[#4A3728]'
-                        }`}
-                      >
-                        {t}
-                      </button>
-                    ))}
+                    {(['home', 'work', 'other'] as const).map((t) => {
+                      const icons = { home: <Home size={14} />, work: <Briefcase size={14} />, other: <Building size={14} /> };
+                      return (
+                        <button
+                          key={t}
+                          type="button"
+                          onClick={() => {
+                            setValue('addressType', t, { shouldValidate: true, shouldDirty: true });
+                          }}
+                          className={cn(
+                            'flex-1 h-11 rounded-xl border-2 font-bold capitalize transition-all cursor-pointer flex items-center justify-center gap-1.5 text-sm',
+                            watchedAddressType === t
+                              ? 'border-[#FF7A00] bg-[#FFF3E8] text-[#FF7A00]'
+                              : 'border-[#E8E4DE] text-[#4A3728] hover:border-[#FF7A00]/40'
+                          )}
+                        >
+                          {icons[t]} {t}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
 
-                <label className="flex items-center gap-2 cursor-pointer pt-2">
-                  <input
-                    type="checkbox"
-                    checked={isDefault}
-                    onChange={(e) => setIsDefault(e.target.checked)}
-                    className="rounded text-[#FF7A00] focus:ring-[#FF7A00]"
-                  />
-                  <span className="text-xs font-semibold text-[#4A3728]">Make this my default delivery address</span>
+                {/* Custom label for "other" type */}
+                <AnimatePresence>
+                  {watchedAddressType === 'other' && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                    >
+                      <Label htmlFor="customLabel">Custom Label <span className="text-red-500">*</span></Label>
+                      <input
+                        id="customLabel"
+                        type="text"
+                        maxLength={30}
+                        placeholder="e.g. Parents Home, Gym, Office"
+                        {...register('customLabel')}
+                        className={inputClass('customLabel')}
+                      />
+                      <AnimatePresence mode="wait">
+                        {errors.customLabel ? <FieldError key="e" message={errors.customLabel.message} /> : null}
+                      </AnimatePresence>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                {/* Default toggle */}
+                <label className="flex items-center gap-3 cursor-pointer pt-1 select-none">
+                  <div
+                    className={cn(
+                      'w-11 h-6 rounded-full transition-colors shrink-0',
+                      watchedIsDefault ? 'bg-[#FF7A00]' : 'bg-[#E8E4DE]'
+                    )}
+                    onClick={() => setValue('isDefault', !watchedIsDefault, { shouldDirty: true })}
+                    role="switch"
+                    aria-checked={watchedIsDefault}
+                    tabIndex={0}
+                  >
+                    <div className={cn('w-5 h-5 rounded-full bg-white shadow-sm transition-transform mx-0.5 mt-0.5', watchedIsDefault ? 'translate-x-5' : 'translate-x-0')} />
+                  </div>
+                  <span className="text-sm font-semibold text-[#4A3728]">Make this my default delivery address</span>
                 </label>
 
+                {/* Buttons */}
                 <div className="flex gap-3 pt-2">
                   <button
                     type="button"
-                    onClick={() => setModalOpen(false)}
-                    className="flex-1 h-11 rounded-xl border border-[#E8E4DE] text-sm font-semibold text-[#4A3728] cursor-pointer"
+                    onClick={() => !isSubmitting && setModalOpen(false)}
+                    className="flex-1 h-12 rounded-xl border-2 border-[#E8E4DE] text-sm font-semibold text-[#4A3728] cursor-pointer hover:border-[#FF7A00]/40 transition-colors"
+                    disabled={isSubmitting}
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
-                    disabled={saving}
-                    className="flex-1 h-11 rounded-xl bg-gradient-to-r from-[#FF7A00] to-[#FF4500] text-white text-sm font-bold cursor-pointer disabled:opacity-60"
+                    disabled={!isValid || isSubmitting}
+                    className={cn(
+                      'flex-1 h-12 rounded-xl text-white text-sm font-bold transition-all duration-200 flex items-center justify-center gap-2',
+                      'bg-gradient-to-r from-[#FF7A00] to-[#FF4500] shadow-lg shadow-orange-500/30',
+                      'hover:from-[#FF6A00] hover:to-[#E03D00] active:scale-[0.98]',
+                      (!isValid || isSubmitting) && 'opacity-50 cursor-not-allowed'
+                    )}
                   >
-                    {saving ? 'Saving...' : 'Save Address'}
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Saving...
+                      </>
+                    ) : editingId ? 'Update Address' : 'Save Address'}
                   </button>
                 </div>
               </form>

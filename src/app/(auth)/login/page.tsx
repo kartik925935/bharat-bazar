@@ -12,10 +12,19 @@ import { toast } from 'sonner';
 import { useAuthStore } from '@/lib/store/auth-store';
 import { RedirectIfAuthed } from '@/components/auth/redirect-if-authed';
 
+import { FormInput } from '@/components/ui/form-input';
+
 const loginSchema = z.object({
-  email: z.string().min(1, 'Email is required').email('Please enter a valid email address'),
-  password: z.string().min(6, 'Password must be at least 6 characters'),
-  rememberMe: z.boolean().optional(),
+  email: z.string()
+    .min(1, "Email address is required")
+    .email("Please enter a valid email address")
+    .toLowerCase()
+    .trim(),
+  password: z.string()
+    .min(1, "Password is required")
+    .min(6, "Password must be at least 6 characters"),
+  rememberMe: z.boolean()
+    .default(false),
 });
 
 type LoginFormValues = z.infer<typeof loginSchema>;
@@ -36,9 +45,11 @@ export default function LoginPage() {
     register,
     handleSubmit,
     setValue,
-    formState: { errors },
-  } = useForm<LoginFormValues>({
+    watch,
+    formState: { errors, isValid },
+  } = useForm({
     resolver: zodResolver(loginSchema),
+    mode: "onChange",
     defaultValues: { email: '', password: '', rememberMe: false },
   });
 
@@ -191,61 +202,38 @@ export default function LoginPage() {
 
             {/* Form Fields */}
             <form onSubmit={handleSubmit(onFormSubmit)} className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-[#1A1A1A] mb-1.5 uppercase tracking-wide">
-                  Email Address
-                </label>
-                <div className="relative">
-                  <Mail size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#8C8B80]" />
-                  <input
-                    type="email"
-                    {...register('email')}
-                    className={`w-full h-12 pl-11 pr-4 rounded-xl border outline-none text-sm transition-all focus:shadow-md focus:shadow-orange-500/5 ${
-                      errors.email ? 'border-red-500 focus:border-red-600' : 'border-[#E5E4DE] focus:border-[#FF7A00]'
-                    }`}
-                    placeholder="your@email.com"
-                    disabled={loading}
-                  />
-                </div>
-                {errors.email && (
-                  <p className="text-xs text-red-500 mt-1">{errors.email.message}</p>
-                )}
-              </div>
+              <FormInput
+                label="Email Address"
+                placeholder="your@email.com"
+                type="email"
+                required
+                register={register('email')}
+                error={errors.email}
+                isValid={!errors.email && !!watch('email')}
+                disabled={loading}
+                leftIcon={<Mail size={16} />}
+              />
 
               <div>
-                <div className="flex justify-between items-center mb-1.5">
-                  <label className="block text-xs font-bold text-[#1A1A1A] uppercase tracking-wide">
-                    Password
-                  </label>
+                <div className="flex justify-end mb-[-24px] relative z-10 mr-1">
                   <Link 
                     href="/forgot-password" 
-                    className="text-xs font-semibold text-[#FF7A00] hover:underline"
+                    className="text-xs font-semibold text-[#FF7A00] hover:underline bg-white px-1"
                   >
                     Forgot password?
                   </Link>
                 </div>
-                <div className="relative">
-                  <Lock size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#8C8B80]" />
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    {...register('password')}
-                    className={`w-full h-12 pl-11 pr-12 rounded-xl border outline-none text-sm transition-all focus:shadow-md focus:shadow-orange-500/5 ${
-                      errors.password ? 'border-red-500 focus:border-red-600' : 'border-[#E5E4DE] focus:border-[#FF7A00]'
-                    }`}
-                    placeholder="Enter your password"
-                    disabled={loading}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-[#8C8B80] hover:text-[#1A1A1A] transition-colors"
-                  >
-                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                  </button>
-                </div>
-                {errors.password && (
-                  <p className="text-xs text-red-500 mt-1">{errors.password.message}</p>
-                )}
+                <FormInput
+                  label="Password"
+                  placeholder="Enter your password"
+                  type="password"
+                  required
+                  register={register('password')}
+                  error={errors.password}
+                  isValid={!errors.password && !!watch('password')}
+                  disabled={loading}
+                  leftIcon={<Lock size={16} />}
+                />
               </div>
 
               {/* Remember Me */}

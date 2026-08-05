@@ -1,16 +1,52 @@
 'use client';
 
 import { useState } from 'react';
-import { ShieldCheck, Plus, Search, Edit2, Key, Trash2, Download } from 'lucide-react';
+import { ShieldCheck, Plus, Search, Edit2, Key, Trash2, Download, AlertCircle, Loader2 } from 'lucide-react';
 import { useSuperAdminStore } from '@/lib/store/super-admin-store';
 import { exportToCsv } from '@/lib/utils/export-csv';
 import { toast } from 'sonner';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { motion, AnimatePresence } from 'framer-motion';
+
+const inviteSchema = z.object({
+  name: z.string().min(2, 'Name must be at least 2 characters').max(50, 'Name cannot exceed 50 characters'),
+  email: z.string().email('Please enter a valid email address').toLowerCase(),
+  role: z.string().min(1, 'Please select a role'),
+});
+
+type InviteFormData = z.infer<typeof inviteSchema>;
+
+function FieldError({ message }: { message?: string }) {
+  if (!message) return null;
+  return (
+    <motion.p
+      initial={{ opacity: 0, height: 0 }}
+      animate={{ opacity: 1, height: 'auto' }}
+      className="flex items-center gap-1 text-[10px] text-red-500 mt-1 font-medium"
+    >
+      <AlertCircle className="w-3 h-3 flex-shrink-0" />
+      {message}
+    </motion.p>
+  );
+}
 
 export default function AdminsPage() {
   const { admins, roles } = useSuperAdminStore();
   const [search, setSearch] = useState('');
   const [isInviteOpen, setIsInviteOpen] = useState(false);
-  const [newAdmin, setNewAdmin] = useState({ name: '', email: '', role: 'Admin' });
+
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors, isValid, isSubmitting },
+  } = useForm<InviteFormData>({
+    resolver: zodResolver(inviteSchema),
+    mode: 'onChange',
+    defaultValues: { name: '', email: '', role: 'Admin' },
+  });
 
   const filtered = admins.filter(a => 
     a.name.toLowerCase().includes(search.toLowerCase()) || 
@@ -18,14 +54,13 @@ export default function AdminsPage() {
     a.role.toLowerCase().includes(search.toLowerCase())
   );
 
-  const handleInvite = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newAdmin.name || !newAdmin.email) return toast.error('Name and email are required');
+  const onSubmit = async (data: InviteFormData) => {
+    await new Promise((r) => setTimeout(r, 600));
     
     // In a real app we'd dispatch this to backend and store, but we're mocking it loosely
     toast.success('Admin invited successfully');
     setIsInviteOpen(false);
-    setNewAdmin({ name: '', email: '', role: 'Admin' });
+    reset();
   };
 
   return (
@@ -120,55 +155,63 @@ export default function AdminsPage() {
       </div>
 
       {isInviteOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
           <div className="bg-[#16161F] border border-[#1E1E2E] p-6 rounded-2xl w-full max-w-md shadow-2xl">
             <h2 className="text-xl font-black text-white mb-4">Invite Administrator</h2>
-            <form onSubmit={handleInvite} className="space-y-4">
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
               <div>
-                <label className="text-xs font-bold text-[#9898B0] uppercase block mb-1">Name</label>
+                <label className="text-xs font-bold text-[#9898B0] uppercase block mb-1">Name <span className="text-red-500">*</span></label>
                 <input 
-                  type="text" 
-                  value={newAdmin.name} 
-                  onChange={e => setNewAdmin({...newAdmin, name: e.target.value})}
-                  className="w-full bg-[#111118] border border-[#1E1E2E] rounded-xl px-4 py-2 text-sm text-white focus:outline-none focus:border-[#FF7A00]" 
+                  {...register('name')}
+                  className={`w-full bg-[#111118] border rounded-xl px-4 py-2 text-sm text-white focus:outline-none transition-colors ${
+                    errors.name ? 'border-red-500/50 focus:border-red-500' : 'border-[#1E1E2E] focus:border-[#FF7A00]'
+                  }`} 
                   placeholder="e.g. John Doe" 
                 />
+                <AnimatePresence mode="wait"><FieldError message={errors.name?.message} /></AnimatePresence>
               </div>
               <div>
-                <label className="text-xs font-bold text-[#9898B0] uppercase block mb-1">Email</label>
+                <label className="text-xs font-bold text-[#9898B0] uppercase block mb-1">Email <span className="text-red-500">*</span></label>
                 <input 
-                  type="email" 
-                  value={newAdmin.email} 
-                  onChange={e => setNewAdmin({...newAdmin, email: e.target.value})}
-                  className="w-full bg-[#111118] border border-[#1E1E2E] rounded-xl px-4 py-2 text-sm text-white focus:outline-none focus:border-[#FF7A00]" 
+                  type="email"
+                  {...register('email')}
+                  className={`w-full bg-[#111118] border rounded-xl px-4 py-2 text-sm text-white focus:outline-none transition-colors ${
+                    errors.email ? 'border-red-500/50 focus:border-red-500' : 'border-[#1E1E2E] focus:border-[#FF7A00]'
+                  }`} 
                   placeholder="admin@bharatbazaar.in" 
                 />
+                <AnimatePresence mode="wait"><FieldError message={errors.email?.message} /></AnimatePresence>
               </div>
               <div>
-                <label className="text-xs font-bold text-[#9898B0] uppercase block mb-1">Role</label>
+                <label className="text-xs font-bold text-[#9898B0] uppercase block mb-1">Role <span className="text-red-500">*</span></label>
                 <select 
-                  value={newAdmin.role} 
-                  onChange={e => setNewAdmin({...newAdmin, role: e.target.value})}
-                  className="w-full bg-[#111118] border border-[#1E1E2E] rounded-xl px-4 py-2 text-sm text-white focus:outline-none focus:border-[#FF7A00]"
+                  {...register('role')}
+                  className={`w-full bg-[#111118] border rounded-xl px-4 py-2 text-sm text-white focus:outline-none transition-colors ${
+                    errors.role ? 'border-red-500/50 focus:border-red-500' : 'border-[#1E1E2E] focus:border-[#FF7A00]'
+                  }`}
                 >
                   {roles.map(r => (
                     <option key={r.id} value={r.name}>{r.name}</option>
                   ))}
                 </select>
+                <AnimatePresence mode="wait"><FieldError message={errors.role?.message} /></AnimatePresence>
               </div>
               <div className="flex gap-3 pt-2">
                 <button 
                   type="button" 
-                  onClick={() => setIsInviteOpen(false)}
-                  className="flex-1 py-2 rounded-xl border border-[#1E1E2E] text-[#9898B0] text-sm font-bold hover:bg-[#111118] transition-colors"
+                  onClick={() => { setIsInviteOpen(false); reset(); }}
+                  className="flex-1 py-2.5 rounded-xl border border-[#1E1E2E] text-[#9898B0] text-sm font-bold hover:bg-[#111118] transition-colors"
                 >
                   Cancel
                 </button>
                 <button 
                   type="submit" 
-                  className="flex-1 py-2 rounded-xl bg-gradient-to-r from-[#FF7A00] to-[#FF4500] text-white text-sm font-bold hover:opacity-90 transition-colors"
+                  disabled={!isValid || isSubmitting}
+                  className={`flex-1 py-2.5 rounded-xl bg-gradient-to-r from-[#FF7A00] to-[#FF4500] text-white text-sm font-bold flex items-center justify-center gap-2 transition-all ${
+                    (!isValid || isSubmitting) ? 'opacity-50 cursor-not-allowed' : 'hover:opacity-90 hover:-translate-y-0.5 shadow-lg shadow-orange-500/20'
+                  }`}
                 >
-                  Send Invitation
+                  {isSubmitting ? <><Loader2 size={16} className="animate-spin"/> Sending...</> : 'Send Invitation'}
                 </button>
               </div>
             </form>

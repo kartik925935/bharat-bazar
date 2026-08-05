@@ -3,226 +3,194 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { motion } from 'framer-motion';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { Mail, Lock, Eye, EyeOff, Check, Store } from 'lucide-react';
+import { Mail, Lock, ArrowRight, ArrowLeft } from 'lucide-react';
+import { useSellerStore } from '@/lib/store/seller-store';
 import { toast } from 'sonner';
-import { useAuthStore } from '@/lib/store/auth-store';
-import { RedirectIfAuthed } from '@/components/auth/redirect-if-authed';
+import { FormInput } from '@/components/ui/form-input';
 
 const sellerLoginSchema = z.object({
-  email: z.string().min(1, 'Email is required').email('Please enter a valid email address'),
-  password: z.string().min(6, 'Password must be at least 6 characters'),
+  email: z.string()
+    .min(1, "Seller email is required")
+    .email("Please enter a valid email address")
+    .toLowerCase()
+    .trim(),
+  password: z.string()
+    .min(1, "Password is required")
+    .min(6, "Invalid password"),
+  rememberMe: z.boolean().default(false),
 });
 
 type SellerLoginFormValues = z.infer<typeof sellerLoginSchema>;
 
 export default function SellerLoginPage() {
+  const [isLoading, setIsLoading] = useState(false);
+  const { login, loginWithGoogle } = useSellerStore();
   const router = useRouter();
-  const { signIn } = useAuthStore();
-  const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
 
   const {
     register,
     handleSubmit,
     setValue,
-    formState: { errors },
-  } = useForm<SellerLoginFormValues>({
+    watch,
+    formState: { errors, isValid },
+  } = useForm({
     resolver: zodResolver(sellerLoginSchema),
-    defaultValues: { email: '', password: '' },
+    mode: 'onChange',
+    defaultValues: { email: '', password: '', rememberMe: false },
   });
 
-  const onFormSubmit = async (values: SellerLoginFormValues) => {
-    setLoading(true);
-    const result = await signIn(values.email, values.password, 'seller');
-
-    if (result.success) {
-      toast.success('Welcome back, Artisan! 🙏 Dashboard ready.');
-      router.replace('/seller-dashboard');
+  const handleGoogleSignIn = async () => {
+    setIsLoading(true);
+    const res = await loginWithGoogle();
+    setIsLoading(false);
+    if (res.success) {
+      toast.success('Welcome back via Google!');
+      router.push('/seller-dashboard');
     } else {
-      toast.error(result.error || 'Invalid credentials or you are not a registered seller.');
-      setLoading(false);
+      toast.error(res.error || 'Google Login failed');
     }
   };
 
+  const onFormSubmit = async (values: SellerLoginFormValues) => {
+    setIsLoading(true);
+    const res = await login(values.email, values.password);
+    setIsLoading(false);
+    if (res.success) {
+      toast.success('Welcome back!');
+      router.push('/seller-dashboard');
+    } else {
+      toast.error(res.error || 'Login failed');
+    }
+  };
+
+  const fillDemo = () => {
+    setValue('email', 'seller@test.com', { shouldValidate: true });
+    setValue('password', 'Seller@123', { shouldValidate: true });
+    toast.info('Demo Seller Account Injected');
+  };
+
   return (
-    <RedirectIfAuthed>
-      <div className="min-h-screen flex bg-[#FAFAF8]">
-        {/* Left Side: Dark Theme with Orange Accents */}
-        <div 
-          className="hidden lg:flex lg:w-[50%] bg-[#1A0A00] relative flex-col justify-between p-12 text-white overflow-hidden"
-        >
-          {/* Decorative Elements */}
-          <div className="absolute top-0 right-0 w-[400px] h-[400px] rounded-full opacity-5 bg-[#FF7A00] translate-x-1/4 -translate-y-1/4" />
-          <div className="absolute bottom-0 left-0 w-[300px] h-[300px] rounded-full opacity-5 bg-[#FF7A00] -translate-x-1/4 translate-y-1/4" />
-
-          {/* Logo */}
-          <Link href="/" className="flex items-center gap-3 relative z-10 shrink-0">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-r from-[#FF7A00] to-[#FF4500] flex items-center justify-center text-white font-black text-sm">BB</div>
-            <span className="font-black text-2xl text-white tracking-tight" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
-              Artisan Center
-            </span>
+    <div className="min-h-screen bg-white flex flex-col md:flex-row">
+      {/* Left panel (Image/Brand) */}
+      <div className="hidden md:flex flex-col justify-between w-1/2 bg-gradient-to-br from-[#1A0A00] to-[#2D1000] p-12 text-white relative overflow-hidden">
+        <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(circle at center, #FF7A00 0%, transparent 70%)' }} />
+        
+        <div className="relative z-10">
+          <Link href="/" className="inline-flex items-center gap-2 mb-16 text-white/80 hover:text-white transition-colors">
+            <ArrowLeft size={16} /> Back to Storefront
           </Link>
-
-          {/* Seller Benefits Content */}
-          <div className="flex-1 flex flex-col justify-center items-start relative z-10 max-w-md my-8">
-            <div className="w-14 h-14 rounded-2xl bg-gradient-to-r from-[#FF7A00] to-[#FF4500] flex items-center justify-center text-white mb-6 shadow-lg shadow-orange-500/25">
-              <Store size={28} />
-            </div>
-            
-            <h2 className="text-3xl font-bold mb-4 leading-tight" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
-              Join 5,000+ artisans selling on Bharat Bazaar
-            </h2>
-            <p className="text-[#8C8B80] text-sm leading-relaxed mb-8">
-              Empower your craft shop with direct customer reach, robust order management, and detailed revenue analytics.
-            </p>
-
-            <div className="space-y-4 w-full">
-              {[
-                { title: 'Zero Commission First Month', desc: 'Keep 100% of your earnings to kickstart your store.' },
-                { title: 'Easy KYC & Listing Checks', desc: 'Onboard and start selling within 24 hours.' },
-                { title: 'Direct Weekly Settlements', desc: 'Fast bank payouts directly to your verified account.' }
-              ].map((benefit) => (
-                <div key={benefit.title} className="flex gap-3.5 items-start">
-                  <div className="w-5 h-5 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-400 shrink-0 mt-0.5">
-                    <span className="text-xs">✓</span>
-                  </div>
-                  <div>
-                    <h4 className="text-sm font-bold text-white">{benefit.title}</h4>
-                    <p className="text-xs text-[#8C8B80] mt-0.5">{benefit.desc}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
+          
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#FF7A00] to-[#FF4500] flex items-center justify-center text-white font-black text-xl mb-6 shadow-xl shadow-orange-500/20">
+            BB
           </div>
-
-          <div className="flex items-center justify-around border-t border-white/10 pt-6 text-xs text-white/50 font-semibold relative z-10 shrink-0">
-            <span>🎨 Certified Craft Registry</span>
-            <span>📍 Regional Hub Support</span>
-            <span>💬 Live Seller Assistance</span>
-          </div>
+          <h1 className="text-4xl font-black mb-4 leading-tight" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+            Your craft deserves<br/>the world's attention.
+          </h1>
+          <p className="text-lg text-white/70 max-w-md">Join Bharat Bazaar's seller community and take your traditional handcrafted products to millions of customers across India.</p>
         </div>
 
-        {/* Right Side: Form */}
-        <div className="flex-1 flex flex-col items-center justify-center p-6 sm:p-12 relative overflow-y-auto">
-          {/* Mobile Logo */}
-          <Link href="/" className="lg:hidden flex items-center gap-2 mb-8">
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-black text-xs bg-gradient-to-r from-[#FF7A00] to-[#FF4500]">BB</div>
-            <span className="font-black text-xl text-[#FF7A00]" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Bharat Bazaar</span>
-          </Link>
+        <div className="relative z-10 space-y-4 text-sm text-white/80">
+          <div className="flex items-center gap-3"><span className="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center text-emerald-400">✓</span> Zero commission for 30 days</div>
+          <div className="flex items-center gap-3"><span className="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center text-emerald-400">✓</span> Weekly bank settlements</div>
+          <div className="flex items-center gap-3"><span className="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center text-emerald-400">✓</span> Dedicated artisan support</div>
+        </div>
+      </div>
 
-          <div className="w-full max-w-md bg-white p-8 rounded-3xl border border-[#E5E4DE] shadow-sm space-y-6">
-            <div className="text-center">
-              <h2 className="text-2xl font-bold text-[#1A1A1A] mb-1.5" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
-                Artisan Console
-              </h2>
-              <p className="text-sm text-[#8C8B80]">Manage your artisan store & orders</p>
+      {/* Right panel (Form) */}
+      <div className="w-full md:w-1/2 flex items-center justify-center p-6 sm:p-12">
+        <div className="max-w-md w-full">
+          <div className="md:hidden flex items-center gap-2 mb-8">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#FF7A00] to-[#FF4500] flex items-center justify-center text-white font-black text-lg">BB</div>
+            <span className="font-black text-xl text-[#1A1A1A]">Bharat Bazaar</span>
+          </div>
+
+          <h2 className="text-3xl font-black text-[#1A1A1A] mb-2">Welcome Back, Artisan! 🙏</h2>
+          <p className="text-sm text-[#9B8F84] mb-8">Sign in to manage your shop</p>
+
+          {/* Demo creds */}
+          <div className="bg-[#FFF7ED] border border-orange-200 rounded-xl p-4 mb-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-bold text-[#FF7A00] mb-1">🧪 Demo Seller Account</p>
+                <p className="text-xs text-[#4A4540]">Email: seller@test.com</p>
+                <p className="text-xs text-[#4A4540]">Pass: Seller@123</p>
+              </div>
+              <button onClick={fillDemo} type="button" className="px-3 py-1.5 bg-white border border-orange-200 text-[#FF7A00] text-xs font-bold rounded-lg hover:bg-orange-50 transition-colors cursor-pointer">Fill</button>
+            </div>
+          </div>
+
+          <form onSubmit={handleSubmit(onFormSubmit)} className="space-y-4">
+            <FormInput
+              label="Email Address"
+              placeholder="your@email.com"
+              type="email"
+              required
+              register={register('email')}
+              error={errors.email}
+              isValid={!errors.email && !!watch('email')}
+              disabled={isLoading}
+              leftIcon={<Mail size={16} />}
+            />
+
+            <div>
+              <div className="flex justify-end mb-[-24px] relative z-10 mr-1">
+                <a href="#" className="text-xs font-semibold text-[#FF7A00] hover:underline bg-white px-1">
+                  Forgot password?
+                </a>
+              </div>
+              <FormInput
+                label="Password"
+                placeholder="••••••••"
+                type="password"
+                required
+                register={register('password')}
+                error={errors.password}
+                isValid={!errors.password && !!watch('password')}
+                disabled={isLoading}
+                leftIcon={<Lock size={16} />}
+              />
             </div>
 
-            <form onSubmit={handleSubmit(onFormSubmit)} className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-[#1A1A1A] mb-1.5 uppercase tracking-wide">
-                  Seller Email Address
-                </label>
-                <div className="relative">
-                  <Mail size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#8C8B80]" />
-                  <input
-                    type="email"
-                    {...register('email')}
-                    className={`w-full h-12 pl-11 pr-4 rounded-xl border outline-none text-sm transition-all focus:shadow-md focus:shadow-orange-500/5 ${
-                      errors.email ? 'border-red-500 focus:border-red-600' : 'border-[#E5E4DE] focus:border-[#FF7A00]'
-                    }`}
-                    placeholder="meena@handicrafts.com"
-                    disabled={loading}
-                  />
-                </div>
-                {errors.email && (
-                  <p className="text-xs text-red-500 mt-1">{errors.email.message}</p>
-                )}
-              </div>
-
-              <div>
-                <div className="flex justify-between items-center mb-1.5">
-                  <label className="block text-xs font-bold text-[#1A1A1A] uppercase tracking-wide">
-                    Password
-                  </label>
-                  <Link 
-                    href="/forgot-password" 
-                    className="text-xs font-semibold text-[#FF7A00] hover:underline"
-                  >
-                    Forgot password?
-                  </Link>
-                </div>
-                <div className="relative">
-                  <Lock size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#8C8B80]" />
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    {...register('password')}
-                    className={`w-full h-12 pl-11 pr-12 rounded-xl border outline-none text-sm transition-all focus:shadow-md focus:shadow-orange-500/5 ${
-                      errors.password ? 'border-red-500 focus:border-red-600' : 'border-[#E5E4DE] focus:border-[#FF7A00]'
-                    }`}
-                    placeholder="••••••••"
-                    disabled={loading}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-[#8C8B80] hover:text-[#1A1A1A] transition-colors"
-                  >
-                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                  </button>
-                </div>
-                {errors.password && (
-                  <p className="text-xs text-red-500 mt-1">{errors.password.message}</p>
-                )}
-              </div>
-
-              {/* Submit button */}
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full h-12 rounded-xl text-white font-bold text-sm bg-gradient-to-r from-[#FF7A00] to-[#FF4500] shadow-lg shadow-orange-500/20 active:scale-98 hover:shadow-orange-500/30 transition-all cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50 mt-2"
-              >
-                {loading ? (
-                  <>
-                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    Entering dashboard...
-                  </>
-                ) : (
-                  'Enter Seller Dashboard'
-                )}
-              </button>
-            </form>
-
-            <div className="border-t border-[#E5E4DE] pt-4 text-center text-xs text-[#8C8B80]">
-              Not a registered seller yet?{' '}
-              <Link href="/seller-register" className="font-bold text-[#FF7A00] hover:underline">
-                Apply for Seller Account
-              </Link>
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="w-full h-12 mt-4 bg-gradient-to-r from-[#FF7A00] to-[#FF4500] text-white text-sm font-bold rounded-xl shadow-lg shadow-orange-500/20 hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:hover:translate-y-0 cursor-pointer"
+            >
+              {isLoading ? 'Signing in...' : <>Sign In to Seller Portal <ArrowRight size={16} /></>}
+            </button>
+            
+            {/* Separator */}
+            <div className="flex items-center gap-3 my-4">
+              <div className="flex-1 h-[1px] bg-[#E5E4DE]" />
+              <span className="text-xs font-semibold text-[#8C8B80]">OR CONTINUE WITH</span>
+              <div className="flex-1 h-[1px] bg-[#E5E4DE]" />
             </div>
 
-            <div className="border border-orange-200 bg-[#FFF7ED] rounded-xl p-3 flex justify-between items-center text-[11px] text-orange-900">
-              <div>
-                <span className="font-bold mr-1">Demo Seller:</span>
-                <span>seller@test.com</span>
-              </div>
-              <button 
-                onClick={() => {
-                  setValue('email', 'seller@test.com');
-                  setValue('password', 'Test@123');
-                  toast.info('Autofilled demo seller credentials!');
-                }}
-                className="bg-orange-600 hover:bg-orange-700 text-white font-bold px-2 py-0.5 rounded text-[10px]"
-              >
-                Autofill
-              </button>
-            </div>
+            {/* Google Authentication */}
+            <button 
+              type="button"
+              onClick={handleGoogleSignIn}
+              disabled={isLoading}
+              className="w-full h-12 flex items-center justify-center gap-3 rounded-xl border border-[#E5E4DE] font-semibold text-[#1A1A1A] hover:bg-[#FAFAF8] active:scale-98 transition-all cursor-pointer disabled:opacity-50"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24">
+                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+              </svg>
+              Continue with Google
+            </button>
+          </form>
+
+          <div className="mt-8 text-center text-sm text-[#9B8F84]">
+            New seller? <Link href="/seller-register" className="font-bold text-[#FF7A00] hover:underline">Register your shop →</Link>
           </div>
         </div>
       </div>
-    </RedirectIfAuthed>
+    </div>
   );
 }
