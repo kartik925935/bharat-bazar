@@ -11,6 +11,8 @@ import { useSellerStore } from '@/lib/store/seller-store';
 import { toast } from 'sonner';
 import { FormInput } from '@/components/ui/form-input';
 
+import { useAuthStore } from '@/lib/store/auth-store';
+
 const sellerLoginSchema = z.object({
   email: z.string()
     .min(1, "Seller email is required")
@@ -27,7 +29,8 @@ type SellerLoginFormValues = z.infer<typeof sellerLoginSchema>;
 
 export default function SellerLoginPage() {
   const [isLoading, setIsLoading] = useState(false);
-  const { login, loginWithGoogle } = useSellerStore();
+  const { login } = useSellerStore();
+  const { signInWithGoogle } = useAuthStore();
   const router = useRouter();
 
   const {
@@ -44,13 +47,13 @@ export default function SellerLoginPage() {
 
   const handleGoogleSignIn = async () => {
     setIsLoading(true);
-    const res = await loginWithGoogle();
-    setIsLoading(false);
+    const res = await signInWithGoogle('/seller-dashboard', 'seller');
     if (res.success) {
       toast.success('Welcome back via Google!');
       router.push('/seller-dashboard');
     } else {
       toast.error(res.error || 'Google Login failed');
+      setIsLoading(false);
     }
   };
 

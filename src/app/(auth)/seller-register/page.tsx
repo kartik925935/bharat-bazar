@@ -1,11 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { User, Tag, Mail, Phone, Lock, Store, MapPin, ShieldCheck, Building, Check, ArrowRight, ArrowLeft } from 'lucide-react';
 import { useSellerStore } from '@/lib/store/seller-store';
+import { useAuthStore } from '@/lib/store/auth-store';
+import { registerSeller as dbRegisterSeller } from '@/actions/auth/seller-register';
+import { registerGoogleSeller } from '@/actions/auth/register-google-seller';
 import { toast } from 'sonner';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -75,7 +78,7 @@ const fileSchema = z.any();
 const step3BaseSchema = z.object({
   panNumber: z.string().min(1, "PAN number is required").regex(/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/, "Invalid PAN format. Example: ABCDE1234F").toUpperCase(),
   aadhaarNumber: z.string().min(1, "Aadhaar number is required").regex(/^\d{12}$/, "Aadhaar must be exactly 12 digits").refine(val => !['000000000000', '111111111111', '999999999999'].includes(val), "Invalid Aadhaar number"),
-  confirmAadhaarNumber: z.string().min(1, "Please confirm Aadhaar number"),
+  confirmAadhaarNumber: z.string().min(1, "Please confirm Aadhaar number").regex(/^\d{12}$/, "Aadhaar must be exactly 12 digits"),
   gstNumber: z.string().regex(/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/, "Invalid GST format").optional().or(z.literal('')),
   aadhaarFront: fileSchema.optional(),
   aadhaarBack: fileSchema.optional(),
@@ -94,7 +97,7 @@ const step4BaseSchema = z.object({
   bankBranch: z.string().min(1, "Branch name is required").max(100, "Branch name too long").trim(),
   ifscCode: z.string().min(1, "IFSC code is required").regex(/^[A-Z]{4}0[A-Z0-9]{6}$/, "Invalid IFSC format. Example: SBIN0001234").toUpperCase(),
   bankAccountNumber: z.string().min(1, "Account number is required").regex(/^\d{9,18}$/, "Account number must be 9-18 digits (numbers only)"),
-  confirmBankAccountNumber: z.string().min(1, "Please confirm your account number"),
+  confirmBankAccountNumber: z.string().min(1, "Please confirm your account number").regex(/^\d{9,18}$/, "Account number must be 9-18 digits (numbers only)"),
   accountType: z.enum(['savings', 'current'], { required_error: "Please select account type" }),
   cancelledCheque: fileSchema.optional(),
   upiId: z.string().regex(/^[a-zA-Z0-9._-]+@[a-zA-Z]{3,}$/, "Invalid UPI ID format. Example: seller@upi or 9876543210@paytm").optional().or(z.literal('')),
@@ -136,7 +139,13 @@ export default function SellerRegisterPage() {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const { register: registerSeller, loginWithGoogle } = useSellerStore();
+  const { signInWithGoogle, isAuthenticated: isUserAuthed, user: authUser } = useAuthStore();
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const queryEmail = searchParams.get('email');
+  const queryName = searchParams.get('name');
+  const isGoogleSignup = !!queryEmail;
 
   const {
     register,
@@ -160,6 +169,19 @@ export default function SellerRegisterPage() {
       declaration: false,
     }
   });
+
+  useEffect(() => {
+    if (queryEmail) {
+      setValue('email', queryEmail, { shouldValidate: true });
+    }
+    if (queryName) {
+      setValue('legalName', queryName, { shouldValidate: true });
+    }
+    if (isGoogleSignup) {
+      setValue('password', 'GoogleOAuthTemp123!', { shouldValidate: true });
+      setValue('confirmPassword', 'GoogleOAuthTemp123!', { shouldValidate: true });
+    }
+  }, [queryEmail, queryName, isGoogleSignup, setValue]);
 
   const handleNextStep = async () => {
     const currentStepFields = STEP_FIELDS[step];
@@ -186,49 +208,94 @@ export default function SellerRegisterPage() {
     }
     
     setLoading(true);
-    const res = await registerSeller({
-      legalName: values.legalName,
-      displayName: values.displayName,
-      email: values.email,
-      phone: values.phone,
-      password: values.password,
-      sellerType: values.sellerType,
-      shopName: values.shopName,
-      shopDescription: values.shopDescription,
-      shopCategory: values.shopCategory,
-      pincode: values.pincode,
-      district: values.district,
-      state: values.state,
-      fullAddress: values.fullAddress,
-      panNumber: values.panNumber,
-      aadhaarNumber: values.aadhaarNumber,
-      bankAccountName: values.bankAccountName,
-      bankName: values.bankName,
-      bankAccountNumber: values.bankAccountNumber,
-      ifscCode: values.ifscCode,
-      accountType: values.accountType,
-      avatar: null, shopLogo: null, shopBanner: null, subCategories: [], village: values.village, gstNumber: values.gstNumber || null,
-      shippingAreas: ['All India'], processingDays: 2,
-      status: 'approved', vacationMode: false, vacationMessage: null,
-    });
-    setLoading(false);
-    
+    let res;
+    if (isGoogleSignup && authUser?.id) {
+      res = await registerGoogleSeller({
+        userId: authUser.id,
+        fullName: values.legalName,
+        phone: values.phone,
+        sellerType: values.sellerType,
+        shopName: values.shopName,
+        shopDescription: values.shopDescription,
+        shopCategory: values.shopCategory,
+        pincode: values.pincode,
+        district: values.district,
+        state: values.state,
+        fullAddress: values.fullAddress,
+        panNumber: values.panNumber,
+        aadhaarNumber: values.aadhaarNumber,
+        bankAccountName: values.bankAccountName,
+        bankName: values.bankName,
+        bankAccountNumber: values.bankAccountNumber,
+        ifscCode: values.ifscCode,
+        accountType: values.accountType,
+        village: values.village,
+        gstNumber: values.gstNumber || null,
+      });
+    } else {
+      res = await dbRegisterSeller({
+        fullName: values.legalName,
+        email: values.email,
+        phone: values.phone,
+        password: values.password,
+        shopName: values.shopName,
+        shopDescription: values.shopDescription,
+        category: values.shopCategory,
+        city: values.city,
+        state: values.state,
+        accountName: values.bankAccountName,
+        bank: values.bankName,
+        accountNumber: values.bankAccountNumber,
+        ifsc: values.ifscCode,
+        aadhar: values.aadhaarNumber,
+        pan: values.panNumber,
+      });
+    }
+
     if (res.success) {
+      // Keep mock DB/state in sync
+      await registerSeller({
+        legalName: values.legalName,
+        displayName: values.displayName,
+        email: values.email,
+        phone: values.phone,
+        password: values.password,
+        sellerType: values.sellerType,
+        shopName: values.shopName,
+        shopDescription: values.shopDescription,
+        shopCategory: values.shopCategory,
+        pincode: values.pincode,
+        district: values.district,
+        state: values.state,
+        fullAddress: values.fullAddress,
+        panNumber: values.panNumber,
+        aadhaarNumber: values.aadhaarNumber,
+        bankAccountName: values.bankAccountName,
+        bankName: values.bankName,
+        bankAccountNumber: values.bankAccountNumber,
+        ifscCode: values.ifscCode,
+        accountType: values.accountType,
+        avatar: null, shopLogo: null, shopBanner: null, subCategories: [], village: values.village, gstNumber: values.gstNumber || null,
+        shippingAreas: ['All India'], processingDays: 2,
+        status: 'approved', vacationMode: false, vacationMessage: null,
+      });
+      setLoading(false);
       setStep(6); // Success step
     } else {
+      setLoading(false);
       toast.error(res.error || 'Registration failed');
     }
   };
 
   const handleGoogleSignUp = async () => {
     setLoading(true);
-    const res = await loginWithGoogle();
-    setLoading(false);
+    const res = await signInWithGoogle('/seller-dashboard', 'seller');
     if (res.success) {
       toast.success('Google account linked successfully!');
       router.push('/seller-dashboard');
     } else {
       toast.error(res.error || 'Google Sign Up failed');
+      setLoading(false);
     }
   };
 
@@ -336,10 +403,12 @@ export default function SellerRegisterPage() {
                         <FormInput label="Mobile Number" type="tel" required register={register('phone')} error={errors.phone} isValid={!errors.phone && !!watch('phone')} />
                         <FormInput label="Alternate Phone" type="tel" register={register('alternatePhone')} error={errors.alternatePhone} isValid={!errors.alternatePhone && !!watch('alternatePhone')} />
                       </div>
-                      <div className="grid sm:grid-cols-2 gap-4">
-                        <FormInput label="Password" type="password" required register={register('password')} error={errors.password} isValid={!errors.password && !!watch('password')} />
-                        <FormInput label="Confirm Password" type="password" required register={register('confirmPassword')} error={errors.confirmPassword} isValid={!errors.confirmPassword && !!watch('confirmPassword')} />
-                      </div>
+                      {!isGoogleSignup && (
+                        <div className="grid sm:grid-cols-2 gap-4">
+                          <FormInput label="Password" type="password" required register={register('password')} error={errors.password} isValid={!errors.password && !!watch('password')} />
+                          <FormInput label="Confirm Password" type="password" required register={register('confirmPassword')} error={errors.confirmPassword} isValid={!errors.confirmPassword && !!watch('confirmPassword')} />
+                        </div>
+                      )}
                       
                       <div className="grid sm:grid-cols-2 gap-4">
                         <FormInput label="Date of Birth" type="date" required register={register('dateOfBirth')} error={errors.dateOfBirth} isValid={!errors.dateOfBirth && !!watch('dateOfBirth')} />
