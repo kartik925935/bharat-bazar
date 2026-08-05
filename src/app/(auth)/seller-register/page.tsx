@@ -228,7 +228,7 @@ export default function SellerRegisterPage() {
       toast.success('Google account linked successfully!');
       router.push('/seller-dashboard');
     } else {
-      toast.error(res.error || 'Google Sign Up failed');
+      toast.info(res.error || 'Google Sign Up pending');
     }
   };
 
