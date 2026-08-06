@@ -18,14 +18,28 @@ import { FormInput } from '@/components/ui/form-input';
 
 // === SCHEMAS ===
 
-const step1BaseSchema = z.object({
+const step1PasswordSchema = z.object({
+  password: z.string().min(1, "Password is required").min(8, "Password must be at least 8 characters").max(128, "Password too long").regex(/[A-Z]/, "Must include at least one uppercase letter").regex(/[a-z]/, "Must include at least one lowercase letter").regex(/[0-9]/, "Must include at least one number").regex(/[!@#$%^&*(),.?":{}|<>]/, "Must include at least one special character"),
+  confirmPassword: z.string().min(1, "Please confirm your password"),
+}).superRefine((data, ctx) => {
+  if (data.password !== data.confirmPassword) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Passwords do not match — please re-enter", path: ["confirmPassword"] });
+  }
+});
+
+const step1PhoneSchema = z.object({
+  phone: z.string().min(1, "Mobile number is required").regex(/^[6-9]\d{9}$/, "Enter valid 10-digit Indian mobile number (starts with 6-9)"),
+  alternatePhone: z.string().regex(/^[6-9]\d{9}$/, "Enter valid 10-digit Indian mobile number").optional().or(z.literal('')),
+}).superRefine((data, ctx) => {
+  if (data.alternatePhone && data.alternatePhone === data.phone) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Alternate number must be different from primary number", path: ["alternatePhone"] });
+  }
+});
+
+const step1OtherFields = z.object({
   legalName: z.string().min(1, "Legal name is required").min(2, "Name must be at least 2 characters").max(100, "Legal name cannot exceed 100 characters").regex(/^[a-zA-Z\s'-]+$/, "Legal name can only contain letters, spaces, hyphens and apostrophes").transform(val => val.trim()),
   displayName: z.string().min(1, "Display name is required").min(2, "Display name must be at least 2 characters").max(60, "Display name cannot exceed 60 characters").regex(/^[a-zA-Z0-9\s&'-]+$/, "Display name can contain letters, numbers, spaces, &, hyphens").transform(val => val.trim()),
   email: z.string().min(1, "Email address is required").email("Please enter a valid email address").max(100, "Email is too long").toLowerCase().trim(),
-  phone: z.string().min(1, "Mobile number is required").regex(/^[6-9]\d{9}$/, "Enter valid 10-digit Indian mobile number (starts with 6-9)"),
-  alternatePhone: z.string().regex(/^[6-9]\d{9}$/, "Enter valid 10-digit Indian mobile number").optional().or(z.literal('')),
-  password: z.string().min(1, "Password is required").min(8, "Password must be at least 8 characters").max(128, "Password too long").regex(/[A-Z]/, "Must include at least one uppercase letter").regex(/[a-z]/, "Must include at least one lowercase letter").regex(/[0-9]/, "Must include at least one number").regex(/[!@#$%^&*(),.?":{}|<>]/, "Must include at least one special character"),
-  confirmPassword: z.string().min(1, "Please confirm your password"),
   dateOfBirth: z.string().min(1, "Date of birth is required").refine(val => {
     const age = differenceInYears(new Date(), new Date(val));
     return age >= 18;
@@ -36,18 +50,21 @@ const step1BaseSchema = z.object({
   sellerType: z.enum(['artisan', 'ngo', 'village_producer', 'shop_owner', 'shg', 'family_craft', 'professional'], { required_error: "Please select your seller type" }),
   gender: z.enum(['male', 'female', 'other', 'prefer_not_to_say']).optional(),
 });
-const step1Schema = step1BaseSchema.refine(data => data.password === data.confirmPassword, {
-  message: "Passwords do not match — please re-enter",
-  path: ["confirmPassword"]
-}).refine(data => data.alternatePhone !== data.phone, {
-  message: "Alternate number must be different from primary number",
-  path: ["alternatePhone"]
+
+const step1Schema = step1PasswordSchema.and(step1PhoneSchema).and(step1OtherFields);
+
+const step2CategorySchema = z.object({
+  shopCategory: z.string().min(1, "Please select a shop category"),
+  customShopCategory: z.string().optional(),
+}).superRefine((data, ctx) => {
+  if (data.shopCategory === 'Other' && (!data.customShopCategory || data.customShopCategory.trim().length === 0)) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Please specify your custom category", path: ["customShopCategory"] });
+  }
 });
 
-const step2Schema = z.object({
+const step2OtherFields = z.object({
   shopName: z.string().min(1, "Shop name is required").min(3, "Shop name must be at least 3 characters").max(80, "Shop name cannot exceed 80 characters").regex(/^[a-zA-Z0-9\s&'.-]+$/, "Shop name can contain letters, numbers, spaces and & . - '").transform(val => val.trim()),
   sellerUsername: z.string().min(1, "Shop username is required").min(3, "Username must be at least 3 characters").max(30, "Username cannot exceed 30 characters").regex(/^[a-z][a-z0-9-]*$/, "Username: lowercase letters, numbers, hyphens only. Must start with a letter"),
-  shopCategory: z.string().min(1, "Please select a shop category"),
   shopSubCategory: z.string().min(1, "Please select a subcategory"),
   shopDescription: z.string().min(1, "Shop description is required").min(100, "Description must be at least 100 characters to help customers").max(1000, "Description cannot exceed 1000 characters").trim(),
   shopTagline: z.string().max(100, "Tagline cannot exceed 100 characters").optional(),
@@ -72,13 +89,22 @@ const step2Schema = z.object({
   yearEstablished: z.coerce.number().min(1900, "Enter valid year").max(new Date().getFullYear(), "Year cannot be in the future").optional(),
 });
 
+const step2Schema = step2CategorySchema.and(step2OtherFields);
+
 // Mocking File for SSR / simplified validation
 const fileSchema = z.any(); 
 
-const step3BaseSchema = z.object({
-  panNumber: z.string().min(1, "PAN number is required").regex(/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/, "Invalid PAN format. Example: ABCDE1234F").toUpperCase(),
+const step3AadhaarSchema = z.object({
   aadhaarNumber: z.string().min(1, "Aadhaar number is required").regex(/^\d{12}$/, "Aadhaar must be exactly 12 digits").refine(val => !['000000000000', '111111111111', '999999999999'].includes(val), "Invalid Aadhaar number"),
   confirmAadhaarNumber: z.string().min(1, "Please confirm Aadhaar number").regex(/^\d{12}$/, "Aadhaar must be exactly 12 digits"),
+}).superRefine((data, ctx) => {
+  if (data.aadhaarNumber !== data.confirmAadhaarNumber) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Aadhaar numbers do not match", path: ["confirmAadhaarNumber"] });
+  }
+});
+
+const step3OtherFields = z.object({
+  panNumber: z.string().min(1, "PAN number is required").regex(/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/, "Invalid PAN format. Example: ABCDE1234F").toUpperCase(),
   gstNumber: z.string().regex(/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/, "Invalid GST format").optional().or(z.literal('')),
   aadhaarFront: fileSchema.optional(),
   aadhaarBack: fileSchema.optional(),
@@ -86,26 +112,29 @@ const step3BaseSchema = z.object({
   gstDocument: fileSchema.optional(),
   selfie: fileSchema.optional(),
 });
-const step3Schema = step3BaseSchema.refine(data => data.aadhaarNumber === data.confirmAadhaarNumber, {
-  message: "Aadhaar numbers do not match",
-  path: ["confirmAadhaarNumber"]
+
+const step3Schema = step3AadhaarSchema.and(step3OtherFields);
+
+const step4AccountSchema = z.object({
+  bankAccountNumber: z.string().min(1, "Account number is required").regex(/^\d{9,18}$/, "Account number must be 9-18 digits (numbers only)"),
+  confirmBankAccountNumber: z.string().min(1, "Please confirm your account number").regex(/^\d{9,18}$/, "Account number must be 9-18 digits (numbers only)"),
+}).superRefine((data, ctx) => {
+  if (data.bankAccountNumber !== data.confirmBankAccountNumber) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Account numbers do not match — please re-enter", path: ["confirmBankAccountNumber"] });
+  }
 });
 
-const step4BaseSchema = z.object({
+const step4OtherFields = z.object({
   bankAccountName: z.string().min(1, "Account holder name is required").min(3, "Name must be at least 3 characters").max(100, "Name too long").regex(/^[a-zA-Z\s.]+$/, "Name can only contain letters, spaces and dots").transform(val => val.trim().toUpperCase()),
   bankName: z.string().min(1, "Please select your bank"),
   bankBranch: z.string().min(1, "Branch name is required").max(100, "Branch name too long").trim(),
   ifscCode: z.string().min(1, "IFSC code is required").regex(/^[A-Z]{4}0[A-Z0-9]{6}$/, "Invalid IFSC format. Example: SBIN0001234").toUpperCase(),
-  bankAccountNumber: z.string().min(1, "Account number is required").regex(/^\d{9,18}$/, "Account number must be 9-18 digits (numbers only)"),
-  confirmBankAccountNumber: z.string().min(1, "Please confirm your account number").regex(/^\d{9,18}$/, "Account number must be 9-18 digits (numbers only)"),
   accountType: z.enum(['savings', 'current'], { required_error: "Please select account type" }),
   cancelledCheque: fileSchema.optional(),
   upiId: z.string().regex(/^[a-zA-Z0-9._-]+@[a-zA-Z]{3,}$/, "Invalid UPI ID format. Example: seller@upi or 9876543210@paytm").optional().or(z.literal('')),
 });
-const step4Schema = step4BaseSchema.refine(data => data.bankAccountNumber === data.confirmBankAccountNumber, {
-  message: "Account numbers do not match — please re-enter",
-  path: ["confirmBankAccountNumber"]
-});
+
+const step4Schema = step4AccountSchema.and(step4OtherFields);
 
 const step5Schema = z.object({
   termsAccepted: z.boolean().refine(val => val === true, "You must read and accept the Terms & Conditions"),
@@ -115,15 +144,11 @@ const step5Schema = z.object({
   declaration: z.boolean().refine(val => val === true, "You must declare that all submitted information is accurate and truthful"),
 });
 
-const sellerRegisterSchema = z.object({
-  ...step1BaseSchema.shape,
-  ...step2Schema.shape,
-  ...step3BaseSchema.shape,
-  ...step4BaseSchema.shape,
-  ...step5Schema.shape,
-}).superRefine((data, ctx) => {
-  // We handle cross-field validation inside the steps
-});
+const sellerRegisterSchema = step1Schema
+  .and(step2Schema)
+  .and(step3Schema)
+  .and(step4Schema)
+  .and(step5Schema);
 
 type SellerRegisterFormValues = z.infer<typeof sellerRegisterSchema>;
 
@@ -240,7 +265,7 @@ export default function SellerRegisterPage() {
         password: values.password,
         shopName: values.shopName,
         shopDescription: values.shopDescription,
-        category: values.shopCategory,
+        category: values.shopCategory === 'Other' && values.customShopCategory ? values.customShopCategory : values.shopCategory,
         city: values.city,
         state: values.state,
         accountName: values.bankAccountName,
@@ -263,7 +288,7 @@ export default function SellerRegisterPage() {
         sellerType: values.sellerType,
         shopName: values.shopName,
         shopDescription: values.shopDescription,
-        shopCategory: values.shopCategory,
+        shopCategory: values.shopCategory === 'Other' && values.customShopCategory ? values.customShopCategory : values.shopCategory,
         pincode: values.pincode,
         district: values.district,
         state: values.state,
@@ -450,12 +475,32 @@ export default function SellerRegisterPage() {
                           <label className="block text-sm font-bold text-[#1C1B14] mb-1.5">Shop Category <span className="text-red-500">*</span></label>
                           <select {...register('shopCategory')} className={`w-full h-12 px-3 border rounded-xl text-base outline-none bg-white ${errors.shopCategory ? 'border-red-500' : 'border-[#F0EDE8] focus:border-[#FF7A00]'}`}>
                             <option value="">Select category...</option>
-                            <option value="Paintings & Art">Paintings & Art</option>
-                            <option value="Handlooms">Handlooms & Textiles</option>
-                            <option value="Jewelry">Handcrafted Jewelry</option>
-                            <option value="Home Decor">Home Decor</option>
+                            <option value="Handlooms & Textiles">Handlooms & Textiles</option>
+                            <option value="Jewelry & Accessories">Jewelry & Accessories</option>
+                            <option value="Home Décor">Home Décor</option>
+                            <option value="Art & Paintings">Art & Paintings</option>
+                            <option value="Pottery & Ceramics">Pottery & Ceramics</option>
+                            <option value="Woodcraft">Woodcraft</option>
+                            <option value="Metalcraft">Metalcraft</option>
+                            <option value="Embroidery & Needlework">Embroidery & Needlework</option>
+                            <option value="Block Printing">Block Printing</option>
+                            <option value="Natural & Organic">Natural & Organic</option>
+                            <option value="Bamboo Products">Bamboo Products</option>
+                            <option value="Leather Goods">Leather Goods</option>
+                            <option value="Other">Other</option>
                           </select>
                           {errors.shopCategory && <p className="text-xs text-red-500 mt-1">{errors.shopCategory.message}</p>}
+                          {watch('shopCategory') === 'Other' && (
+                            <div className="mt-3">
+                              <input 
+                                type="text"
+                                placeholder="Please specify your category"
+                                {...register('customShopCategory')}
+                                className={`w-full h-12 px-3 border rounded-xl text-base outline-none bg-white ${errors.customShopCategory ? 'border-red-500' : 'border-[#F0EDE8] focus:border-[#FF7A00]'}`}
+                              />
+                              {errors.customShopCategory && <p className="text-xs text-red-500 mt-1">{errors.customShopCategory.message}</p>}
+                            </div>
+                          )}
                         </div>
                         <FormInput label="Subcategory" required register={register('shopSubCategory')} error={errors.shopSubCategory} isValid={!errors.shopSubCategory && !!watch('shopSubCategory')} />
                       </div>
@@ -479,11 +524,42 @@ export default function SellerRegisterPage() {
                         <div>
                           <label className="block text-sm font-bold text-[#1C1B14] mb-1.5">State <span className="text-red-500">*</span></label>
                           <select {...register('state')} className={`w-full h-12 px-3 border rounded-xl text-base outline-none bg-white ${errors.state ? 'border-red-500' : 'border-[#F0EDE8] focus:border-[#FF7A00]'}`}>
-                            <option value="Maharashtra">Maharashtra</option>
+                            <option value="Andhra Pradesh">Andhra Pradesh</option>
+                            <option value="Arunachal Pradesh">Arunachal Pradesh</option>
+                            <option value="Assam">Assam</option>
+                            <option value="Bihar">Bihar</option>
+                            <option value="Chhattisgarh">Chhattisgarh</option>
+                            <option value="Goa">Goa</option>
                             <option value="Gujarat">Gujarat</option>
-                            <option value="Rajasthan">Rajasthan</option>
+                            <option value="Haryana">Haryana</option>
+                            <option value="Himachal Pradesh">Himachal Pradesh</option>
+                            <option value="Jharkhand">Jharkhand</option>
                             <option value="Karnataka">Karnataka</option>
+                            <option value="Kerala">Kerala</option>
+                            <option value="Madhya Pradesh">Madhya Pradesh</option>
+                            <option value="Maharashtra">Maharashtra</option>
+                            <option value="Manipur">Manipur</option>
+                            <option value="Meghalaya">Meghalaya</option>
+                            <option value="Mizoram">Mizoram</option>
+                            <option value="Nagaland">Nagaland</option>
+                            <option value="Odisha">Odisha</option>
+                            <option value="Punjab">Punjab</option>
+                            <option value="Rajasthan">Rajasthan</option>
+                            <option value="Sikkim">Sikkim</option>
+                            <option value="Tamil Nadu">Tamil Nadu</option>
+                            <option value="Telangana">Telangana</option>
+                            <option value="Tripura">Tripura</option>
+                            <option value="Uttar Pradesh">Uttar Pradesh</option>
+                            <option value="Uttarakhand">Uttarakhand</option>
+                            <option value="West Bengal">West Bengal</option>
+                            <option value="Andaman and Nicobar Islands">Andaman and Nicobar Islands</option>
+                            <option value="Chandigarh">Chandigarh</option>
+                            <option value="Dadra and Nagar Haveli">Dadra and Nagar Haveli</option>
                             <option value="Delhi">Delhi</option>
+                            <option value="Jammu and Kashmir">Jammu and Kashmir</option>
+                            <option value="Ladakh">Ladakh</option>
+                            <option value="Lakshadweep">Lakshadweep</option>
+                            <option value="Puducherry">Puducherry</option>
                           </select>
                           {errors.state && <p className="text-xs text-red-500 mt-1">{errors.state.message}</p>}
                         </div>

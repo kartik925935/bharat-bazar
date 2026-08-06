@@ -7,7 +7,7 @@ import {
   LayoutDashboard, Store, Package, PackagePlus, ClipboardList,
   ShoppingCart, RotateCcw, Star, Tag, Coins, Landmark,
   Bell, Settings, UserCircle, ChevronRight, LogOut,
-  TrendingUp, BadgeCheck, AlertCircle, Zap
+  TrendingUp, BadgeCheck, AlertCircle, Zap, Pen
 } from 'lucide-react';
 import { useSellerStore } from '@/lib/store/seller-store';
 import { toast } from 'sonner';
@@ -49,6 +49,7 @@ const navGroups = [
     label: 'MARKETING',
     items: [
       { icon: Tag, label: 'Coupons', href: '/seller-coupons', badge: null },
+      { icon: Pen, label: 'Write Blog', href: '/seller-blog/create', badge: null },
     ],
   },
   {

@@ -74,6 +74,7 @@ export interface SellerProduct {
   sku: string;
   lowStockThreshold: number;
   weight: number;
+  weightUnit: string;
   images: { id: string; url: string; isPrimary: boolean; altText: string }[];
   specifications: { key: string; value: string }[];
   hasVariants: boolean;
@@ -318,7 +319,7 @@ function buildSeedProducts(sellerId: string): SellerProduct[] {
       categoryId: 'paintings-art', subcategoryId: 'miniature', tags: ['miniature', 'rajasthani', 'handmade'],
       mrp: 4500, sellingPrice: 3200, discount: 29,
       stock: 8, sku: 'RKC-PAINT-001', lowStockThreshold: 3,
-      weight: 500, images: [{ id: 'img-1', url: 'https://images.unsplash.com/photo-1582571352032-448f40b9e26c?w=400&auto=format&fit=crop', isPrimary: true, altText: 'Miniature Painting' }],
+      weight: 500, weightUnit: 'g', images: [{ id: 'img-1', url: 'https://images.unsplash.com/photo-1582571352032-448f40b9e26c?w=400&auto=format&fit=crop', isPrimary: true, altText: 'Miniature Painting' }],
       specifications: [{ key: 'Medium', value: 'Natural stone colours on marble' }, { key: 'Size', value: '12x16 inches' }],
       hasVariants: false, variants: [], freeShipping: true, shippingCharge: 0,
       handmade: true, giTagged: false, status: 'approved', rejectionReason: null, featuredByAdmin: true,
@@ -331,7 +332,7 @@ function buildSeedProducts(sellerId: string): SellerProduct[] {
       story: null, categoryId: 'paintings-art', subcategoryId: 'phad',
       tags: ['phad', 'scroll', 'folk art'], mrp: 8000, sellingPrice: 6200, discount: 23,
       stock: 3, sku: 'RKC-PHAD-001', lowStockThreshold: 2,
-      weight: 800, images: [{ id: 'img-2', url: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&auto=format&fit=crop', isPrimary: true, altText: 'Phad Painting' }],
+      weight: 800, weightUnit: 'g', images: [{ id: 'img-2', url: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&auto=format&fit=crop', isPrimary: true, altText: 'Phad Painting' }],
       specifications: [{ key: 'Size', value: '24x48 inches' }, { key: 'Medium', value: 'Cloth with natural dyes' }],
       hasVariants: false, variants: [], freeShipping: true, shippingCharge: 0,
       handmade: true, giTagged: true, status: 'approved', rejectionReason: null, featuredByAdmin: false,
@@ -344,7 +345,7 @@ function buildSeedProducts(sellerId: string): SellerProduct[] {
       story: null, categoryId: 'paintings-art', subcategoryId: 'tribal',
       tags: ['gond', 'tribal', 'madhya pradesh'], mrp: 2800, sellingPrice: 1999, discount: 29,
       stock: 2, sku: 'RKC-GOND-001', lowStockThreshold: 3,
-      weight: 300, images: [{ id: 'img-3', url: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&auto=format&fit=crop', isPrimary: true, altText: 'Gond Art' }],
+      weight: 300, weightUnit: 'g', images: [{ id: 'img-3', url: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&auto=format&fit=crop', isPrimary: true, altText: 'Gond Art' }],
       specifications: [{ key: 'Size', value: '16x20 inches' }],
       hasVariants: false, variants: [], freeShipping: false, shippingCharge: 99,
       handmade: true, giTagged: false, status: 'approved', rejectionReason: null, featuredByAdmin: false,
@@ -357,7 +358,7 @@ function buildSeedProducts(sellerId: string): SellerProduct[] {
       story: null, categoryId: 'paintings-art', subcategoryId: 'madhubani',
       tags: ['madhubani', 'set', 'bihar'], mrp: 3500, sellingPrice: 2800, discount: 20,
       stock: 0, sku: 'RKC-MADH-001', lowStockThreshold: 2,
-      weight: 1200, images: [{ id: 'img-4', url: 'https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?w=400&auto=format&fit=crop', isPrimary: true, altText: 'Madhubani Set' }],
+      weight: 1200, weightUnit: 'g', images: [{ id: 'img-4', url: 'https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?w=400&auto=format&fit=crop', isPrimary: true, altText: 'Madhubani Set' }],
       specifications: [{ key: 'Pieces', value: '3' }, { key: 'Size each', value: '10x14 inches' }],
       hasVariants: false, variants: [], freeShipping: true, shippingCharge: 0,
       handmade: true, giTagged: false, status: 'out_of_stock', rejectionReason: null, featuredByAdmin: false,
@@ -370,7 +371,7 @@ function buildSeedProducts(sellerId: string): SellerProduct[] {
       story: null, categoryId: 'paintings-art', subcategoryId: 'warli',
       tags: ['warli', 'tribal', 'maharashtra'], mrp: 1800, sellingPrice: 1299, discount: 28,
       stock: 15, sku: 'RKC-WARL-001', lowStockThreshold: 5,
-      weight: 400, images: [{ id: 'img-5', url: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=400&auto=format&fit=crop', isPrimary: true, altText: 'Warli Art' }],
+      weight: 400, weightUnit: 'g', images: [{ id: 'img-5', url: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=400&auto=format&fit=crop', isPrimary: true, altText: 'Warli Art' }],
       specifications: [{ key: 'Size', value: '18x24 inches' }],
       hasVariants: false, variants: [], freeShipping: false, shippingCharge: 99,
       handmade: true, giTagged: false, status: 'pending_review', rejectionReason: null, featuredByAdmin: false,
@@ -383,7 +384,7 @@ function buildSeedProducts(sellerId: string): SellerProduct[] {
       story: null, categoryId: 'paintings-art', subcategoryId: 'folk',
       tags: ['kalighat', 'bengal', 'folk'], mrp: 2200, sellingPrice: 1750, discount: 20,
       stock: 11, sku: 'RKC-KALI-001', lowStockThreshold: 3,
-      weight: 350, images: [{ id: 'img-6', url: 'https://images.unsplash.com/photo-1581090464777-f3220bbe1b8b?w=400&auto=format&fit=crop', isPrimary: true, altText: 'Kalighat Art' }],
+      weight: 350, weightUnit: 'g', images: [{ id: 'img-6', url: 'https://images.unsplash.com/photo-1581090464777-f3220bbe1b8b?w=400&auto=format&fit=crop', isPrimary: true, altText: 'Kalighat Art' }],
       specifications: [{ key: 'Size', value: '12x16 inches' }],
       hasVariants: false, variants: [], freeShipping: false, shippingCharge: 99,
       handmade: true, giTagged: false, status: 'draft', rejectionReason: null, featuredByAdmin: false,

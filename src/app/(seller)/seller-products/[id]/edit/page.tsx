@@ -22,6 +22,7 @@ const productSchema = z.object({
     .min(5, 'Product name must be at least 5 characters')
     .max(100, 'Product name cannot exceed 100 characters'),
   categoryId: z.string().min(1, 'Please select a product category'),
+  customCategory: z.string().optional(),
   shortDescription: z
     .string()
     .min(1, 'Short description is required')
@@ -48,16 +49,21 @@ const productSchema = z.object({
     .string()
     .min(1, 'Stock quantity is required')
     .refine((v) => !isNaN(Number(v)) && Number.isInteger(Number(v)) && Number(v) >= 0, 'Stock must be a whole number (0 or more)'),
+  lowStockThreshold: z
+    .string()
+    .refine((v) => !isNaN(Number(v)) && Number.isInteger(Number(v)) && Number(v) >= 0, 'Must be a whole number')
+    .optional(),
   sku: z
     .string()
     .regex(/^[A-Z0-9_-]*$/, 'SKU: uppercase letters, numbers, hyphens, underscores only')
     .max(50, 'SKU cannot exceed 50 characters')
     .optional()
     .or(z.literal('')),
-  weightGrams: z
+  weightValue: z
     .string()
-    .min(1, 'Product weight is required for shipping')
-    .refine((v) => !isNaN(Number(v)) && Number(v) > 0 && Number.isInteger(Number(v)), 'Weight must be a positive whole number in grams'),
+    .min(1, 'Product weight/volume is required for shipping')
+    .refine((v) => !isNaN(Number(v)) && Number(v) > 0, 'Must be a positive number'),
+  weightUnit: z.enum(['g', 'kg', 'ml', 'l', 'oz', 'lb'], { required_error: 'Unit is required' }),
   processingTimeDays: z
     .string()
     .refine((v) => !isNaN(Number(v)) && Number(v) >= 1 && Number(v) <= 30 && Number.isInteger(Number(v)), 'Processing time must be 1–30 days'),
@@ -65,7 +71,7 @@ const productSchema = z.object({
   isGITagged: z.boolean(),
   isOrganic: z.boolean(),
   isEcoFriendly: z.boolean(),
-  imageUrl: z.string().min(1, 'Image is required'),
+  images: z.array(z.string()).min(3, 'Please upload at least 3 images for the product'),
 })
 .refine(
   (data) => Number(data.sellingPrice) <= Number(data.mrp),
@@ -79,6 +85,15 @@ const productSchema = z.object({
     return true;
   },
   { message: 'Discount cannot exceed 90% of MRP — please verify your prices', path: ['sellingPrice'] }
+)
+.refine(
+  (data) => {
+    if (data.categoryId === 'Other' && (!data.customCategory || data.customCategory.trim().length === 0)) {
+      return false;
+    }
+    return true;
+  },
+  { message: 'Please specify your custom category', path: ['customCategory'] }
 );
 
 type ProductFormData = z.infer<typeof productSchema>;
@@ -86,7 +101,7 @@ type ProductFormData = z.infer<typeof productSchema>;
 const CATEGORIES = [
   'Handlooms & Textiles', 'Jewelry & Accessories', 'Home Décor', 'Art & Paintings',
   'Pottery & Ceramics', 'Woodcraft', 'Metalcraft', 'Embroidery & Needlework',
-  'Block Printing', 'Natural & Organic', 'Bamboo Products', 'Leather Goods',
+  'Block Printing', 'Natural & Organic', 'Bamboo Products', 'Leather Goods', 'Other',
 ];
 
 const GST_SLABS = [
@@ -163,8 +178,8 @@ export default function SellerEditProductPage({ params }: { params: Promise<{ id
     reValidateMode: 'onChange',
     defaultValues: {
       name: '', categoryId: '', shortDescription: '', description: '',
-      mrp: '', sellingPrice: '', gstSlab: undefined, stock: '', sku: '',
-      weightGrams: '', processingTimeDays: '2',
+      mrp: '', sellingPrice: '', gstSlab: undefined,      stock: '', sku: '', lowStockThreshold: '5',
+      weightValue: '', weightUnit: 'g', processingTimeDays: '2',
       isHandmade: true, isGITagged: false, isOrganic: false, isEcoFriendly: false,
     },
   });
@@ -172,23 +187,30 @@ export default function SellerEditProductPage({ params }: { params: Promise<{ id
   useEffect(() => {
     const product = products.find((p) => p.id === id);
     if (product) {
+      let catId = product.categoryId || CATEGORIES[0];
+      let custCat = '';
+      if (product.categoryId && !CATEGORIES.includes(product.categoryId)) {
+        catId = 'Other';
+        custCat = product.categoryId;
+      }
       reset({
         name: product.name,
-        categoryId: product.categoryId || CATEGORIES[0],
+        categoryId: catId,
+        customCategory: custCat,
         shortDescription: product.description.substring(0, 150) || 'Handcrafted quality product.',
         description: product.description,
         mrp: String(product.mrp),
         sellingPrice: String(product.sellingPrice),
         gstSlab: '18',
-        stock: String(product.stock),
-        sku: product.sku,
-        weightGrams: String(product.weight || 500),
+        stock: String(product.stock || 0),
+        lowStockThreshold: String(product.lowStockThreshold || 5),
+        weightValue: String(product.weight || 500),
+        weightUnit: (product.weightUnit as 'g' | 'kg' | 'ml' | 'l' | 'oz' | 'lb') || 'g',
         processingTimeDays: (product as any).processingTimeDays?.toString() || '2',
         isHandmade: product.handmade || false,
         isGITagged: product.giTagged || false,
         isOrganic: product.specifications?.some((s) => s.key.toLowerCase() === 'organic') || false,
-        isEcoFriendly: false,
-        imageUrl: product.images?.[0]?.url || '',
+        images: product.images?.map(img => img.url) || [],
       });
     } else {
       router.push('/seller-products');
@@ -199,7 +221,7 @@ export default function SellerEditProductPage({ params }: { params: Promise<{ id
   const sellingPrice = watch('sellingPrice');
   const descText = watch('description', '');
   const shortDescText = watch('shortDescription', '');
-  const currentImage = watch('imageUrl');
+  const currentImages = watch('images') || [];
 
   const discount = mrp && sellingPrice && Number(mrp) > 0
     ? Math.round(((Number(mrp) - Number(sellingPrice)) / Number(mrp)) * 100)
@@ -210,23 +232,43 @@ export default function SellerEditProductPage({ params }: { params: Promise<{ id
   const handleImageDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
-    const file = e.dataTransfer.files?.[0];
-    if (file && file.type.startsWith('image/')) {
-      const reader = new FileReader();
-      reader.onload = (event) => setValue('imageUrl', event.target?.result as string, { shouldValidate: true, shouldDirty: true });
-      reader.readAsDataURL(file);
+    const files = Array.from(e.dataTransfer.files || []).filter(f => f.type.startsWith('image/'));
+    if (files.length > 0) {
+      files.forEach(file => {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const result = event.target?.result as string;
+          if (result) {
+            setValue('images', [...(watch('images') || []), result], { shouldValidate: true, shouldDirty: true });
+          }
+        };
+        reader.readAsDataURL(file);
+      });
     } else {
-      toast.error('Please drop a valid image file');
+      toast.error('Please drop valid image files');
     }
   };
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file && file.type.startsWith('image/')) {
-      const reader = new FileReader();
-      reader.onload = (event) => setValue('imageUrl', event.target?.result as string, { shouldValidate: true, shouldDirty: true });
-      reader.readAsDataURL(file);
+    const files = Array.from(e.target.files || []).filter(f => f.type.startsWith('image/'));
+    if (files.length > 0) {
+      files.forEach(file => {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const result = event.target?.result as string;
+          if (result) {
+            setValue('images', [...(watch('images') || []), result], { shouldValidate: true, shouldDirty: true });
+          }
+        };
+        reader.readAsDataURL(file);
+      });
     }
+  };
+
+  const handleRemoveImage = (indexToRemove: number) => {
+    const newImages = [...currentImages];
+    newImages.splice(indexToRemove, 1);
+    setValue('images', newImages, { shouldValidate: true, shouldDirty: true });
   };
 
   const onSubmit = async (data: ProductFormData) => {
@@ -239,14 +281,15 @@ export default function SellerEditProductPage({ params }: { params: Promise<{ id
       sellingPrice: Number(data.sellingPrice),
       stock: Number(data.stock),
       sku: data.sku || `SKU-${Date.now()}`,
-      categoryId: data.categoryId,
+      categoryId: data.categoryId === 'Other' && data.customCategory ? data.customCategory : data.categoryId,
       subcategoryId: null,
       tags: [],
-      images: [{ id: '1', url: data.imageUrl, isPrimary: true, altText: data.name }],
+      images: data.images.map((url, index) => ({ id: String(index + 1), url, isPrimary: index === 0, altText: `${data.name} ${index + 1}` })),
       discount,
       status: 'pending_review',
-      giTagged: data.isGITagged,
-      weight: Number(data.weightGrams),
+      lowStockThreshold: Number(data.lowStockThreshold),
+      weight: Number(data.weightValue),
+      weightUnit: data.weightUnit,
       handmade: data.isHandmade,
     });
     toast.success('Product updated successfully! 🎉');
@@ -302,52 +345,84 @@ export default function SellerEditProductPage({ params }: { params: Promise<{ id
             <AnimatePresence mode="wait">
               {errors.categoryId ? <FieldError key="e" message={errors.categoryId.message} /> : touchedFields.categoryId && !errors.categoryId ? <FieldSuccess key="s" /> : null}
             </AnimatePresence>
+            {watch('categoryId') === 'Other' && (
+              <div className="mt-3">
+                <input 
+                  type="text"
+                  placeholder="Please specify your category"
+                  {...register('customCategory')}
+                  className={inputBase(!!errors.customCategory, touchedFields.customCategory && !errors.customCategory)}
+                />
+                <AnimatePresence mode="wait">
+                  {errors.customCategory ? <FieldError key="e" message={errors.customCategory.message} /> : null}
+                </AnimatePresence>
+              </div>
+            )}
           </div>
 
           {/* Image Upload */}
           <div>
-            <label className="block text-xs font-bold text-[#1A1A1A] mb-1.5">
-              Primary Image <span className="text-red-500">*</span>
+            <label className="block text-xs font-bold text-[#1A1A1A] mb-1.5 flex items-center justify-between">
+              <span>Product Images (Min. 3) <span className="text-red-500">*</span></span>
+              <span className={`text-[11px] font-semibold ${currentImages.length < 3 ? 'text-red-500' : 'text-[#9B8F84]'}`}>
+                {currentImages.length} uploaded
+              </span>
             </label>
             
-            {currentImage ? (
-              <div className="relative rounded-2xl overflow-hidden border-2 border-[#E5E4DE] bg-gray-50 h-48 group">
-                <img src={currentImage} alt="Preview" className="w-full h-full object-contain" />
-                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                  <button 
-                    type="button" 
-                    onClick={() => setValue('imageUrl', '', { shouldValidate: true, shouldDirty: true })}
-                    className="bg-red-500 text-white rounded-full p-2 hover:scale-110 transition-transform shadow-lg"
-                  >
-                    <X size={16} />
-                  </button>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
+              {currentImages.map((img, idx) => (
+                <div key={idx} className="relative rounded-xl overflow-hidden border-2 border-[#E5E4DE] bg-gray-50 aspect-square group">
+                  <img src={img} alt={`Preview ${idx + 1}`} className="w-full h-full object-cover" />
+                  {idx === 0 && (
+                    <div className="absolute top-1.5 left-1.5 bg-[#FF7A00] text-white text-[9px] font-bold px-1.5 py-0.5 rounded uppercase">Primary</div>
+                  )}
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                    <button 
+                      type="button" 
+                      onClick={() => handleRemoveImage(idx)}
+                      className="bg-red-500 text-white rounded-full p-1.5 hover:scale-110 transition-transform shadow-lg"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
                 </div>
-              </div>
-            ) : (
+              ))}
+              
               <div 
                 onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
                 onDragLeave={() => setIsDragging(false)}
                 onDrop={handleImageDrop}
-                className={`relative w-full h-48 rounded-2xl border-2 border-dashed flex flex-col items-center justify-center transition-all bg-[#FAFAF8] ${
-                  isDragging ? 'border-[#FF7A00] bg-[#FFF8F0]' : errors.imageUrl ? 'border-red-500/50' : 'border-[#E5E4DE] hover:border-[#FF7A00]/50'
+                className={`relative w-full aspect-square rounded-xl border-2 border-dashed flex flex-col items-center justify-center transition-all bg-[#FAFAF8] ${
+                  isDragging ? 'border-[#FF7A00] bg-[#FFF8F0]' : errors.images ? 'border-red-500/50' : 'border-[#E5E4DE] hover:border-[#FF7A00]/50'
                 }`}
               >
                 <input 
                   type="file" 
                   accept="image/*" 
+                  multiple
                   onChange={handleImageSelect}
                   className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                 />
-                <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-3 ${isDragging ? 'bg-[#FF7A00] text-white' : 'bg-gray-100 text-gray-400'}`}>
-                  <UploadCloud size={24} />
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center mb-1.5 ${isDragging ? 'bg-[#FF7A00] text-white' : 'bg-gray-100 text-gray-400'}`}>
+                  <UploadCloud size={16} />
                 </div>
-                <p className="text-sm font-bold text-[#1A1A1A]">Drop image here or click to upload</p>
-                <p className="text-[10px] text-[#8C8B80] mt-1">JPEG, PNG or WebP up to 5MB</p>
+                <p className="text-[10px] font-bold text-[#1A1A1A] text-center px-2 leading-tight">Add More</p>
               </div>
-            )}
+
+              {Array.from({ length: Math.max(0, 2 - currentImages.length) }).map((_, idx) => (
+                <div 
+                  key={`placeholder-${idx}`} 
+                  className="w-full aspect-square rounded-xl border-2 border-dashed border-[#E5E4DE]/50 bg-[#FAFAF8]/50 flex items-center justify-center pointer-events-none"
+                >
+                  <div className="w-8 h-8 rounded-full flex items-center justify-center bg-gray-100/50 text-gray-300">
+                    <UploadCloud size={16} />
+                  </div>
+                </div>
+              ))}
+            </div>
             
             <AnimatePresence mode="wait">
-              {errors.imageUrl ? <FieldError key="e" message={errors.imageUrl.message} /> : null}
+              {errors.images ? <FieldError key="e" message={errors.images.message} /> : null}
             </AnimatePresence>
           </div>
 
@@ -558,19 +633,33 @@ export default function SellerEditProductPage({ params }: { params: Promise<{ id
         <SectionCard icon={Truck} title="Shipping & Logistics">
           <div className="grid sm:grid-cols-2 gap-4">
             <div>
-              <label htmlFor="weightGrams" className="block text-xs font-bold text-[#1A1A1A] mb-1.5">
-                Product Weight (grams) <span className="text-red-500">*</span>
+              <label htmlFor="weightValue" className="block text-xs font-bold text-[#1A1A1A] mb-1.5">
+                Product Weight / Volume <span className="text-red-500">*</span>
               </label>
-              <input
-                id="weightGrams"
-                type="number"
-                min="1"
-                {...register('weightGrams')}
-                className={inputBase(!!errors.weightGrams, touchedFields.weightGrams && !errors.weightGrams)}
-                placeholder="e.g. 500"
-              />
+              <div className="relative flex">
+                <input
+                  id="weightValue"
+                  type="number"
+                  min="0.1"
+                  step="any"
+                  {...register('weightValue')}
+                  className={`${inputBase(!!errors.weightValue, touchedFields.weightValue && !errors.weightValue)} rounded-r-none border-r-0`}
+                  placeholder="e.g. 500"
+                />
+                <select
+                  {...register('weightUnit')}
+                  className={`h-11 px-3 border-2 rounded-r-xl text-sm font-semibold outline-none transition-colors focus:ring-4 focus:ring-[#FF7A00]/10 ${errors.weightValue ? 'border-red-500 bg-red-50/30' : 'border-[#E5E4DE] focus:border-[#FF7A00] bg-gray-50'}`}
+                >
+                  <option value="g">g</option>
+                  <option value="kg">kg</option>
+                  <option value="ml">ml</option>
+                  <option value="l">l</option>
+                  <option value="oz">oz</option>
+                  <option value="lb">lb</option>
+                </select>
+              </div>
               <AnimatePresence mode="wait">
-                {errors.weightGrams ? <FieldError key="e" message={errors.weightGrams.message} /> : touchedFields.weightGrams && !errors.weightGrams ? <FieldSuccess key="s" /> : null}
+                {errors.weightValue ? <FieldError key="e" message={errors.weightValue.message} /> : touchedFields.weightValue && !errors.weightValue ? <FieldSuccess key="s" /> : null}
               </AnimatePresence>
             </div>
             <div>
