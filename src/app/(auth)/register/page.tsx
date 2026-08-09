@@ -11,6 +11,7 @@ import { Mail, Lock, User, Phone, Eye, EyeOff, Check, AlertCircle } from 'lucide
 import { toast } from 'sonner';
 import { useAuthStore } from '@/lib/store/auth-store';
 import { RedirectIfAuthed } from '@/components/auth/redirect-if-authed';
+import { checkEmailRole } from '@/actions/auth/check-email-role';
 
 import { FormInput } from '@/components/ui/form-input';
 
@@ -70,6 +71,8 @@ export default function RegisterPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [passwordValue, setPasswordValue] = useState('');
+  const [emailRoleError, setEmailRoleError] = useState<string | null>(null);
+  const [emailChecking, setEmailChecking] = useState(false);
 
   const {
     register,
@@ -94,6 +97,23 @@ export default function RegisterPage() {
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const rawVal = e.target.value.replace(/\D/g, '').slice(0, 10);
     setValue('phone', rawVal, { shouldValidate: true });
+  };
+
+  // Live email role check — run on blur to catch seller emails early
+  const handleEmailBlur = async (e: React.FocusEvent<HTMLInputElement>) => {
+    const email = e.target.value.trim();
+    if (!email || !email.includes('@')) return;
+    setEmailChecking(true);
+    setEmailRoleError(null);
+    try {
+      const result = await checkEmailRole(email);
+      if (result.exists && result.role && result.role !== 'customer') {
+        setEmailRoleError(
+          `This email is already registered as a seller account. Please use a different email or sign in as a seller.`
+        );
+      }
+    } catch { /* fail silently */ }
+    finally { setEmailChecking(false); }
   };
 
   // Check password strength
@@ -205,11 +225,14 @@ export default function RegisterPage() {
                 placeholder="you@email.com"
                 type="email"
                 required
-                register={register('email')}
-                error={errors.email}
-                isValid={!errors.email && !!watch('email')}
+                register={{
+                  ...register('email'),
+                  onBlur: handleEmailBlur,
+                }}
+                error={emailRoleError ? { message: emailRoleError } : errors.email}
+                isValid={!errors.email && !emailRoleError && !!watch('email')}
                 disabled={loading}
-                leftIcon={<Mail size={16} />}
+                leftIcon={emailChecking ? <span className="w-4 h-4 border-2 border-orange-400 border-t-transparent rounded-full animate-spin inline-block" /> : <Mail size={16} />}
               />
 
               {/* Phone */}
