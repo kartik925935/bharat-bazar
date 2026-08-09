@@ -37,7 +37,7 @@ const registerSchema = z.object({
     .regex(/[A-Z]/, "Must include at least one uppercase letter (A-Z)")
     .regex(/[a-z]/, "Must include at least one lowercase letter (a-z)")
     .regex(/[0-9]/, "Must include at least one number (0-9)")
-    .regex(/[!@#$%^&*(),.?":{}|<>]/, "Must include at least one special character (!@#$%...)"),
+    .regex(/[!@#$%^&*()_,.?":{}|<>]/, "Must include at least one special character (!@#$%_...)"),
   confirmPassword: z.string()
     .min(1, "Please confirm your password"),
   dateOfBirth: z.string()
@@ -280,8 +280,8 @@ export default function RegisterPage() {
                         </span>
                       </div>
                       <div className="flex items-center gap-1">
-                        <span className={/[^A-Za-z0-9]/.test(watch('password') || '') ? 'text-green-500' : ''}>
-                          {/[^A-Za-z0-9]/.test(watch('password') || '') ? '✓' : '•'} 1 Special Char
+                        <span className={/[!@#$%^&*()_,.?":{}|<>]/.test(watch('password') || '') ? 'text-green-500' : ''}>
+                          {/[!@#$%^&*()_,.?":{}|<>]/.test(watch('password') || '') ? '✓' : '•'} 1 Special Char
                         </span>
                       </div>
                     </div>

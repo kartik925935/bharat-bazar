@@ -104,8 +104,26 @@ const step3AadhaarSchema = z.object({
 });
 
 const step3OtherFields = z.object({
-  panNumber: z.string().min(1, "PAN number is required").regex(/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/, "Invalid PAN format. Example: ABCDE1234F").toUpperCase(),
-  gstNumber: z.string().regex(/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/, "Invalid GST format").optional().or(z.literal('')),
+  panNumber: z
+    .string()
+    .min(1, "PAN number is required")
+    .transform(v => v.trim().toUpperCase())
+    .pipe(
+      z.string()
+        .length(10, "PAN must be exactly 10 characters")
+        .regex(/^[A-Z]{5}[0-9]{4}[A-Z]$/, "Invalid PAN format — must be 5 letters, 4 digits, 1 letter (e.g. ABCDE1234F)")
+    ),
+  gstNumber: z
+    .string()
+    .transform(v => v.trim().toUpperCase())
+    .pipe(
+      z.string()
+        .refine(v => v === '' || /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z][Z][0-9A-Z]$/.test(v), {
+          message: "Invalid GSTIN — must be 15 characters (e.g. 22ABCDE1234F1Z5)"
+        })
+    )
+    .optional()
+    .or(z.literal('')),
   aadhaarFront: fileSchema.optional(),
   aadhaarBack: fileSchema.optional(),
   panDocument: fileSchema.optional(),

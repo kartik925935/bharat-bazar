@@ -14,6 +14,27 @@ const BB_LOGO = () => (
 export function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSend = async () => {
+    if (!email) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const { createClient } = await import('@/lib/supabase/client');
+      const supabase = createClient();
+      const { error: sbError } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/auth/callback?next=/reset-password`,
+      });
+      if (sbError) throw sbError;
+      setSent(true);
+    } catch (e: any) {
+      setError(e.message || 'Something went wrong. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-[#FAFAF8] flex items-center justify-center p-4">
@@ -34,12 +55,35 @@ export function ForgotPasswordPage() {
             </div>
             <div className="mb-5">
               <label className="block text-xs font-semibold text-[#1C1B14] mb-1.5">Email Address</label>
-              <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com"
-                className="w-full h-12 px-4 rounded-xl border-2 border-[#D4D3CB] focus:border-[#FF7A00] outline-none text-sm" />
+              <input
+                type="email"
+                value={email}
+                onChange={e => { setEmail(e.target.value); setError(null); }}
+                placeholder="you@example.com"
+                disabled={loading}
+                onKeyDown={e => e.key === 'Enter' && handleSend()}
+                className="w-full h-12 px-4 rounded-xl border-2 border-[#D4D3CB] focus:border-[#FF7A00] outline-none text-sm disabled:opacity-60"
+              />
             </div>
-            <motion.button onClick={() => email && setSent(true)} whileTap={{ scale: 0.97 }}
-              className="w-full h-12 rounded-xl text-white font-semibold text-sm" style={{ background: "linear-gradient(135deg, #FF7A00, #FF4500)" }}>
-              Send Reset Link
+            {error && (
+              <div className="flex items-center gap-2 text-sm text-red-600 bg-red-50 border border-red-100 rounded-xl px-4 py-3 mb-4">
+                <AlertTriangle size={15} className="flex-shrink-0" />
+                {error}
+              </div>
+            )}
+            <motion.button
+              onClick={handleSend}
+              whileTap={{ scale: 0.97 }}
+              disabled={loading || !email}
+              className="w-full h-12 rounded-xl text-white font-semibold text-sm flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{ background: "linear-gradient(135deg, #FF7A00, #FF4500)" }}
+            >
+              {loading ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  Sending…
+                </>
+              ) : 'Send Reset Link'}
             </motion.button>
             <p className="text-center text-xs text-[#8C8B80] mt-4">
               Remember your password? <Link href="/login" className="font-semibold" style={{ color: "#FF7A00" }}>Sign in</Link>
@@ -56,7 +100,7 @@ export function ForgotPasswordPage() {
             <div className="bg-[#FFF8F0] rounded-2xl p-4 mb-5 text-xs text-[#8C8B80]">
               The link expires in 30 minutes. Check your spam folder if you don't see it.
             </div>
-            <button onClick={() => setSent(false)} className="text-sm font-semibold" style={{ color: "#FF7A00" }}>
+            <button onClick={() => { setSent(false); setError(null); }} className="text-sm font-semibold" style={{ color: "#FF7A00" }}>
               Try a different email →
             </button>
           </div>
@@ -71,9 +115,28 @@ export function ResetPasswordPage() {
   const [pw2, setPw2] = useState("");
   const [show, setShow] = useState(false);
   const [done, setDone] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const strong = pw.length >= 8;
   const match = pw === pw2 && pw2.length > 0;
+
+  const handleReset = async () => {
+    if (!strong || !match) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const { createClient } = await import('@/lib/supabase/client');
+      const supabase = createClient();
+      const { error: sbError } = await supabase.auth.updateUser({ password: pw });
+      if (sbError) throw sbError;
+      setDone(true);
+    } catch (e: any) {
+      setError(e.message || 'Failed to reset password. The link may have expired.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-[#FAFAF8] flex items-center justify-center p-4">
@@ -92,7 +155,7 @@ export function ResetPasswordPage() {
               <div>
                 <label className="block text-xs font-semibold text-[#1C1B14] mb-1.5">New Password</label>
                 <div className="relative">
-                  <input type={show ? "text" : "password"} value={pw} onChange={e => setPw(e.target.value)}
+                  <input type={show ? "text" : "password"} value={pw} onChange={e => { setPw(e.target.value); setError(null); }}
                     placeholder="At least 8 characters"
                     className="w-full h-12 px-4 pr-11 rounded-xl border-2 border-[#D4D3CB] focus:border-[#FF7A00] outline-none text-sm" />
                   <button onClick={() => setShow(!show)} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#B0AFA5]">
@@ -110,15 +173,30 @@ export function ResetPasswordPage() {
               </div>
               <div>
                 <label className="block text-xs font-semibold text-[#1C1B14] mb-1.5">Confirm Password</label>
-                <input type="password" value={pw2} onChange={e => setPw2(e.target.value)} placeholder="Repeat your new password"
+                <input type="password" value={pw2} onChange={e => { setPw2(e.target.value); setError(null); }} placeholder="Repeat your new password"
                   className={`w-full h-12 px-4 rounded-xl border-2 outline-none text-sm ${pw2.length > 0 ? (match ? "border-[#1A9E4E]" : "border-red-400") : "border-[#D4D3CB] focus:border-[#FF7A00]"}`} />
                 {pw2.length > 0 && !match && <p className="text-xs text-red-500 mt-1">Passwords don't match</p>}
               </div>
             </div>
-            <motion.button onClick={() => strong && match && setDone(true)} whileTap={{ scale: 0.97 }}
-              className="w-full h-12 rounded-xl text-white font-semibold text-sm disabled:opacity-50"
-              style={{ background: "linear-gradient(135deg, #FF7A00, #FF4500)" }}>
-              Reset Password
+            {error && (
+              <div className="flex items-center gap-2 text-sm text-red-600 bg-red-50 border border-red-100 rounded-xl px-4 py-3 mb-4">
+                <AlertTriangle size={15} className="flex-shrink-0" />
+                {error}
+              </div>
+            )}
+            <motion.button
+              onClick={handleReset}
+              whileTap={{ scale: 0.97 }}
+              disabled={!strong || !match || loading}
+              className="w-full h-12 rounded-xl text-white font-semibold text-sm flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{ background: "linear-gradient(135deg, #FF7A00, #FF4500)" }}
+            >
+              {loading ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  Resetting…
+                </>
+              ) : 'Reset Password'}
             </motion.button>
           </>
         ) : (
