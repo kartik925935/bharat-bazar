@@ -105,8 +105,8 @@ export default function ProfilePage() {
 
   const [name, setName]   = useState(user?.name || '');
   const [phone, setPhone] = useState(user?.phone || '');
-  const [dob, setDob]     = useState('');
-  const [gender, setGender] = useState('female');
+  const [dob, setDob]     = useState(user?.dob || '');
+  const [gender, setGender] = useState(user?.gender || 'female');
 
   const [cats, setCats]   = useState<string[]>(['Paintings & Art', 'Jewelry']);
   const [emailNotif, setEmailNotif]   = useState({ orders: true, offers: true, blog: false, price: true });
@@ -167,13 +167,13 @@ export default function ProfilePage() {
   if (user.name)   completion += 15;
   if (user.email)  completion += 15;
   if (user.phone)  completion += 15;
-  if (dob)         completion += 15;
+  if (dob || user.dob) completion += 15;
   completion = Math.min(100, completion);
 
   const handleSavePersonal = async () => {
     setSaving(true);
     await new Promise(r => setTimeout(r, 700));
-    await updateProfile({ name, phone });
+    await updateProfile({ name, phone, dob: dob || undefined, gender: gender || undefined });
     setSaving(false);
     setPersonalEdit(false);
     toast.success('Profile updated! 🙏');

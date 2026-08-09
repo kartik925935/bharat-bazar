@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -9,6 +9,7 @@ import { Wallet, Gift, ArrowUpRight, ArrowDownLeft, Copy, Check, X, Loader2, Ale
 import { formatCurrency } from '@/lib/utils/format-currency';
 import { toast } from 'sonner';
 import { MOCK_TRANSACTIONS, MOCK_USER_LOYALTY, type MockTransaction } from '@/lib/mock/customer';
+import { useAuthStore } from '@/lib/store/auth-store';
 
 // ─── Schemas ─────────────────────────────────────────────────────────────────
 const addMoneySchema = z.object({
@@ -58,23 +59,58 @@ const PAYMENT_METHODS = [
 ];
 
 export default function WalletPage() {
+  const { user } = useAuthStore();
+  const storageKey = `bb-wallet-${user?.id || 'guest'}`;
+
   const [loyalty] = useState(MOCK_USER_LOYALTY);
-  const [transactions, setTransactions] = useState<MockTransaction[]>(MOCK_TRANSACTIONS);
-  const [walletBalance, setWalletBalance] = useState(loyalty.walletBalance);
-  const [rewardPoints, setRewardPoints] = useState(loyalty.points);
+  const [transactions, setTransactions] = useState<MockTransaction[]>([]);
+  const [walletBalance, setWalletBalance] = useState(0);
+  const [rewardPoints, setRewardPoints] = useState(0);
+  const [isLoaded, setIsLoaded] = useState(false);
   const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const saved = localStorage.getItem(storageKey);
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        setWalletBalance(parsed.balance ?? 0);
+        setRewardPoints(parsed.points ?? 0);
+        setTransactions(parsed.transactions ?? []);
+      } catch (e) {
+        setWalletBalance(MOCK_USER_LOYALTY.walletBalance);
+        setRewardPoints(MOCK_USER_LOYALTY.points);
+        setTransactions(MOCK_TRANSACTIONS);
+      }
+    } else {
+      setWalletBalance(MOCK_USER_LOYALTY.walletBalance);
+      setRewardPoints(MOCK_USER_LOYALTY.points);
+      setTransactions(MOCK_TRANSACTIONS);
+    }
+    setIsLoaded(true);
+  }, [storageKey]);
+
+  useEffect(() => {
+    if (isLoaded && typeof window !== 'undefined') {
+      localStorage.setItem(
+        storageKey,
+        JSON.stringify({ balance: walletBalance, points: rewardPoints, transactions })
+      );
+    }
+  }, [walletBalance, rewardPoints, transactions, isLoaded, storageKey]);
 
   // Add Money modal
   const [showAddMoney, setShowAddMoney] = useState(false);
-
 
   // Redeem modal
   const [showRedeem, setShowRedeem] = useState(false);
   const [showHowToUse, setShowHowToUse] = useState(false);
 
+  const referralCode = user?.name ? `${user.name.split(' ')[0].toUpperCase()}100` : 'BHARAT100';
 
   const handleCopyCode = () => {
-    navigator.clipboard.writeText(loyalty.referralCode);
+    navigator.clipboard.writeText(referralCode);
     setCopied(true);
     toast.success('Referral code copied!');
     setTimeout(() => setCopied(false), 2000);
@@ -94,7 +130,7 @@ export default function WalletPage() {
 
   const onAddMoney = async (data: AddMoneyData) => {
     const amt = parseFloat(data.amount);
-    await new Promise((r) => setTimeout(r, 1200));
+    await new Promise((r) => setTimeout(r, 800));
     setWalletBalance((prev) => prev + amt);
     const newTx: MockTransaction = {
       id: `tx-${Date.now()}`,
@@ -126,7 +162,7 @@ export default function WalletPage() {
   const onRedeem = async (data: RedeemData) => {
     const pts = parseInt(data.points);
     if (pts > rewardPoints) { toast.error('Not enough points'); return; }
-    await new Promise((r) => setTimeout(r, 1200));
+    await new Promise((r) => setTimeout(r, 800));
     setRewardPoints((prev) => prev - pts);
     setWalletBalance((prev) => prev + cashValue);
     const newTx: MockTransaction = {
@@ -142,7 +178,6 @@ export default function WalletPage() {
     redeemReset();
     toast.success(`${pts} points redeemed for ${formatCurrency(cashValue)}!`);
   };
-
 
   const tierLabel = loyalty.tier;
   const progressPct = Math.min(100, (rewardPoints / loyalty.nextTierPoints) * 100);
@@ -235,7 +270,7 @@ export default function WalletPage() {
           </div>
         </div>
         <div className="flex items-center gap-2 bg-[#FAFAF8] border border-[#E8E4DE] rounded-xl p-2 shrink-0">
-          <span className="text-sm font-black text-[#1A0A00] px-3">{loyalty.referralCode}</span>
+          <span className="text-sm font-black text-[#1A0A00] px-3">{referralCode}</span>
           <button
             onClick={handleCopyCode}
             className="px-3 py-1.5 rounded-lg bg-gradient-to-r from-[#FF7A00] to-[#FF4500] text-white text-xs font-bold flex items-center gap-1 cursor-pointer"
