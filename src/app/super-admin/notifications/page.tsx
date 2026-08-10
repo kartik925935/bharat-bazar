@@ -8,8 +8,8 @@ import { toast } from 'sonner';
 export default function NotificationsPage() {
   const [search, setSearch] = useState('');
 
-  const filtered = MOCK_NOTIFICATION_TEMPLATES.filter(t => 
-    t.title.toLowerCase().includes(search.toLowerCase()) || 
+  const filtered = MOCK_NOTIFICATION_TEMPLATES.filter((t: any) => 
+    t.name.toLowerCase().includes(search.toLowerCase()) || 
     t.type.toLowerCase().includes(search.toLowerCase())
   );
 
@@ -46,24 +46,24 @@ export default function NotificationsPage() {
                 }`}>
                   <BellRing size={14} />
                 </div>
-                <div>
-                  <h3 className="text-sm font-bold text-[#F0F0F8]">{tpl.title}</h3>
-                  <p className="text-[10px] text-[#5C5C78] uppercase font-bold">{tpl.type}</p>
+                <div className="flex justify-between items-start mb-4">
+                  <h3 className="text-sm font-bold text-[#F0F0F8]">{tpl.name}</h3>
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase`}>{tpl.type}</span>
                 </div>
               </div>
             </div>
             
             <div className="bg-[#111118] border border-[#1E1E2E] p-3 rounded-xl text-xs text-[#9898B0] leading-relaxed">
               <Type size={12} className="inline mr-2 text-[#5C5C78]"/>
-              {tpl.body}
+              {tpl.content}
             </div>
 
-            <div className="flex gap-2 pt-2">
+            <div className="pt-4 mt-auto border-t border-[#1E1E2E] flex gap-2">
               <button onClick={() => toast.info('Edit template')} className="flex-1 py-1.5 bg-[#111118] border border-[#1E1E2E] rounded-lg text-xs font-bold text-[#9898B0] hover:text-[#FF7A00] transition-colors cursor-pointer">
                 Edit Template
               </button>
-              <button onClick={() => toast.success(`Test sent for ${tpl.title}`)} className="flex-1 py-1.5 bg-[#111118] border border-[#1E1E2E] rounded-lg text-xs font-bold text-[#9898B0] hover:text-[#3B82F6] transition-colors cursor-pointer">
-                Send Test
+              <button onClick={() => toast.success(`Test sent for ${tpl.name}`)} className="flex-1 py-1.5 bg-[#111118] border border-[#1E1E2E] rounded-lg text-xs font-bold text-[#9898B0] hover:text-[#3B82F6] transition-colors cursor-pointer">
+                Test
               </button>
             </div>
           </div>

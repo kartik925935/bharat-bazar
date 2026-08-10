@@ -102,13 +102,13 @@ export default function SellerDashboard() {
   const orderCompletion = hasOrders ? 100 - seller.cancellationRate : 0;
   const returnRateValue = hasOrders ? 100 - seller.returnRate : 0;
   
-  const score = Math.round(
+  const score = hasOrders ? Math.round(
     (orderCompletion / 100) * 30 +
     (seller.rating / 5) * 25 +
     (seller.onTimeDispatchRate / 100) * 20 +
     (returnRateValue / 100) * 15 +
     (seller.responseRate / 100) * 10
-  ) || 0;
+  ) : 0;
   const tier = score >= 90 ? 'platinum' : score >= 70 ? 'gold' : score >= 50 ? 'silver' : 'bronze';
   const nextTierScore = tier === 'bronze' ? 50 : tier === 'silver' ? 70 : tier === 'gold' ? 90 : 100;
   const nextTierName = tier === 'bronze' ? 'Silver' : tier === 'silver' ? 'Gold' : tier === 'gold' ? 'Platinum' : 'Max';

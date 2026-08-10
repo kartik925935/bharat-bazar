@@ -78,6 +78,21 @@ export async function proxy(request: NextRequest) {
     return supabaseResponse
   }
 
+  // Handle Super Admin 32-character token route logic
+  const SA_PATH_TOKEN = process.env.SA_PATH_TOKEN || '7f3a9b2c4d1e8f6a0b5c3d7e2f4a9b1c';
+  const pathSegments = pathname.split('/').filter(Boolean);
+  const firstSegment = pathSegments[0];
+
+  if (firstSegment === SA_PATH_TOKEN) {
+    // Valid secret path, allow to pass
+    return supabaseResponse;
+  }
+  
+  if (firstSegment && /^[a-f0-9]{32}$/i.test(firstSegment)) {
+    // Other 32-char path -> hard 404
+    return new NextResponse(null, { status: 404 });
+  }
+
   // Find matching protected route
   let requiredRoles: string[] | null = null
   for (const [route, roles] of Object.entries(protectedRoutes)) {

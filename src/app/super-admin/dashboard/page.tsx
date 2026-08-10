@@ -355,9 +355,9 @@ export default function SuperAdminDashboard() {
               <div key={item.id} className="bg-[#111118] p-3 rounded-xl border border-[#1E1E2E] flex items-center justify-between gap-3">
                 <div>
                   <p className="text-xs font-bold text-[#F0F0F8]">{item.name}</p>
-                  <p className="text-[10px] text-[#9898B0]">{item.type} • {item.location}</p>
-                  <p className={`text-[9px] font-bold mt-1 ${item.status === 'urgent' ? 'text-[#EF4444]' : 'text-[#F59E0B]'}`}>
-                    Waiting: {item.waitDays} days {item.status === 'urgent' && '🔴 URGENT'}
+                  <p className="text-[10px] text-[#9898B0]">{item.type} • {item.detail}</p>
+                  <p className={`text-[9px] font-bold mt-1 ${item.urgency === 'critical' ? 'text-[#EF4444]' : 'text-[#F59E0B]'}`}>
+                    Waiting: {item.time} {item.urgency === 'critical' && '🔴 URGENT'}
                   </p>
                 </div>
                 <button
@@ -375,17 +375,20 @@ export default function SuperAdminDashboard() {
         <div className="bg-[#16161F] border border-[#1E1E2E] rounded-2xl p-5 space-y-4">
           <h3 className="text-sm font-black text-[#F0F0F8]" style={{ fontFamily: "'Playfair Display', serif" }}>🎨 Revenue Breakdown by Category</h3>
           <div className="space-y-3">
-            {MOCK_CATEGORY_BREAKDOWN.map((cat) => (
-              <div key={cat.category} className="space-y-1">
+            {MOCK_CATEGORY_BREAKDOWN.map((cat: any) => {
+              const totalRevenue = 42800000;
+              const pct = Math.round((cat.revenue / totalRevenue) * 100);
+              return (
+              <div key={cat.name} className="space-y-1">
                 <div className="flex justify-between text-xs">
-                  <span className="text-[#9898B0]">{cat.category}</span>
-                  <span className="font-bold text-[#F0F0F8]">{formatCurrency(cat.revenue)} ({cat.pct}%)</span>
+                  <span className="text-[#9898B0]">{cat.name}</span>
+                  <span className="font-bold text-[#F0F0F8]">{formatCurrency(cat.revenue)} ({pct}%)</span>
                 </div>
                 <div className="h-2 bg-[#111118] rounded-full overflow-hidden">
-                  <div className="h-full bg-gradient-to-r from-[#FF7A00] to-[#FF4500] rounded-full" style={{ width: `${cat.pct * 3}%` }} />
+                  <div className="h-full bg-gradient-to-r from-[#FF7A00] to-[#FF4500] rounded-full" style={{ width: `${pct}%` }} />
                 </div>
               </div>
-            ))}
+            )})}
           </div>
         </div>
 
@@ -403,7 +406,7 @@ export default function SuperAdminDashboard() {
                 <span className="w-2 h-2 rounded-full mt-1 shrink-0" style={{ backgroundColor: act.color }} />
                 <div className="flex-1 min-w-0">
                   <p className="text-[#F0F0F8] font-medium truncate">
-                    <strong style={{ color: act.color }}>{act.action}</strong> {act.target}
+                    <strong style={{ color: act.color }}>{act.type}</strong> {act.msg}
                   </p>
                   <p className="text-[10px] text-[#5C5C78] mt-0.5">{act.actor} • {act.time}</p>
                 </div>
@@ -434,7 +437,7 @@ export default function SuperAdminDashboard() {
             <tbody className="divide-y divide-[#1E1E2E]">
               {MOCK_TOP_SELLERS_DASHBOARD.map((s) => (
                 <tr key={s.rank} className="hover:bg-[#1C1C28] transition-colors">
-                  <td className="px-4 py-3 font-bold text-sm">{s.badge}</td>
+                  <td className="px-4 py-3 font-bold text-sm">#{s.rank}</td>
                   <td className="px-4 py-3">
                     <p className="font-bold text-[#F0F0F8]">{s.name}</p>
                     <p className="text-[10px] text-[#5C5C78]">{s.shop}</p>
@@ -443,7 +446,7 @@ export default function SuperAdminDashboard() {
                     <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#D4A017]/10 text-amber-400 border border-[#D4A017]/30">💎 {s.tier}</span>
                   </td>
                   <td className="px-4 py-3 font-mono font-bold text-[#F0F0F8]">{s.orders}</td>
-                  <td className="px-4 py-3 font-mono font-bold text-[#FF7A00]">{formatCurrency(s.revenue)}</td>
+                  <td className="px-4 py-3 font-mono font-bold text-[#FF7A00]">{formatCurrency(s.gmv)}</td>
                   <td className="px-4 py-3 font-bold text-amber-400">★ {s.rating}</td>
                 </tr>
               ))}
@@ -465,11 +468,11 @@ export default function SuperAdminDashboard() {
         </div>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
           {MOCK_SYSTEM_HEALTH.map((sys) => (
-            <div key={sys.name} className="bg-[#111118] p-3 rounded-xl border border-[#1E1E2E] text-center space-y-1">
-              <span className={`inline-block w-2 h-2 rounded-full mb-1 ${sys.ok ? 'bg-[#22C55E]' : 'bg-[#EF4444]'}`} />
-              <p className="text-[11px] font-bold text-[#F0F0F8] truncate">{sys.name}</p>
-              <p className="text-xs font-mono font-bold text-[#FF7A00]">{sys.metric}</p>
-              <p className="text-[9px] text-[#5C5C78]">{sys.status}</p>
+            <div key={sys.service} className="bg-[#111118] p-3 rounded-xl border border-[#1E1E2E] text-center space-y-1">
+              <span className={`inline-block w-2 h-2 rounded-full mb-1 ${sys.status === 'operational' ? 'bg-[#22C55E]' : 'bg-[#EF4444]'}`} />
+              <p className="text-[11px] font-bold text-[#F0F0F8] truncate">{sys.service}</p>
+              <p className="text-xs font-mono font-bold text-[#FF7A00]">{sys.latency}ms</p>
+              <p className="text-[9px] text-[#5C5C78]">{sys.uptime}% uptime</p>
             </div>
           ))}
         </div>
