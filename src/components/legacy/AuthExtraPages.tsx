@@ -246,7 +246,12 @@ export function VerifyEmailPage() {
   );
 }
 
+import { useSearchParams } from 'next/navigation';
+
 export function EmailVerifiedPage() {
+  const searchParams = useSearchParams();
+  const isSeller = searchParams.get('role') === 'seller';
+
   return (
     <div className="min-h-screen bg-[#FAFAF8] flex items-center justify-center p-4">
       <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-white rounded-3xl border border-black/5 shadow-lg w-full max-w-md p-8 text-center">
@@ -257,10 +262,14 @@ export function EmailVerifiedPage() {
         </motion.div>
         <h1 className="text-2xl font-black text-[#1C1B14] mb-2" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Email Verified! 🎉</h1>
         <p className="text-sm text-[#8C8B80] mb-2">Your email has been successfully verified.</p>
-        <p className="text-sm text-[#8C8B80] mb-8">Welcome to Bharat Bazaar — India's Artisan & Village Marketplace!</p>
-        <Link href="/dashboard" className="inline-flex items-center justify-center w-full h-12 rounded-xl text-white font-semibold text-sm"
+        <p className="text-sm text-[#8C8B80] mb-8">
+          {isSeller 
+            ? "Welcome to Bharat Bazaar — manage your shop and start selling your creations!" 
+            : "Welcome to Bharat Bazaar — India's Artisan & Village Marketplace!"}
+        </p>
+        <Link href={isSeller ? "/seller-dashboard" : "/dashboard"} className="inline-flex items-center justify-center w-full h-12 rounded-xl text-white font-semibold text-sm"
           style={{ background: "linear-gradient(135deg, #FF7A00, #FF4500)" }}>
-          Explore the Marketplace →
+          {isSeller ? "Go to Seller Dashboard →" : "Explore the Marketplace →"}
         </Link>
       </motion.div>
     </div>

@@ -248,6 +248,7 @@ export const useAuthStore = create<AuthState>()(
             email: data.email.toLowerCase().trim(),
             password: data.password || 'Test@123',
             options: {
+              emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent('/email-verified' + (dbRole === 'seller' ? '?role=seller' : ''))}`,
               data: {
                 first_name: data.fullName.split(' ')[0],
                 last_name: data.fullName.split(' ').slice(1).join(' ') || '',
