@@ -88,7 +88,7 @@ export const FormInput = forwardRef<HTMLInputElement, FormInputProps>(
             className={cn(
               "w-full h-12 text-base rounded-xl border transition-all duration-200 outline-none bg-white",
               "focus:ring-2 focus:ring-[#FF7A00]/20 focus:border-[#FF7A00]",
-              (leftIcon || prefix) ? (prefix ? "pl-8" : "pl-10") : "pl-3",
+              (leftIcon || prefix) ? (prefix ? "pl-12" : "pl-10") : "pl-3",
               (rightIcon || suffix || isValid || error || isPassword || loading) ? (suffix ? "pr-12" : "pr-10") : "pr-3",
               disabled && "bg-gray-50 cursor-not-allowed opacity-70",
               error && "border-red-500 focus:border-red-500 focus:ring-red-500/20",

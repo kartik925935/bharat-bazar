@@ -41,6 +41,36 @@ export async function registerSeller(input: SellerRegisterInput): Promise<{
   try {
     const adminSupabase = createAdminClient();
 
+    // --- Guard: reject if email already registered as a customer ---
+    const normalizedEmail = input.email.toLowerCase().trim();
+    const { data: existingUsers } = await adminSupabase.auth.admin.listUsers({
+      page: 1,
+      perPage: 1000,
+    });
+    const existingUser = existingUsers?.users.find(
+      (u) => u.email?.toLowerCase() === normalizedEmail
+    );
+    if (existingUser) {
+      const { data: roleRow } = await adminSupabase
+        .from('user_roles')
+        .select('roles(name)')
+        .eq('user_id', existingUser.id)
+        .maybeSingle();
+      const existingRole =
+        (roleRow?.roles as any)?.name ||
+        existingUser.user_metadata?.role ||
+        'customer';
+
+      if (existingRole !== 'seller') {
+        return {
+          success: false,
+          error: `This email is already registered as a ${existingRole} account. Please use a different email address to register as a seller.`,
+        };
+      }
+      // Email already a seller — let Supabase handle the duplicate error naturally
+    }
+    // ------------------------------------------------------------------
+
     // Build first/last name
     const nameParts = input.fullName.trim().split(' ');
     const firstName = nameParts[0];
@@ -66,7 +96,7 @@ export async function registerSeller(input: SellerRegisterInput): Promise<{
     // Encrypted values are passed through user_metadata so the trigger
     // stores ciphertext, not plaintext.
     const { data: createData, error: createError } = await adminSupabase.auth.admin.createUser({
-      email: input.email.toLowerCase().trim(),
+      email: normalizedEmail,
       password: input.password,
       email_confirm: true,
       user_metadata: {

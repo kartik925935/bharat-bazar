@@ -11,8 +11,26 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 const kycSchema = z.object({
   legalName: z.string().min(2, 'Legal name must be at least 2 characters').max(100, 'Name too long'),
-  panNumber: z.string().regex(/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/, 'Invalid PAN format (e.g. ABCDE1234F)'),
-  gstNumber: z.string().regex(/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/, 'Invalid GST format').optional().or(z.literal('')),
+  panNumber: z
+    .string()
+    .min(1, 'PAN number is required')
+    .transform(v => v.trim().toUpperCase())
+    .pipe(
+      z.string()
+        .length(10, 'PAN must be exactly 10 characters')
+        .regex(/^[A-Z]{5}[0-9]{4}[A-Z]$/, 'Invalid PAN — must be 5 letters, 4 digits, 1 letter (e.g. ABCDE1234F)')
+    ),
+  gstNumber: z
+    .string()
+    .transform(v => v.trim().toUpperCase())
+    .pipe(
+      z.string()
+        .refine(v => v === '' || /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z][Z][0-9A-Z]$/.test(v), {
+          message: 'Invalid GSTIN — must be 15 characters (e.g. 22ABCDE1234F1Z5)'
+        })
+    )
+    .optional()
+    .or(z.literal('')),
   bankName: z.string().min(2, 'Bank name is required'),
   bankAccountNumber: z.string().regex(/^\d{9,18}$/, 'Bank account must be 9-18 digits'),
   ifscCode: z.string().regex(/^[A-Z]{4}0[A-Z0-9]{6}$/, 'Invalid IFSC code format'),
@@ -101,12 +119,32 @@ export default function SellerSettingsPage() {
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-[#1A1A1A] mb-1">PAN Number <span className="text-red-500">*</span></label>
-                  <input {...register('panNumber')} className={inputBase(!!errors.panNumber)} placeholder="ABCDE1234F" />
+                  <input
+                    {...register('panNumber')}
+                    onChange={(e) => {
+                      e.target.value = e.target.value.toUpperCase().replace(/\s/g, '');
+                      register('panNumber').onChange(e);
+                    }}
+                    className={inputBase(!!errors.panNumber)}
+                    placeholder="ABCDE1234F"
+                    maxLength={10}
+                  />
+                  <p className="text-[10px] text-[#9B8F84] mt-0.5">5 letters · 4 digits · 1 letter (10 chars)</p>
                   <AnimatePresence mode="wait"><FieldError message={errors.panNumber?.message} /></AnimatePresence>
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-[#1A1A1A] mb-1">GST Number <span className="text-[#9B8F84] font-normal">(Optional)</span></label>
-                  <input {...register('gstNumber')} className={inputBase(!!errors.gstNumber)} placeholder="22AAAAA0000A1Z5" />
+                  <input
+                    {...register('gstNumber')}
+                    onChange={(e) => {
+                      e.target.value = e.target.value.toUpperCase().replace(/\s/g, '');
+                      register('gstNumber').onChange(e);
+                    }}
+                    className={inputBase(!!errors.gstNumber)}
+                    placeholder="22ABCDE1234F1Z5"
+                    maxLength={15}
+                  />
+                  <p className="text-[10px] text-[#9B8F84] mt-0.5">2 digits · 5 letters · 4 digits · 4 chars (15 chars)</p>
                   <AnimatePresence mode="wait"><FieldError message={errors.gstNumber?.message} /></AnimatePresence>
                 </div>
               </div>

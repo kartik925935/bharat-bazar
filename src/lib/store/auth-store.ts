@@ -224,12 +224,31 @@ export const useAuthStore = create<AuthState>()(
         try {
           const supabase = createClient();
           const dbRole = data.role;
+          const normalizedEmail = data.email.toLowerCase().trim();
+
+          // --- Guard: check if email is already registered under a conflicting role ---
+          // We call our server action for the role lookup (admin-only query).
+          // Import dynamically to avoid bundling server code into the client.
+          const { checkEmailRole } = await import('@/actions/auth/check-email-role');
+          const roleCheck = await checkEmailRole(normalizedEmail);
+
+          if (roleCheck.exists) {
+            const existingRole = roleCheck.role || 'unknown';
+            if (existingRole !== dbRole) {
+              const friendly = existingRole === 'seller' ? 'a seller' : `a ${existingRole}`;
+              const msg = `This email is already registered as ${friendly} account. Please use a different email or sign in.`;
+              set({ error: msg });
+              return { success: false, error: msg };
+            }
+          }
+          // -------------------------------------------------------------------------
 
           // 1. Create auth user in Supabase Auth
           const { data: authData, error: signUpError } = await supabase.auth.signUp({
             email: data.email.toLowerCase().trim(),
             password: data.password || 'Test@123',
             options: {
+              emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent('/email-verified' + (dbRole === 'seller' ? '?role=seller' : ''))}`,
               data: {
                 first_name: data.fullName.split(' ')[0],
                 last_name: data.fullName.split(' ').slice(1).join(' ') || '',

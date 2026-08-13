@@ -15,6 +15,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { differenceInYears } from 'date-fns';
 import { FormInput } from '@/components/ui/form-input';
+import { checkEmailRole } from '@/actions/auth/check-email-role';
 
 // === SCHEMAS ===
 
@@ -104,8 +105,26 @@ const step3AadhaarSchema = z.object({
 });
 
 const step3OtherFields = z.object({
-  panNumber: z.string().min(1, "PAN number is required").regex(/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/, "Invalid PAN format. Example: ABCDE1234F").toUpperCase(),
-  gstNumber: z.string().regex(/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/, "Invalid GST format").optional().or(z.literal('')),
+  panNumber: z
+    .string()
+    .min(1, "PAN number is required")
+    .transform(v => v.trim().toUpperCase())
+    .pipe(
+      z.string()
+        .length(10, "PAN must be exactly 10 characters")
+        .regex(/^[A-Z]{5}[0-9]{4}[A-Z]$/, "Invalid PAN format — must be 5 letters, 4 digits, 1 letter (e.g. ABCDE1234F)")
+    ),
+  gstNumber: z
+    .string()
+    .transform(v => v.trim().toUpperCase())
+    .pipe(
+      z.string()
+        .refine(v => v === '' || /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z][Z][0-9A-Z]$/.test(v), {
+          message: "Invalid GSTIN — must be 15 characters (e.g. 22ABCDE1234F1Z5)"
+        })
+    )
+    .optional()
+    .or(z.literal('')),
   aadhaarFront: fileSchema.optional(),
   aadhaarBack: fileSchema.optional(),
   panDocument: fileSchema.optional(),
@@ -163,6 +182,8 @@ const STEP_FIELDS: Record<number, any[]> = {
 export default function SellerRegisterPage() {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [emailRoleError, setEmailRoleError] = useState<string | null>(null);
+  const [emailChecking, setEmailChecking] = useState(false);
   const { register: registerSeller, loginWithGoogle } = useSellerStore();
   const { signInWithGoogle, isAuthenticated: isUserAuthed, user: authUser } = useAuthStore();
   const router = useRouter();
@@ -195,6 +216,18 @@ export default function SellerRegisterPage() {
     }
   });
 
+  // Auto-uppercase + strip whitespace on change for PAN / GST fields
+  const makeUppercaseRegister = (fieldName: any) => {
+    const r = register(fieldName);
+    return {
+      ...r,
+      onChange: async (e: React.ChangeEvent<HTMLInputElement>) => {
+        e.target.value = e.target.value.toUpperCase().replace(/\s/g, '');
+        await r.onChange(e);
+      },
+    };
+  };
+
   useEffect(() => {
     if (queryEmail) {
       setValue('email', queryEmail, { shouldValidate: true });
@@ -209,6 +242,11 @@ export default function SellerRegisterPage() {
   }, [queryEmail, queryName, isGoogleSignup, setValue]);
 
   const handleNextStep = async () => {
+    // Block progression if email is flagged as customer
+    if (step === 1 && emailRoleError) {
+      toast.error('Please use a different email address.');
+      return;
+    }
     const currentStepFields = STEP_FIELDS[step];
     const isStepValid = await trigger(currentStepFields);
 
@@ -423,7 +461,37 @@ export default function SellerRegisterPage() {
                         <FormInput label="Full Legal Name" required register={register('legalName')} error={errors.legalName} isValid={!errors.legalName && !!watch('legalName')} />
                         <FormInput label="Display Name" required register={register('displayName')} error={errors.displayName} isValid={!errors.displayName && !!watch('displayName')} />
                       </div>
-                      <FormInput label="Email Address" type="email" required register={register('email')} error={errors.email} isValid={!errors.email && !!watch('email')} />
+                      <FormInput
+                        label="Email Address"
+                        type="email"
+                        required
+                        register={{
+                          ...register('email'),
+                          onBlur: async (e: React.FocusEvent<HTMLInputElement>) => {
+                            register('email').onBlur(e);
+                            const email = e.target.value.trim();
+                            if (!email || !email.includes('@')) return;
+                            setEmailChecking(true);
+                            setEmailRoleError(null);
+                            try {
+                              const result = await checkEmailRole(email);
+                              if (result.exists && result.role && result.role !== 'seller') {
+                                setEmailRoleError(
+                                  `This email is already registered as a customer account. Please use a different email or sign in as a customer.`
+                                );
+                              }
+                            } catch { /* fail silently */ }
+                            finally { setEmailChecking(false); }
+                          },
+                          onChange: (e: React.ChangeEvent<HTMLInputElement>) => {
+                            setEmailRoleError(null);
+                            return register('email').onChange(e);
+                          },
+                        }}
+                        error={emailRoleError ? { message: emailRoleError } : errors.email}
+                        isValid={!errors.email && !emailRoleError && !!watch('email')}
+                        leftIcon={emailChecking ? <span className="w-4 h-4 border-2 border-orange-400 border-t-transparent rounded-full animate-spin inline-block" /> : <Mail size={16} />}
+                      />
                       <div className="grid sm:grid-cols-2 gap-4">
                         <FormInput label="Mobile Number" type="tel" required register={register('phone')} error={errors.phone} isValid={!errors.phone && !!watch('phone')} />
                         <FormInput label="Alternate Phone" type="tel" register={register('alternatePhone')} error={errors.alternatePhone} isValid={!errors.alternatePhone && !!watch('alternatePhone')} />
@@ -581,10 +649,27 @@ export default function SellerRegisterPage() {
                         <p className="text-xs text-[#9B8F84]">Your details are encrypted and only used for verification and tax purposes.</p>
                       </div>
 
-                      <FormInput label="PAN Number" required register={register('panNumber')} error={errors.panNumber} isValid={!errors.panNumber && !!watch('panNumber')} />
+                      <FormInput
+                        label="PAN Number"
+                        required
+                        register={makeUppercaseRegister('panNumber')}
+                        error={errors.panNumber}
+                        isValid={!errors.panNumber && !!watch('panNumber')}
+                        placeholder="ABCDE1234F"
+                        maxLength={10}
+                        helperText="5 letters · 4 digits · 1 letter (10 chars total)"
+                      />
                       <FormInput label="Aadhaar Number" required register={register('aadhaarNumber')} error={errors.aadhaarNumber} isValid={!errors.aadhaarNumber && !!watch('aadhaarNumber')} />
                       <FormInput label="Confirm Aadhaar Number" required register={register('confirmAadhaarNumber')} error={errors.confirmAadhaarNumber} isValid={!errors.confirmAadhaarNumber && !!watch('confirmAadhaarNumber')} />
-                      <FormInput label="GST Number (Optional)" register={register('gstNumber')} error={errors.gstNumber} isValid={!errors.gstNumber && !!watch('gstNumber')} />
+                      <FormInput
+                        label="GST Number (Optional)"
+                        register={makeUppercaseRegister('gstNumber')}
+                        error={errors.gstNumber}
+                        isValid={!errors.gstNumber && !!watch('gstNumber')}
+                        placeholder="22ABCDE1234F1Z5"
+                        maxLength={15}
+                        helperText="2 digits · 5 letters · 4 digits · 4 chars (15 chars total)"
+                      />
                     </div>
                   )}
 

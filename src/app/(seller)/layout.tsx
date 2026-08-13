@@ -106,15 +106,15 @@ export default function SellerLayout({ children }: { children: React.ReactNode }
             kycStatus: dbSeller.kyc_status || 'verified',
             tier: dbSeller.tier || 'bronze',
             tierScore: dbSeller.tier_score || 0,
-            rating: dbSeller.rating || 5.0,
-            totalReviews: dbSeller.total_reviews || 0,
-            totalSales: dbSeller.total_sales || 0,
-            totalOrders: dbSeller.total_orders || 0,
-            totalRevenue: dbSeller.total_revenue || 0,
-            returnRate: dbSeller.return_rate || 0,
-            cancellationRate: dbSeller.cancellation_rate || 0,
-            onTimeDispatchRate: dbSeller.on_time_dispatch_rate || 100,
-            responseRate: dbSeller.response_rate || 100,
+            rating: dbSeller.rating ?? 0,
+            totalReviews: dbSeller.total_reviews ?? 0,
+            totalSales: dbSeller.total_sales ?? 0,
+            totalOrders: dbSeller.total_orders ?? 0,
+            totalRevenue: dbSeller.total_revenue ?? 0,
+            returnRate: dbSeller.return_rate ?? 0,
+            cancellationRate: dbSeller.cancellation_rate ?? 0,
+            onTimeDispatchRate: dbSeller.on_time_dispatch_rate ?? 0,
+            responseRate: dbSeller.response_rate ?? 0,
             avatar: dbSeller.avatar_url || user.avatar || null,
             sellerType: dbSeller.seller_type || 'shop_owner',
             shopLogo: dbSeller.shops?.[0]?.logo_url || null,
@@ -129,7 +129,7 @@ export default function SellerLayout({ children }: { children: React.ReactNode }
             joinedAt: dbSeller.created_at || new Date().toISOString(),
             approvedAt: dbSeller.approved_at || null,
             lastActiveAt: new Date().toISOString(),
-            profileCompleteness: dbSeller.profile_completeness || 100,
+            profileCompleteness: dbSeller.profile_completeness ?? 0,
             password: '',
           },
           isAuthenticated: true
@@ -186,3 +186,5 @@ export default function SellerLayout({ children }: { children: React.ReactNode }
     </div>
   );
 }
+
+

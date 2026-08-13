@@ -136,7 +136,7 @@ export default function CustomerDashboardPage() {
 
   const QUICK_ACTIONS = [
     { icon: MapPin,        label: 'Track Order',  sub: 'Live tracking',  bg: 'bg-[#FFF3E8]', iconColor: 'text-[#FF7A00]', link: '/orders?filter=active' },
-    { icon: Star,          label: 'Write Review', sub: `${pendingReviews} pending`, bg: 'bg-[#FEFCE8]', iconColor: 'text-[#CA8A04]', link: '/my-reviews', badge: pendingReviews },
+    { icon: Star,          label: 'Write Review', sub: pendingReviews > 0 ? `${pendingReviews} pending` : 'All caught up!', bg: 'bg-[#FEFCE8]', iconColor: 'text-[#CA8A04]', link: '/my-reviews', badge: pendingReviews },
     { icon: RotateCcw,     label: 'Return Item',  sub: 'Easy returns',   bg: 'bg-[#EFF6FF]', iconColor: 'text-[#2563EB]', link: '/returns' },
     { icon: Download,      label: 'Get Invoice',  sub: 'PDF format',     bg: 'bg-[#F0FDF4]', iconColor: 'text-[#16A34A]', link: '/orders' },
     { icon: MessageCircle, label: 'Get Help',     sub: '24/7 support',   bg: 'bg-[#F5F3FF]', iconColor: 'text-[#7C3AED]', link: '/help' },
@@ -307,7 +307,7 @@ export default function CustomerDashboardPage() {
               <motion.div key={action.label} variants={fadeUp}>
                 <Link href={action.link} className="block">
                   <div className="relative bg-white rounded-2xl border border-[#E8E4DE] p-4 text-center hover:shadow-[0_4px_20px_rgba(255,122,0,0.1)] hover:-translate-y-1 hover:border-[#FF7A00]/20 transition-all group cursor-pointer">
-                    {action.badge && action.badge > 0 && (
+                    {!!action.badge && action.badge > 0 && (
                       <span className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-[#FF7A00] text-white text-[10px] font-bold flex items-center justify-center">
                         {action.badge}
                       </span>

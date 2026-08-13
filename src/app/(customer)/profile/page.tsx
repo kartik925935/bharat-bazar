@@ -105,8 +105,8 @@ export default function ProfilePage() {
 
   const [name, setName]   = useState(user?.name || '');
   const [phone, setPhone] = useState(user?.phone || '');
-  const [dob, setDob]     = useState('');
-  const [gender, setGender] = useState('female');
+  const [dob, setDob]     = useState(user?.dob || '');
+  const [gender, setGender] = useState(user?.gender || 'female');
 
   const [cats, setCats]   = useState<string[]>(['Paintings & Art', 'Jewelry']);
   const [emailNotif, setEmailNotif]   = useState({ orders: true, offers: true, blog: false, price: true });
@@ -167,13 +167,25 @@ export default function ProfilePage() {
   if (user.name)   completion += 15;
   if (user.email)  completion += 15;
   if (user.phone)  completion += 15;
-  if (dob)         completion += 15;
+  if (dob || user.dob) completion += 15;
   completion = Math.min(100, completion);
 
   const handleSavePersonal = async () => {
+    if (!phone) {
+      toast.error('Mobile number is required');
+      return;
+    }
+    if (!/^[6-9]\d{9}$/.test(phone)) {
+      toast.error('Please enter a valid 10-digit Indian mobile number');
+      return;
+    }
+    if (!name.trim()) {
+      toast.error('Full name is required');
+      return;
+    }
     setSaving(true);
     await new Promise(r => setTimeout(r, 700));
-    await updateProfile({ name, phone });
+    await updateProfile({ name: name.trim(), phone, dob: dob || undefined, gender: gender || undefined });
     setSaving(false);
     setPersonalEdit(false);
     toast.success('Profile updated! 🙏');
@@ -268,8 +280,8 @@ export default function ProfilePage() {
             readOnly
             badge={<span className="text-[10px] font-bold text-[#16A34A] bg-[#F0FDF4] px-1.5 py-0.5 rounded-full">✓ Verified</span>}
           />
-          <Field label="Mobile Number" value={phone} editMode={personalEdit} type="tel" onChange={setPhone}
-            badge={phone ? <span className="text-[10px] font-bold text-[#16A34A] bg-[#F0FDF4] px-1.5 py-0.5 rounded-full">✓</span> : undefined}
+          <Field label="Mobile Number" value={phone} editMode={personalEdit} type="tel" onChange={(v) => setPhone(v.replace(/\D/g, '').slice(0, 10))}
+            badge={phone && /^[6-9]\d{9}$/.test(phone) ? <span className="text-[10px] font-bold text-[#16A34A] bg-[#F0FDF4] px-1.5 py-0.5 rounded-full">✓ Verified</span> : undefined}
           />
           <div>
             <label className="text-[11px] font-bold text-[#8C7B6E] uppercase tracking-wider mb-1.5 block">Date of Birth</label>

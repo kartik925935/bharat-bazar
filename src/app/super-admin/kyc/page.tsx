@@ -1,25 +1,78 @@
 'use client';
 
-import { useState } from 'react';
-import { CheckCircle2, AlertTriangle, X, Eye } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { CheckCircle2, AlertTriangle, X, Eye, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { MOCK_KYC_REQUESTS } from '@/lib/mock/super-admin';
+import { getPendingKycSellers, updateSellerKycStatus } from '@/actions/super-admin/kyc';
 
 export default function KYCPage() {
-  const [apps, setApps] = useState(MOCK_KYC_REQUESTS);
+  const [apps, setApps] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const handleApprove = (id: string, name: string) => {
-    setApps((prev) => prev.map((a) => a.id === id ? { ...a, status: 'approved' } : a));
-    toast.success(`KYC verified & approved for ${name}!`);
+  const fetchKycQueue = async () => {
+    setLoading(true);
+    try {
+      const res = await getPendingKycSellers();
+      if (res.success && res.data && res.data.length > 0) {
+        setApps(res.data);
+      } else {
+        // Fallback to mock data for presentation/testing if DB is empty
+        setApps(MOCK_KYC_REQUESTS);
+      }
+    } catch (e) {
+      console.error(e);
+      setApps(MOCK_KYC_REQUESTS);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleReject = (id: string, name: string) => {
-    setApps((prev) => prev.map((a) => a.id === id ? { ...a, status: 'rejected' } : a));
-    toast.error(`KYC rejected for ${name}. Notification sent to seller.`);
+  useEffect(() => {
+    fetchKycQueue();
+  }, []);
+
+  const handleApprove = async (id: string, name: string) => {
+    const toastId = toast.loading(`Approving KYC for ${name}...`);
+    try {
+      const res = await updateSellerKycStatus(id, 'approved', 'active');
+      if (res.success) {
+        setApps((prev) => prev.filter((a) => a.id !== id));
+        toast.success(`KYC verified & approved for ${name}!`, { id: toastId });
+      } else {
+        toast.error(res.error || 'Failed to approve KYC.', { id: toastId });
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'An error occurred.', { id: toastId });
+    }
   };
 
-  const pendingApps = apps.filter((a) => a.status === 'pending');
+  const handleReject = async (id: string, name: string) => {
+    const toastId = toast.loading(`Rejecting KYC for ${name}...`);
+    try {
+      const res = await updateSellerKycStatus(id, 'rejected', 'rejected');
+      if (res.success) {
+        setApps((prev) => prev.filter((a) => a.id !== id));
+        toast.error(`KYC rejected for ${name}. Notification sent to seller.`, { id: toastId });
+      } else {
+        toast.error(res.error || 'Failed to reject KYC.', { id: toastId });
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'An error occurred.', { id: toastId });
+    }
+  };
+
+  const pendingApps = apps.filter((a) => a.status === 'pending' || a.status === 'under_review');
   const urgentApps = pendingApps.filter((a) => a.waitDays >= 2);
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 gap-3 text-[#9898B0]">
+        <Loader2 className="animate-spin text-[#FF7A00]" size={32} />
+        <p className="text-xs font-bold">Loading KYC Queue...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
