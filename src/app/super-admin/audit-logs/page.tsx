@@ -54,7 +54,7 @@ export default function AuditLogsPage() {
                   <td className="px-5 py-4 font-mono text-[#5C5C78]">{log.timestamp}</td>
                   <td className="px-5 py-4">
                     <p className="font-bold text-[#F0F0F8]">{log.actor}</p>
-                    <p className="text-[9px] text-[#5C5C78] uppercase">{log.role.replace('_', ' ')}</p>
+                    <p className="text-[9px] text-[#5C5C78] uppercase">{(log as any).role?.replace('_', ' ')}</p>
                   </td>
                   <td className="px-5 py-4 font-mono font-bold text-[#FF7A00]">{log.action}</td>
                   <td className="px-5 py-4">
