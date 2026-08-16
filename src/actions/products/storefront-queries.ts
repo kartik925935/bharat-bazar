@@ -61,7 +61,7 @@ function mapProductRow(row: ProductRow): Product {
     rating: row.sellers?.rating || 4.0,
   }
 
-  const images = row.product_images
+  const images = row.product_images && row.product_images.length > 0
     ? row.product_images
         .sort((a, b) => (a.is_primary ? -1 : 1))
         .map((img) => img.image_url)
