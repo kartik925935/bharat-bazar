@@ -3,6 +3,7 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { SASuperAdmin } from '@/types/super-admin.types'
 import { MOCK_SA_CREDENTIALS, MOCK_SUPER_ADMIN, simulateNetworkDelay } from '@/lib/mock/sa-auth.mock'
+import { useSAStore } from '@/lib/store/super-admin-store'
 import type { SACredentialsInput } from '@/lib/validators/sa-validators'
 
 export type SAAuthStage = 'credentials' | 'totp' | 'device' | 'success'
@@ -85,9 +86,18 @@ export const useSAAuthStore = create<SAAuthState & SAAuthActions>()(
         await simulateNetworkDelay(1000)
 
         // Security: never log passwords to console
-        const isSuperAdmin = data.email.toLowerCase().trim() === MOCK_SA_CREDENTIALS.email.toLowerCase() && data.password === MOCK_SA_CREDENTIALS.password
-        const isFinanceAdmin = data.email.toLowerCase().trim() === 'neha.kapoor@bharatbazaar.com' && data.password === MOCK_SA_CREDENTIALS.password
-        const isMatch = isSuperAdmin || isFinanceAdmin
+        const emailLower = data.email.toLowerCase().trim()
+        
+        // 1. Check if it's the hardcoded super admin
+        const isSuperAdmin = emailLower === MOCK_SA_CREDENTIALS.email.toLowerCase() && data.password === MOCK_SA_CREDENTIALS.password
+        
+        // 2. Check if it's any admin created/managed in the store
+        const storeAdmins = useSAStore.getState().admins
+        const foundStoreAdmin = storeAdmins.find(a => a.email.toLowerCase().trim() === emailLower)
+        // For mockup purposes, accept the default mock password for all store admins
+        const isStoreAdmin = foundStoreAdmin && data.password === MOCK_SA_CREDENTIALS.password
+        
+        const isMatch = isSuperAdmin || isStoreAdmin
 
         if (isMatch) {
           set((s) => ({
@@ -128,11 +138,28 @@ export const useSAAuthStore = create<SAAuthState & SAAuthActions>()(
             // Device already trusted — go straight to success
             const token = `sa_mem_token_${Date.now()}`
             const expiresAt = new Date(Date.now() + 8 * 3_600_000).toISOString()
+            const emailForFlow = get().emailForFlow
+            const storeAdmins = useSAStore.getState().admins
+            const admin = storeAdmins.find(a => a.email.toLowerCase().trim() === emailForFlow)
+            
+            const resolvedSuperAdmin = admin ? {
+              ...MOCK_SUPER_ADMIN,
+              id: admin.id,
+              name: admin.name,
+              email: admin.email,
+              role: admin.role,
+              permissions: admin.permissions,
+              lastLogin: new Date().toISOString()
+            } : {
+              ...MOCK_SUPER_ADMIN,
+              lastLogin: new Date().toISOString()
+            }
+
             set((s) => ({
               isLoading: false,
               currentStage: 'success',
               isAuthenticated: true,
-              superAdmin: { ...MOCK_SUPER_ADMIN, lastLogin: new Date().toISOString() },
+              superAdmin: resolvedSuperAdmin,
               session: { token, expiresAt }, // Memory only — NOT persisted
               failedAttempts: { ...s.failedAttempts, [stage]: 0 },
               lockedUntil: { ...s.lockedUntil, [stage]: null },
@@ -177,18 +204,28 @@ export const useSAAuthStore = create<SAAuthState & SAAuthActions>()(
           const fingerprint = generateDeviceFingerprint()
           const token = `sa_mem_token_${Date.now()}`
           const expiresAt = new Date(Date.now() + 8 * 3_600_000).toISOString()
-          const isFinance = get().emailForFlow === 'neha.kapoor@bharatbazaar.com'
+          const emailForFlow = get().emailForFlow
+          const storeAdmins = useSAStore.getState().admins
+          const admin = storeAdmins.find(a => a.email.toLowerCase().trim() === emailForFlow)
+          
+          const resolvedSuperAdmin = admin ? {
+            ...MOCK_SUPER_ADMIN,
+            id: admin.id,
+            name: admin.name,
+            email: admin.email,
+            role: admin.role,
+            permissions: admin.permissions,
+            lastLogin: new Date().toISOString()
+          } : {
+            ...MOCK_SUPER_ADMIN,
+            lastLogin: new Date().toISOString()
+          }
+
           set((s) => ({
             isLoading: false,
             currentStage: 'success',
             isAuthenticated: true,
-            superAdmin: { 
-              ...MOCK_SUPER_ADMIN,
-              email: isFinance ? 'neha.kapoor@bharatbazaar.com' : MOCK_SUPER_ADMIN.email,
-              name: isFinance ? 'Neha Kapoor' : MOCK_SUPER_ADMIN.name,
-              role: isFinance ? 'FINANCE_ADMIN' : 'SUPER_ADMIN',
-              lastLogin: new Date().toISOString() 
-            },
+            superAdmin: resolvedSuperAdmin,
             session: { token, expiresAt }, // Memory only — NOT persisted
             trustedDeviceId: trustDevice ? fingerprint : s.trustedDeviceId,
             failedAttempts: { ...s.failedAttempts, [stage]: 0 },
