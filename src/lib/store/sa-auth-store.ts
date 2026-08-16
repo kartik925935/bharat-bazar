@@ -85,9 +85,9 @@ export const useSAAuthStore = create<SAAuthState & SAAuthActions>()(
         await simulateNetworkDelay(1000)
 
         // Security: never log passwords to console
-        const isMatch =
-          data.email.toLowerCase().trim() === MOCK_SA_CREDENTIALS.email.toLowerCase() &&
-          data.password === MOCK_SA_CREDENTIALS.password
+        const isSuperAdmin = data.email.toLowerCase().trim() === MOCK_SA_CREDENTIALS.email.toLowerCase() && data.password === MOCK_SA_CREDENTIALS.password
+        const isFinanceAdmin = data.email.toLowerCase().trim() === 'neha.kapoor@bharatbazaar.com' && data.password === MOCK_SA_CREDENTIALS.password
+        const isMatch = isSuperAdmin || isFinanceAdmin
 
         if (isMatch) {
           set((s) => ({
@@ -177,11 +177,18 @@ export const useSAAuthStore = create<SAAuthState & SAAuthActions>()(
           const fingerprint = generateDeviceFingerprint()
           const token = `sa_mem_token_${Date.now()}`
           const expiresAt = new Date(Date.now() + 8 * 3_600_000).toISOString()
+          const isFinance = get().emailForFlow === 'neha.kapoor@bharatbazaar.com'
           set((s) => ({
             isLoading: false,
             currentStage: 'success',
             isAuthenticated: true,
-            superAdmin: { ...MOCK_SUPER_ADMIN, lastLogin: new Date().toISOString() },
+            superAdmin: { 
+              ...MOCK_SUPER_ADMIN,
+              email: isFinance ? 'neha.kapoor@bharatbazaar.com' : MOCK_SUPER_ADMIN.email,
+              name: isFinance ? 'Neha Kapoor' : MOCK_SUPER_ADMIN.name,
+              role: isFinance ? 'FINANCE_ADMIN' : 'SUPER_ADMIN',
+              lastLogin: new Date().toISOString() 
+            },
             session: { token, expiresAt }, // Memory only — NOT persisted
             trustedDeviceId: trustDevice ? fingerprint : s.trustedDeviceId,
             failedAttempts: { ...s.failedAttempts, [stage]: 0 },
