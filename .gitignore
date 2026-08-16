@@ -58,3 +58,12 @@ tmp/
 .agents/
 AGENTS.md
 CLAUDE.md
+
+# Generated / Unused Scripts
+SUPER_ADMIN_README.md
+all_prompts.txt
+fix-legacy.js
+replace.js
+superadmin_prompts_summary.md
+scripts/
+eslint-report.json

@@ -3,7 +3,7 @@ import React, { useState, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Truck, Star, Package, CheckCircle, XCircle, Clock,
-  AlertTriangle, Phone, Mail, MapPin, Search, Filter,
+  AlertTriangle, AlertCircle, Phone, Mail, MapPin, Search, Filter,
   TrendingUp, RefreshCw, ChevronRight, Bike, User, Plus, X
 } from 'lucide-react'
 import { MOCK_SA_DELIVERY } from '@/lib/mock/sa-delivery.mock'
@@ -13,6 +13,9 @@ import { useIsMobile } from '@/hooks/useBreakpoint'
 import { cn } from '@/lib/utils'
 import { format } from 'date-fns'
 import { toast } from 'sonner'
+import { useForm, Controller } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import * as z from 'zod'
 
 const STATUS_CONFIG: Record<DeliveryPartnerStatus, { label: string; color: string; bg: string; icon: React.ElementType }> = {
   active:      { label: 'Active',      color: '#22C55E', bg: '#22C55E15', icon: CheckCircle },
@@ -222,74 +225,88 @@ const INDIAN_STATES = [
   'Tripura','Uttar Pradesh','Uttarakhand','West Bengal','Delhi','Jammu & Kashmir','Ladakh',
 ]
 
-interface NewPartnerForm {
-  name: string; email: string; phone: string
-  city: string; state: string; vehicleType: SADeliveryPartner['vehicleType']
-}
+const partnerSchema = z.object({
+  name: z.string().min(2, 'Name must be at least 2 characters').max(50, 'Name cannot exceed 50 characters').regex(/^[a-zA-Z\s]+$/, 'Name can only contain letters and spaces'),
+  email: z.string().email('Please enter a valid email address').toLowerCase(),
+  phone: z.string().regex(/^[6-9]\d{9}$/, 'Valid Indian mobile number required (10 digits, starts with 6-9)'),
+  city: z.string().min(2, 'City is required'),
+  state: z.string().min(2, 'State is required'),
+  vehicleType: z.enum(['bike', 'scooter', 'cycle', 'van']),
+})
+
+type NewPartnerForm = z.infer<typeof partnerSchema>
 
 function CreatePartnerModal({ onClose, onCreate }: {
   onClose: () => void
   onCreate: (partner: SADeliveryPartner) => void
 }) {
-  const [form, setForm] = useState<NewPartnerForm>({
-    name: '', email: '', phone: '', city: '', state: 'Maharashtra', vehicleType: 'bike'
+  const {
+    register,
+    handleSubmit,
+    control,
+    formState: { errors, isSubmitting, isValid, touchedFields }
+  } = useForm<NewPartnerForm>({
+    resolver: zodResolver(partnerSchema),
+    mode: 'onChange',
+    defaultValues: {
+      name: '',
+      email: '',
+      phone: '',
+      city: '',
+      state: 'Maharashtra',
+      vehicleType: 'bike'
+    }
   })
-  const [saving, setSaving] = useState(false)
-  const [errors, setErrors] = useState<Partial<NewPartnerForm>>({})
 
-  const validate = (): boolean => {
-    const e: Partial<NewPartnerForm> = {}
-    if (!form.name.trim() || form.name.length < 2) e.name = 'Full name required (min 2 chars)'
-    if (!/^[\w.-]+@[\w.-]+\.\w{2,}$/.test(form.email)) e.email = 'Valid email required'
-    if (!/^[6-9]\d{9}$/.test(form.phone)) e.phone = 'Valid 10-digit Indian mobile number required'
-    if (!form.city.trim()) e.city = 'City is required'
-    setErrors(e)
-    return Object.keys(e).length === 0
-  }
-
-  const handleCreate = async () => {
-    if (!validate()) return
-    setSaving(true)
+  const onSubmit = async (data: NewPartnerForm) => {
     await new Promise(r => setTimeout(r, 800))
     const newPartner: SADeliveryPartner = {
       id: `dp-${Date.now()}`,
-      name: form.name.trim(),
-      email: form.email.trim().toLowerCase(),
-      phone: form.phone,
+      name: data.name.trim(),
+      email: data.email.trim().toLowerCase(),
+      phone: data.phone,
       status: 'active',
       totalDeliveries: 0,
       successRate: 100,
       activeOrders: 0,
       rating: 0,
-      city: form.city.trim(),
-      state: form.state,
+      city: data.city.trim(),
+      state: data.state,
       joinedAt: new Date().toISOString(),
-      vehicleType: form.vehicleType,
+      vehicleType: data.vehicleType,
     }
     onCreate(newPartner)
-    toast.success(`${form.name} added as a delivery partner!`)
-    setSaving(false)
+    toast.success(`${data.name} added as a delivery partner!`)
     onClose()
   }
 
-  const Field = ({ id, label, placeholder, type = 'text', value, error, onChange }: {
-    id: keyof NewPartnerForm; label: string; placeholder: string; type?: string
-    value: string; error?: string; onChange: (v: string) => void
-  }) => (
+  const Field = ({ id, label, placeholder, type = 'text', registerFn, error, touched }: any) => (
     <div className="space-y-1.5">
-      <label htmlFor={id} className="text-xs font-semibold text-[#A0A0B8]">{label}</label>
-      <input
-        id={id}
-        type={type}
-        value={value}
-        onChange={e => onChange(e.target.value)}
-        placeholder={placeholder}
-        className={cn(
-          'w-full h-11 bg-[#1A1A26] border-2 rounded-xl px-3 text-sm text-white outline-none transition-all',
-          error ? 'border-red-500/50' : 'border-[#2A2A3E] focus:border-[#FF7A00]'
-        )}
-      />
-      {error && <p className="text-xs text-red-400">{error}</p>}
+      <label htmlFor={id} className="text-xs font-semibold text-[#A0A0B8]">
+        {label} <span className="text-red-500 ml-1">*</span>
+      </label>
+      <div className="relative">
+        <input
+          id={id}
+          type={type}
+          placeholder={placeholder}
+          disabled={isSubmitting}
+          {...registerFn}
+          className={cn(
+            'w-full h-12 bg-[#1A1A26] border-2 rounded-xl px-3 text-base text-white outline-none transition-all duration-200',
+            error ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' 
+                  : touched && !error 
+                    ? 'border-green-500 focus:border-green-500' 
+                    : 'border-[#2A2A3E] focus:border-[#FF7A00] focus:ring-2 focus:ring-[#FF7A00]/20'
+          )}
+        />
+      </div>
+      {error && (
+        <p className="text-red-500 text-sm flex items-center gap-1">
+          <AlertCircle className="w-3.5 h-3.5" />
+          {error}
+        </p>
+      )}
     </div>
   )
 
@@ -317,23 +334,28 @@ function CreatePartnerModal({ onClose, onCreate }: {
 
         {/* Form */}
         <div className="p-5 space-y-4 max-h-[70vh] overflow-y-auto">
-          <Field id="name" label="Full Name *" placeholder="e.g. Raju Kumar"
-            value={form.name} error={errors.name} onChange={v => setForm(p => ({ ...p, name: v }))} />
-          <Field id="email" label="Email Address *" placeholder="e.g. raju@delivery.in" type="email"
-            value={form.email} error={errors.email} onChange={v => setForm(p => ({ ...p, email: v }))} />
-          <Field id="phone" label="Mobile Number * (10 digits)" placeholder="e.g. 9876543210"
-            value={form.phone} error={errors.phone} onChange={v => setForm(p => ({ ...p, phone: v }))} />
+          <Field id="name" label="Full Name" placeholder="e.g. Raju Kumar"
+            registerFn={register('name')} error={errors.name?.message} touched={touchedFields.name} />
+          
+          <Field id="email" label="Email Address" placeholder="e.g. raju@delivery.in" type="email"
+            registerFn={register('email')} error={errors.email?.message} touched={touchedFields.email} />
+          
+          <Field id="phone" label="Mobile Number (10 digits)" placeholder="e.g. 9876543210"
+            registerFn={register('phone')} error={errors.phone?.message} touched={touchedFields.phone} />
 
           <div className="grid grid-cols-2 gap-3">
-            <Field id="city" label="City *" placeholder="e.g. Mumbai"
-              value={form.city} error={errors.city} onChange={v => setForm(p => ({ ...p, city: v }))} />
+            <Field id="city" label="City" placeholder="e.g. Mumbai"
+              registerFn={register('city')} error={errors.city?.message} touched={touchedFields.city} />
+            
             <div className="space-y-1.5">
-              <label htmlFor="state" className="text-xs font-semibold text-[#A0A0B8]">State *</label>
+              <label htmlFor="state" className="text-xs font-semibold text-[#A0A0B8]">
+                State <span className="text-red-500 ml-1">*</span>
+              </label>
               <select
                 id="state"
-                value={form.state}
-                onChange={e => setForm(p => ({ ...p, state: e.target.value }))}
-                className="w-full h-11 bg-[#1A1A26] border-2 border-[#2A2A3E] focus:border-[#FF7A00] rounded-xl px-3 text-sm text-white outline-none transition-all"
+                disabled={isSubmitting}
+                {...register('state')}
+                className="w-full h-12 bg-[#1A1A26] border-2 border-[#2A2A3E] focus:border-[#FF7A00] rounded-xl px-3 text-base text-white outline-none transition-all"
               >
                 {INDIAN_STATES.map(s => <option key={s} value={s}>{s}</option>)}
               </select>
@@ -341,34 +363,43 @@ function CreatePartnerModal({ onClose, onCreate }: {
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-[#A0A0B8]">Vehicle Type *</label>
-            <div className="grid grid-cols-4 gap-2">
-              {(['bike', 'scooter', 'cycle', 'van'] as const).map(v => (
-                <button
-                  key={v}
-                  type="button"
-                  onClick={() => setForm(p => ({ ...p, vehicleType: v }))}
-                  className={cn(
-                    'h-14 rounded-xl border-2 flex flex-col items-center justify-center gap-1 text-xs font-semibold transition-all',
-                    form.vehicleType === v ? 'border-[#FF7A00] bg-[#FF7A00]/10 text-[#FF7A00]' : 'border-[#2A2A3E] text-[#6B6B80] hover:border-[#3A3A5E] hover:text-white'
-                  )}
-                >
-                  <span className="text-lg">{VEHICLE_ICON[v]}</span>
-                  <span className="capitalize">{v}</span>
-                </button>
-              ))}
-            </div>
+            <label className="text-xs font-semibold text-[#A0A0B8]">
+              Vehicle Type <span className="text-red-500 ml-1">*</span>
+            </label>
+            <Controller
+              name="vehicleType"
+              control={control}
+              render={({ field }) => (
+                <div className="grid grid-cols-4 gap-2">
+                  {(['bike', 'scooter', 'cycle', 'van'] as const).map(v => (
+                    <button
+                      key={v}
+                      type="button"
+                      disabled={isSubmitting}
+                      onClick={() => field.onChange(v)}
+                      className={cn(
+                        'h-14 rounded-xl border-2 flex flex-col items-center justify-center gap-1 text-xs font-semibold transition-all disabled:opacity-50',
+                        field.value === v ? 'border-[#FF7A00] bg-[#FF7A00]/10 text-[#FF7A00]' : 'border-[#2A2A3E] text-[#6B6B80] hover:border-[#3A3A5E] hover:text-white'
+                      )}
+                    >
+                      <span className="text-lg">{VEHICLE_ICON[v]}</span>
+                      <span className="capitalize">{v}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            />
           </div>
         </div>
 
         {/* Footer Buttons */}
         <div className="flex gap-3 px-5 py-4 border-t border-[#1E1E2E]">
-          <button onClick={onClose} className="flex-1 h-11 bg-[#1A1A26] hover:bg-[#2A2A3E] text-[#A0A0B8] rounded-xl text-sm font-semibold transition-colors">
+          <button onClick={onClose} disabled={isSubmitting} className="flex-1 h-11 bg-[#1A1A26] hover:bg-[#2A2A3E] text-[#A0A0B8] rounded-xl text-sm font-semibold transition-colors disabled:opacity-50">
             Cancel
           </button>
-          <button onClick={handleCreate} disabled={saving} className="flex-1 h-11 bg-gradient-to-r from-[#3B82F6] to-[#1D4ED8] text-white rounded-xl text-sm font-bold flex items-center justify-center gap-2 disabled:opacity-50 shadow-lg shadow-blue-500/20">
-            {saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-            {saving ? 'Adding...' : 'Add Partner'}
+          <button onClick={handleSubmit(onSubmit)} disabled={isSubmitting || !isValid} className="flex-1 h-11 bg-gradient-to-r from-[#3B82F6] to-[#1D4ED8] text-white rounded-xl text-sm font-bold flex items-center justify-center gap-2 disabled:opacity-50 shadow-lg shadow-blue-500/20">
+            {isSubmitting ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+            {isSubmitting ? 'Adding...' : 'Add Partner'}
           </button>
         </div>
       </motion.div>
