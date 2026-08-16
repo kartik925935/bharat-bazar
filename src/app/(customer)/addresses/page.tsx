@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -11,6 +11,8 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { INITIAL_ADDRESSES } from '@/lib/mock/customer';
+import { useAuthStore } from '@/lib/store/auth-store';
+import { createClient } from '@/lib/supabase/client';
 
 // ─── Indian States ────────────────────────────────────────────────────────────
 const INDIAN_STATES = [
@@ -103,6 +105,7 @@ interface Address {
   state: string;
   pincode: string;
   type: 'home' | 'work' | 'other';
+  customLabel?: string;
   isDefault: boolean;
 }
 
@@ -152,12 +155,56 @@ function Label({ children, htmlFor }: { children: React.ReactNode; htmlFor?: str
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 export default function AddressesPage() {
-  const [addresses, setAddresses] = useState<Address[]>(INITIAL_ADDRESSES);
+  const [addresses, setAddresses] = useState<Address[]>([]);
+  const [isLoaded, setIsLoaded] = useState(false);
+  const { user } = useAuthStore();
+  const supabase = createClient();
+
+  useEffect(() => {
+    if (!user) return;
+    const fetchAddresses = async () => {
+      const { data, error } = await supabase
+        .from('addresses')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: true });
+      
+      if (error) {
+        console.error('Error fetching addresses:', error.message);
+        return;
+      }
+      
+      if (data) {
+        const mapped: Address[] = data.map((d: any) => {
+          const type = ['home', 'work'].includes(d.label?.toLowerCase()) ? d.label.toLowerCase() : 'other';
+          return {
+            id: d.id,
+            name: d.full_name,
+            phone: d.phone,
+            line1: d.address_line1,
+            line2: d.address_line2 || undefined,
+            city: d.city,
+            state: d.state,
+            pincode: d.pincode,
+            type: type,
+            customLabel: type === 'other' ? d.label : undefined,
+            isDefault: d.is_default,
+          };
+        });
+        setAddresses(mapped);
+      }
+      setIsLoaded(true);
+    };
+    
+    fetchAddresses();
+  }, [user]);
+
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [pincodeLoading, setPincodeLoading] = useState(false);
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const form = useForm<AddressFormData>({
     resolver: zodResolver(addressSchema) as any,
     mode: 'onChange',
@@ -245,7 +292,7 @@ export default function AddressesPage() {
       city: addr.city,
       state: addr.state as (typeof INDIAN_STATES)[number],
       addressType: addr.type,
-      customLabel: '',
+      customLabel: addr.type === 'other' ? addr.customLabel || '' : '',
       isDefault: addr.isDefault,
     });
     setModalOpen(true);
@@ -253,9 +300,38 @@ export default function AddressesPage() {
 
   // ─── Submit ────────────────────────────────────────────────────────────────
   const onSubmit = async (data: AddressFormData) => {
-    await new Promise((r) => setTimeout(r, 600)); // simulate API
+    if (!user) return;
+    const dbLabel = data.addressType === 'other' ? data.customLabel : data.addressType;
 
     if (editingId) {
+      const { error } = await supabase
+        .from('addresses')
+        .update({
+          full_name: data.fullName,
+          phone: data.phone,
+          address_line1: data.addressLine1,
+          address_line2: data.addressLine2 || null,
+          city: data.city,
+          state: data.state,
+          pincode: data.pincode,
+          label: dbLabel,
+          is_default: data.isDefault,
+        })
+        .eq('id', editingId);
+
+      if (error) {
+        toast.error('Failed to update address: ' + error.message);
+        return;
+      }
+
+      if (data.isDefault) {
+        await supabase
+          .from('addresses')
+          .update({ is_default: false })
+          .eq('user_id', user.id)
+          .neq('id', editingId);
+      }
+
       setAddresses((prev) =>
         prev.map((a) => {
           if (a.id === editingId) {
@@ -263,7 +339,8 @@ export default function AddressesPage() {
               ...a, name: data.fullName, phone: data.phone,
               line1: data.addressLine1, line2: data.addressLine2,
               city: data.city, state: data.state, pincode: data.pincode,
-              type: data.addressType, isDefault: data.isDefault || a.isDefault,
+              type: data.addressType, customLabel: data.addressType === 'other' ? data.customLabel : undefined,
+              isDefault: data.isDefault || a.isDefault,
             };
           }
           return data.isDefault ? { ...a, isDefault: false } : a;
@@ -271,29 +348,93 @@ export default function AddressesPage() {
       );
       toast.success('Address updated! ✅');
     } else {
-      const newAddr: Address = {
-        id: `addr-${Date.now()}`,
-        name: data.fullName, phone: data.phone,
-        line1: data.addressLine1, line2: data.addressLine2,
-        city: data.city, state: data.state, pincode: data.pincode,
-        type: data.addressType, isDefault: data.isDefault || addresses.length === 0,
-      };
-      setAddresses((prev) =>
-        data.isDefault
-          ? prev.map((a) => ({ ...a, isDefault: false })).concat(newAddr)
-          : [...prev, newAddr]
-      );
+      const { data: insertData, error } = await supabase
+        .from('addresses')
+        .insert({
+          user_id: user.id,
+          full_name: data.fullName,
+          phone: data.phone,
+          address_line1: data.addressLine1,
+          address_line2: data.addressLine2 || null,
+          city: data.city,
+          state: data.state,
+          pincode: data.pincode,
+          label: dbLabel,
+          is_default: data.isDefault || addresses.length === 0,
+        })
+        .select()
+        .single();
+
+      if (error) {
+        toast.error('Failed to save address: ' + error.message);
+        return;
+      }
+
+      if (insertData) {
+        const newAddr: Address = {
+          id: insertData.id,
+          name: insertData.full_name,
+          phone: insertData.phone,
+          line1: insertData.address_line1,
+          line2: insertData.address_line2 || undefined,
+          city: insertData.city,
+          state: insertData.state,
+          pincode: insertData.pincode,
+          type: data.addressType,
+          customLabel: data.addressType === 'other' ? data.customLabel : undefined,
+          isDefault: insertData.is_default,
+        };
+
+        if (insertData.is_default) {
+          await supabase
+            .from('addresses')
+            .update({ is_default: false })
+            .eq('user_id', user.id)
+            .neq('id', insertData.id);
+
+          setAddresses((prev) => prev.map((a) => ({ ...a, isDefault: false })).concat(newAddr));
+        } else {
+          setAddresses((prev) => [...prev, newAddr]);
+        }
+      }
       toast.success('Address added! 🏠');
     }
     setModalOpen(false);
   };
 
-  const handleSetDefault = (id: string) => {
+  const handleSetDefault = async (id: string) => {
+    if (!user) return;
+    const { error } = await supabase
+      .from('addresses')
+      .update({ is_default: true })
+      .eq('id', id);
+
+    if (error) {
+      toast.error('Failed to update default address: ' + error.message);
+      return;
+    }
+
+    await supabase
+      .from('addresses')
+      .update({ is_default: false })
+      .eq('user_id', user.id)
+      .neq('id', id);
+
     setAddresses((prev) => prev.map((a) => ({ ...a, isDefault: a.id === id })));
     toast.success('Default address updated!');
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
+    const { error } = await supabase
+      .from('addresses')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      toast.error('Failed to delete address: ' + error.message);
+      return;
+    }
+
     setAddresses((prev) => prev.filter((a) => a.id !== id));
     setDeletingId(null);
     toast.success('Address deleted!');
@@ -462,7 +603,7 @@ export default function AddressesPage() {
               </div>
 
               {/* Form */}
-              <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
+              <form onSubmit={handleSubmit(onSubmit as any)} className="space-y-4" noValidate>
 
                 {/* Pincode — auto-fill trigger */}
                 <div>
