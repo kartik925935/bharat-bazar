@@ -9,7 +9,7 @@ import {
   Star, Heart, ShoppingCart, Truck, ShieldCheck, MapPin, 
   CheckCircle, Share2, Copy, Send, Check, MessageSquare 
 } from 'lucide-react';
-import { mockProducts } from '@/lib/mock/products';
+import { getStorefrontProductBySlug } from '@/actions/products/storefront-queries';
 import { useCartStore } from '@/lib/store/cart-store';
 import { useWishlistStore } from '@/lib/store/wishlist-store';
 import { formatCurrency } from '@/lib/utils/format-currency';
@@ -17,6 +17,7 @@ import { RatingStars } from '@/components/ui/rating-stars';
 import { TIER_ICONS } from '@/lib/mock/sellers';
 import { toast } from 'sonner';
 import { useBrowsingStore } from '@/lib/store/browsing-store';
+import { Product } from '@/types';
 
 interface Review {
   id: string;
@@ -31,7 +32,36 @@ interface Review {
 export default function ProductDetailPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params);
   const router = useRouter();
-  const product = mockProducts.find((p) => p.slug === slug);
+  const [product, setProduct] = useState<Product | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  // Fetch product from Supabase
+  useEffect(() => {
+    const fetchProduct = async () => {
+      setLoading(true);
+      const result = await getStorefrontProductBySlug(slug);
+      if (result.error || !result.data) {
+        setProduct(null);
+      } else {
+        setProduct(result.data);
+      }
+      setLoading(false);
+    };
+    fetchProduct();
+  }, [slug]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#FAFAF8] pt-24 pb-20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center py-16">
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[#FF7A00]"></div>
+            <p className="text-sm text-[#8C8B80] mt-4">Loading product...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (!product) {
     return notFound();

@@ -14,7 +14,7 @@ import {
   MapPin, Tag, ShoppingCart, HelpCircle, Check, Eye 
 } from 'lucide-react';
 import { ProductCard } from '@/components/storefront/product-card';
-import { mockProducts } from '@/lib/mock/products';
+import { getStorefrontProducts } from '@/actions/products/storefront-queries';
 import { SkeletonCard } from '@/components/ui/skeletons/index';
 import { formatCurrency } from '@/lib/utils/format-currency';
 import { useCartStore } from '@/lib/store/cart-store';
@@ -30,6 +30,11 @@ export default function ProductListingPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   
+  // Products state from Supabase
+  const [allProducts, setAllProducts] = useState<Product[]>([]);
+  const [fetchLoading, setFetchLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+
   // Search state
   const initialSearch = searchParams.get('search') || '';
   const [searchQuery, setSearchQuery] = useState(initialSearch);
@@ -58,6 +63,23 @@ export default function ProductListingPage() {
     seller: true,
     location: true
   });
+
+  // Fetch products from Supabase on mount
+  useEffect(() => {
+    const fetchProducts = async () => {
+      setFetchLoading(true);
+      setFetchError(null);
+      const result = await getStorefrontProducts({ limit: 100 });
+      if (result.error) {
+        setFetchError(result.error);
+        setAllProducts([]);
+      } else {
+        setAllProducts(result.data);
+      }
+      setFetchLoading(false);
+    };
+    fetchProducts();
+  }, []);
 
 // Moved saveRecentSearch above its usage to avoid hoisting issues
   const saveRecentSearch = (text: string) => {
@@ -113,7 +135,7 @@ export default function ProductListingPage() {
 
   // Filter calculations
   const filteredProducts = useMemo(() => {
-    return mockProducts.filter((product) => {
+    return allProducts.filter((product) => {
       if (activeCategory && product.category !== activeCategory) return false;
       if (debouncedSearch && !product.name.toLowerCase().includes(debouncedSearch.toLowerCase()) && !product.description?.toLowerCase().includes(debouncedSearch.toLowerCase())) return false;
       if (product.price < minPrice || product.price > maxPrice) return false;
@@ -128,7 +150,7 @@ export default function ProductListingPage() {
       if (sortBy === 'new') return (b.isNew ? 1 : 0) - (a.isNew ? 1 : 0);
       return 0; // featured
     });
-  }, [activeCategory, debouncedSearch, minPrice, maxPrice, activeRating, activeSellerTier, activeState, sortBy]);
+  }, [allProducts, activeCategory, debouncedSearch, minPrice, maxPrice, activeRating, activeSellerTier, activeState, sortBy]);
 
   const clearAllFilters = () => {
     setActiveCategory('');

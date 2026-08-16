@@ -9,9 +9,10 @@ import {
   Store, Heart, CheckCircle, Star, MapPin, ChevronDown,
 } from 'lucide-react';
 import { ProductCard } from '@/components/storefront/product-card';
-import { mockProducts } from '@/lib/mock/products';
+import { getFeaturedProducts } from '@/actions/products/storefront-queries';
 import { useBrowsingStore } from '@/lib/store/browsing-store';
 import { toast } from 'sonner';
+import { Product } from '@/types';
 
 // ─── Data ────────────────────────────────────────────────────────────────────
 const HERO_SLIDES = [
@@ -212,8 +213,21 @@ export default function HomePage() {
   const [testimonialIdx, setTestimonialIdx] = useState(0);
   const [newsletterEmail, setNewsletterEmail] = useState('');
   const [scrolled, setScrolled]       = useState(false);
+  const [allProducts, setAllProducts] = useState<Product[]>([]);
+  const [productsLoading, setProductsLoading] = useState(true);
 
   const { recentlyViewed } = useBrowsingStore();
+
+  // Fetch featured products from Supabase
+  useEffect(() => {
+    const fetchProducts = async () => {
+      setProductsLoading(true);
+      const result = await getFeaturedProducts(30);
+      setAllProducts(result.data);
+      setProductsLoading(false);
+    };
+    fetchProducts();
+  }, []);
 
   // Auto-advance hero
   useEffect(() => {
@@ -234,7 +248,7 @@ export default function HomePage() {
     return () => window.removeEventListener('scroll', handler);
   }, []);
 
-  const filteredProducts = mockProducts.filter((p) => {
+  const filteredProducts = allProducts.filter((p) => {
     if (activeTab === 'New Arrivals')  return p.isNew;
     if (activeTab === 'Best Sellers')  return p.rating >= 4.7;
     if (activeTab === 'Under ₹500')   return p.price < 500;
