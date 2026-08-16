@@ -188,7 +188,7 @@ export function SASidebar({ isDrawer = false, onClose }: SASidebarProps) {
   const openTickets = getOpenTicketsCount()
 
   const role = (superAdmin?.role as AdminRole) || 'SUPER_ADMIN'
-  const permissions = DEFAULT_ROLE_PERMISSIONS[role]
+  const permissions = superAdmin?.permissions || DEFAULT_ROLE_PERMISSIONS[role]
 
   const navSections = getSANavigation(saToken)
     .map((section) => ({

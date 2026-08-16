@@ -8,11 +8,12 @@ export interface SASuperAdmin {
   email: string
   name: string
   avatar?: string
-  role: 'SUPER_ADMIN'
+  role: AdminRole
   createdAt: string
   lastLogin: string
   twoFactorEnabled: boolean
   trustedDevices: string[]
+  permissions?: SAAdminPermissions
 }
 
 export interface SASession {

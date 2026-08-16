@@ -13,6 +13,8 @@ import { useSAUIStore } from '@/lib/store/sa-ui-store'
 import { SAShell } from '@/components/super-admin/layout/SAShell'
 import { CommandPalette } from '@/components/super-admin/command-palette/CommandPalette'
 import { useKeyboardChord } from '@/hooks/useKeyboardChord'
+import { DEFAULT_ROLE_PERMISSIONS } from '@/lib/constants/sa-permissions'
+import type { AdminRole, SAPanel } from '@/types/super-admin.types'
 
 // ─── Fortress Loading Screen ────────────────────────────────────────────────
 function FortressLoader() {
@@ -68,6 +70,36 @@ function SessionExpiredModal({ onLogout }: { onLogout: () => void }) {
           Log In Again
         </button>
       </motion.div>
+    </div>
+  )
+}
+
+// ─── Restricted Access Screen ───────────────────────────────────────────────
+function RestrictedAccessScreen({ panel }: { panel: string }) {
+  const router = useRouter()
+  return (
+    <div className="flex flex-col items-center justify-center min-h-[70vh] px-4">
+      <div className="w-20 h-20 bg-red-500/10 border border-red-500/20 rounded-3xl flex items-center justify-center mb-6">
+        <Shield className="w-10 h-10 text-red-500" />
+      </div>
+      <h1 className="text-3xl font-bold text-white mb-3 font-serif">Access Restricted</h1>
+      <p className="text-[#A0A0B8] max-w-md text-center mb-8">
+        You don't have permission to view the <span className="text-white font-medium capitalize">{panel.replace('-', ' ')}</span> panel. If you need access, you can request it from a Super Admin.
+      </p>
+      <div className="flex items-center gap-4">
+        <button 
+          onClick={() => router.back()}
+          className="px-6 py-2.5 bg-[#1E1E2E] hover:bg-[#2A2A3E] text-white rounded-xl font-medium transition-colors"
+        >
+          Go Back
+        </button>
+        <button 
+          onClick={() => alert('Access request sent (Mock)')}
+          className="px-6 py-2.5 bg-gradient-to-r from-[#FF7A00] to-[#F5C842] text-white rounded-xl font-medium shadow-lg hover:opacity-90 transition-opacity"
+        >
+          Request Access
+        </button>
+      </div>
     </div>
   )
 }
@@ -224,6 +256,25 @@ export default function SuperAdminPortalLayout({ children }: { children: React.R
 
   if (authState === 'checking') return <FortressLoader />
 
+  // ── Access Guard Check ──
+  const pathname = usePathname()
+  const role = (superAdmin?.role as AdminRole) || 'SUPER_ADMIN'
+  const permissions = superAdmin?.permissions || DEFAULT_ROLE_PERMISSIONS[role]
+  
+  const panelStr = pathname?.split('/')[2]
+  let hasAccess = true
+  
+  // If we are on a known panel path, check permissions
+  // dashboard, sellers, etc.
+  if (panelStr && authState === 'ok' && panelStr !== 'dashboard') {
+    const perm = permissions[panelStr as SAPanel]
+    if (perm === 'none') {
+      hasAccess = false
+    }
+    // Note: If perm is undefined, we assume it's an internal route that doesn't need panel-level protection, 
+    // or we might want to default to false. For safety, we only block if it's explicitly 'none'.
+  }
+
   return (
     <>
       {authState === 'expired' && <SessionExpiredModal onLogout={handleLogout} />}
@@ -235,7 +286,7 @@ export default function SuperAdminPortalLayout({ children }: { children: React.R
         />
       )}
       <SAShell>
-        {children}
+        {hasAccess ? children : <RestrictedAccessScreen panel={panelStr || 'this'} />}
       </SAShell>
       <CommandPalette saToken={saToken} />
     </>
