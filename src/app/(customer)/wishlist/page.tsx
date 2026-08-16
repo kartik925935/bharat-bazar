@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Heart, ShoppingCart, Trash2, ArrowRight, X, Share2, TrendingDown, Bell, AlertCircle } from 'lucide-react';
 import { useWishlistStore } from '@/lib/store/wishlist-store';
 import { useCartStore } from '@/lib/store/cart-store';
-import { mockProducts } from '@/lib/mock/products';
+import { getFeaturedProducts } from '@/actions/products/storefront-queries';
 import { formatCurrency } from '@/lib/utils/format-currency';
 import { ProductCard } from '@/components/storefront/product-card';
 import { toast } from 'sonner';
@@ -48,6 +48,24 @@ export default function WishlistPage() {
   const [filter, setFilter]   = useState<FilterKey>('all');
   const [dismissed, setDismissed] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [recommendations, setRecommendations] = useState<Product[]>([]);
+  const [recommendationsLoading, setRecommendationsLoading] = useState(true);
+
+  // Fetch recommendations
+  import('react').then(({ useEffect }) => {
+    useEffect(() => {
+      const fetchRecs = async () => {
+        setRecommendationsLoading(true);
+        const res = await getFeaturedProducts(4);
+        if (res.data) {
+          const filtered = res.data.filter(p => !wishlistProducts.some(w => w.id === p.id)).slice(0, 4);
+          setRecommendations(filtered);
+        }
+        setRecommendationsLoading(false);
+      };
+      fetchRecs();
+    }, [wishlistProducts]);
+  });
 
   // Sort
   const sorted = [...wishlistProducts].sort((a, b) => {
@@ -78,13 +96,11 @@ export default function WishlistPage() {
     toast.success(`Removed from wishlist`);
   };
 
-  const handleAddToCart = (p: typeof mockProducts[0]) => {
+  const handleAddToCart = (p: Product) => {
     if (!p.inStock) { toast.error('This item is out of stock'); return; }
     addItem(p);
     toast.success('Added to cart!');
   };
-
-  const recommendations = mockProducts.filter(p => !wishlistProducts.some(w => w.id === p.id)).slice(0, 4);
 
   // Empty state
   if (wishlistProducts.length === 0) {
@@ -106,13 +122,19 @@ export default function WishlistPage() {
           </Link>
         </div>
 
-        {recommendations.length > 0 && (
+        {(recommendations.length > 0 || recommendationsLoading) && (
           <div className="mt-10">
             <h3 className="text-lg font-black text-[#1A0A00] mb-4" style={{ fontFamily: "'Playfair Display', serif" }}>
               Trending Right Now
             </h3>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {recommendations.map(p => <ProductCard key={p.id} product={p} />)}
+              {recommendationsLoading ? (
+                Array.from({ length: 4 }).map((_, i) => (
+                  <WishlistSkeleton key={i} />
+                ))
+              ) : (
+                recommendations.map(p => <ProductCard key={p.id} product={p} />)
+              )}
             </div>
           </div>
         )}

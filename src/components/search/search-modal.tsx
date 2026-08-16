@@ -5,10 +5,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Search, X, ArrowRight, Clock, TrendingUp } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { mockProducts } from '@/lib/mock/products';
 import { useBrowsingStore } from '@/lib/store/browsing-store';
 import { formatCurrency } from '@/lib/utils/format-currency';
-
+import { searchProducts } from '@/actions/products/storefront-queries';
+import { Product } from '@/types';
 const POPULAR_SEARCHES = [
   'Madhubani Painting', 'Pashmina Shawl', 'Blue Pottery',
   'Silver Jewelry', 'Handloom Saree', 'Brass Decor',
@@ -62,17 +62,28 @@ export function SearchModal({ open, onClose }: SearchModalProps) {
     return () => document.removeEventListener('keydown', handler);
   }, [onClose]);
 
+  const [results, setResults] = useState<Product[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+
   // Search results
-  const results = debouncedQuery.trim()
-    ? mockProducts
-        .filter(
-          (p) =>
-            p.name.toLowerCase().includes(debouncedQuery.toLowerCase()) ||
-            p.tags.some((t) => t.toLowerCase().includes(debouncedQuery.toLowerCase())) ||
-            p.category.toLowerCase().includes(debouncedQuery.toLowerCase())
-        )
-        .slice(0, 4)
-    : [];
+  useEffect(() => {
+    const fetchResults = async () => {
+      if (!debouncedQuery.trim()) {
+        setResults([]);
+        setIsSearching(false);
+        return;
+      }
+      setIsSearching(true);
+      const res = await searchProducts(debouncedQuery, 4);
+      if (res.data) {
+        setResults(res.data);
+      } else {
+        setResults([]);
+      }
+      setIsSearching(false);
+    };
+    fetchResults();
+  }, [debouncedQuery]);
 
   const matchedCategories = debouncedQuery.trim()
     ? CATEGORIES.filter((c) => c.name.toLowerCase().includes(debouncedQuery.toLowerCase())).slice(0, 3)
@@ -265,7 +276,11 @@ export function SearchModal({ open, onClose }: SearchModalProps) {
                       See all results for &quot;{debouncedQuery}&quot;
                     </button>
 
-                    {results.length === 0 && matchedCategories.length === 0 && (
+                    {isSearching ? (
+                      <div className="text-center py-8">
+                        <p className="text-[#8C7B6E] text-sm">Searching...</p>
+                      </div>
+                    ) : results.length === 0 && matchedCategories.length === 0 && (
                       <div className="text-center py-8">
                         <p className="text-[#8C7B6E] text-sm">No results found for &quot;{debouncedQuery}&quot;</p>
                         <p className="text-xs text-[#B5A99A] mt-1">Try a different search term</p>

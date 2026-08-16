@@ -15,8 +15,10 @@ import { useWishlistStore } from '@/lib/store/wishlist-store';
 import { formatCurrency } from '@/lib/utils/format-currency';
 import { toast } from 'sonner';
 import { ProductCard } from '@/components/storefront/product-card';
-import { mockProducts } from '@/lib/mock/products';
-
+import { getFeaturedProducts } from '@/actions/products/storefront-queries';
+import { Product } from '@/types';
+import { useEffect } from 'react';
+import { SkeletonCard } from '@/components/ui/skeletons';
 const FREE_DELIVERY_THRESHOLD = 999;
 
 export default function CartPage() {
@@ -32,6 +34,8 @@ export default function CartPage() {
   const [inputCoupon, setInputCoupon]   = useState('');
   const [couponLoading, setCouponLoading] = useState(false);
   const [savedOpen, setSavedOpen]       = useState(true);
+  const [recommendations, setRecommendations] = useState<Product[]>([]);
+  const [recommendationsLoading, setRecommendationsLoading] = useState(true);
 
   const cartSubtotal     = subtotal();
   const isFreeDelivery   = cartSubtotal >= FREE_DELIVERY_THRESHOLD;
@@ -66,9 +70,19 @@ export default function CartPage() {
   };
 
   // Recommendations
-  const recommendations = mockProducts
-    .filter((p) => !items.find((i) => i.id === p.id))
-    .slice(0, 4);
+  useEffect(() => {
+    const fetchRecs = async () => {
+      setRecommendationsLoading(true);
+      const res = await getFeaturedProducts(4);
+      if (res.data) {
+        // filter out items already in cart
+        const filtered = res.data.filter((p) => !items.find((i) => i.id === p.id)).slice(0, 4);
+        setRecommendations(filtered);
+      }
+      setRecommendationsLoading(false);
+    };
+    fetchRecs();
+  }, [items]);
 
   // ── EMPTY STATE ───────────────────────────────────────────────────────────
   if (items.length === 0 && savedForLater.length === 0) {
@@ -94,16 +108,22 @@ export default function CartPage() {
           </Link>
 
           {/* Recommendations */}
-          {recommendations.length > 0 && (
+          {(recommendations.length > 0 || recommendationsLoading) && (
             <div className="mt-12 text-left">
               <h3 className="text-lg font-black text-[#1A0A00] mb-4"
                   style={{ fontFamily: "'Playfair Display', serif" }}>
                 Trending This Week
               </h3>
               <div className="grid grid-cols-2 gap-4">
-                {recommendations.slice(0, 4).map((p) => (
-                  <ProductCard key={p.id} product={p} />
-                ))}
+                {recommendationsLoading ? (
+                  Array.from({ length: 4 }).map((_, i) => (
+                    <SkeletonCard key={i} variant="product" />
+                  ))
+                ) : (
+                  recommendations.map((p) => (
+                    <ProductCard key={p.id} product={p} />
+                  ))
+                )}
               </div>
             </div>
           )}
@@ -400,16 +420,22 @@ export default function CartPage() {
         </div>
 
         {/* Recommendations */}
-        {recommendations.length > 0 && (
+        {(recommendations.length > 0 || recommendationsLoading) && (
           <div className="mt-12">
             <h2 className="text-2xl font-black text-[#1A0A00] mb-6"
                 style={{ fontFamily: "'Playfair Display', serif" }}>
               You May Also Like
             </h2>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
-              {recommendations.map((p) => (
-                <ProductCard key={p.id} product={p} />
-              ))}
+              {recommendationsLoading ? (
+                Array.from({ length: 4 }).map((_, i) => (
+                  <SkeletonCard key={i} variant="product" />
+                ))
+              ) : (
+                recommendations.map((p) => (
+                  <ProductCard key={p.id} product={p} />
+                ))
+              )}
             </div>
           </div>
         )}
