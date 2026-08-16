@@ -69,7 +69,7 @@ export default function RolesPage() {
             <div className="space-y-3 pt-2">
               <div className="flex items-center justify-between text-xs">
                 <span className="text-[#9898B0] flex items-center gap-1.5"><Users size={12}/> Assigned Users</span>
-                <span className="font-bold text-[#F0F0F8]">{role.userCount}</span>
+                <span className="font-bold text-[#F0F0F8]">{role.adminCount}</span>
               </div>
               <div>
                 <span className="text-[10px] uppercase font-bold text-[#5C5C78] block mb-2">Permissions</span>

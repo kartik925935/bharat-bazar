@@ -100,7 +100,7 @@ export default function RegisterPage() {
   };
 
   // Live email role check — run on blur to catch seller emails early
-  const handleEmailBlur = async (e: React.FocusEvent<HTMLInputElement>) => {
+  const handleEmailBlur = async (e: any) => {
     const email = e.target.value.trim();
     if (!email || !email.includes('@')) return;
     setEmailChecking(true);

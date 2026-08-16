@@ -116,7 +116,7 @@ export default function AdminsPage() {
                   </td>
                   <td className="px-5 py-4">
                     <span className="px-2 py-1 rounded bg-[#111118] border border-[#1E1E2E] text-[#FF7A00] font-mono capitalize text-[10px]">
-                      {a.role}
+                      {a.role === 'platform_admin' ? 'Super Admin' : a.role}
                     </span>
                   </td>
                   <td className="px-5 py-4">
@@ -141,7 +141,7 @@ export default function AdminsPage() {
                     <button className="p-1.5 text-[#5C5C78] hover:text-[#A855F7] hover:bg-[#A855F7]/10 rounded transition-colors cursor-pointer" title="Reset Password">
                       <Key size={14} />
                     </button>
-                    {a.role !== 'Super Admin' && (
+                    {a.role !== 'platform_admin' && (
                       <button className="p-1.5 text-[#5C5C78] hover:text-[#EF4444] hover:bg-[#EF4444]/10 rounded transition-colors cursor-pointer" title="Revoke Access">
                         <Trash2 size={14} />
                       </button>

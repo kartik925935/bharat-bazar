@@ -221,7 +221,7 @@ export default function SellerRegisterPage() {
     const r = register(fieldName);
     return {
       ...r,
-      onChange: async (e: React.ChangeEvent<HTMLInputElement>) => {
+      onChange: async (e: any) => {
         e.target.value = e.target.value.toUpperCase().replace(/\s/g, '');
         await r.onChange(e);
       },
@@ -467,7 +467,7 @@ export default function SellerRegisterPage() {
                         required
                         register={{
                           ...register('email'),
-                          onBlur: async (e: React.FocusEvent<HTMLInputElement>) => {
+                          onBlur: async (e: any) => {
                             register('email').onBlur(e);
                             const email = e.target.value.trim();
                             if (!email || !email.includes('@')) return;
@@ -483,7 +483,7 @@ export default function SellerRegisterPage() {
                             } catch { /* fail silently */ }
                             finally { setEmailChecking(false); }
                           },
-                          onChange: (e: React.ChangeEvent<HTMLInputElement>) => {
+                          onChange: (e: any) => {
                             setEmailRoleError(null);
                             return register('email').onChange(e);
                           },

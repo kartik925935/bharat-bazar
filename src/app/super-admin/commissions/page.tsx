@@ -78,7 +78,7 @@ export default function CommissionsPage() {
                 <tr key={rate.category} className="hover:bg-[#1C1C28] transition-colors">
                   <td className="px-5 py-3.5">
                     <p className="font-bold text-[#F0F0F8]">{rate.category}</p>
-                    <p className="text-[10px] text-[#5C5C78] max-w-xs truncate">{rate.description}</p>
+                    <p className="text-[10px] text-[#5C5C78] max-w-xs truncate">{rate.category}</p>
                   </td>
                   <td className="px-5 py-3.5 text-center">
                     <div className="inline-flex items-center">
@@ -89,13 +89,13 @@ export default function CommissionsPage() {
                   <td className="px-5 py-3.5 text-right">
                     <div className="inline-flex items-center justify-end w-full">
                       <span className="h-8 px-2 bg-[#1E1E2E] border-y border-l border-[#1E1E2E] rounded-l-lg flex items-center text-[#9898B0]">₹</span>
-                      <input type="number" value={rate.minFee} onChange={(e) => handleChange(i, 'minFee', e.target.value)} className="w-20 h-8 bg-[#111118] border border-[#1E1E2E] rounded-r-lg text-right pr-2 font-mono text-[#F0F0F8] outline-none focus:border-[#FF7A00]" />
+                      <input type="number" value={rate.minAmount} onChange={(e) => handleChange(i, 'minAmount', e.target.value)} className="w-20 h-8 bg-[#111118] border border-[#1E1E2E] rounded-r-lg text-right pr-2 font-mono text-[#F0F0F8] outline-none focus:border-[#FF7A00]" />
                     </div>
                   </td>
                   <td className="px-5 py-3.5 text-right">
                     <div className="inline-flex items-center justify-end w-full">
                       <span className="h-8 px-2 bg-[#1E1E2E] border-y border-l border-[#1E1E2E] rounded-l-lg flex items-center text-[#9898B0]">₹</span>
-                      <input type="number" value={rate.maxFee} onChange={(e) => handleChange(i, 'maxFee', e.target.value)} className="w-24 h-8 bg-[#111118] border border-[#1E1E2E] rounded-r-lg text-right pr-2 font-mono text-[#F0F0F8] outline-none focus:border-[#FF7A00]" />
+                      <input type="number" value={rate.maxAmount || ''} onChange={(e) => handleChange(i, 'maxAmount', e.target.value)} className="w-24 h-8 bg-[#111118] border border-[#1E1E2E] rounded-r-lg text-right pr-2 font-mono text-[#F0F0F8] outline-none focus:border-[#FF7A00]" />
                     </div>
                   </td>
                 </tr>

@@ -55,7 +55,7 @@ export default function NotificationsPage() {
             
             <div className="bg-[#111118] border border-[#1E1E2E] p-3 rounded-xl text-xs text-[#9898B0] leading-relaxed">
               <Type size={12} className="inline mr-2 text-[#5C5C78]"/>
-              {tpl.content}
+              Preview for {tpl.name} template.
             </div>
 
             <div className="pt-4 mt-auto border-t border-[#1E1E2E] flex gap-2">
