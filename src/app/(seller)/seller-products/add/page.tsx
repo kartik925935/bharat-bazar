@@ -13,6 +13,8 @@ import {
 import { useSellerStore } from '@/lib/store/seller-store';
 import { toast } from 'sonner';
 import Link from 'next/link';
+import { createClient } from '@/lib/supabase/client';
+import { insertSellerProduct } from '@/actions/products/insert-product';
 
 // ─── Schema ──────────────────────────────────────────────────────────────────
 const productSchema = z.object({
@@ -71,7 +73,7 @@ const productSchema = z.object({
   isGITagged: z.boolean(),
   isOrganic: z.boolean(),
   isEcoFriendly: z.boolean(),
-  images: z.array(z.string()).min(3, 'Please upload at least 3 images for the product'),
+  images: z.array(z.string()).min(1, 'Please upload at least 1 image for the product'),
 })
 .refine(
   (data) => Number(data.sellingPrice) <= Number(data.mrp),
@@ -192,42 +194,76 @@ export default function SellerAddProductPage() {
     ? Math.round(((Number(mrp) - Number(sellingPrice)) / Number(mrp)) * 100)
     : 0;
   const savings = mrp && sellingPrice ? Number(mrp) - Number(sellingPrice) : 0;
-  const sellerEarnings = sellingPrice ? Number(sellingPrice) * 0.9 : 0; // 10% platform commission
+  const sellerEarnings = sellingPrice ? Number(sellingPrice) * 0.9 : 0;
   const currentImages = watch('images') || [];
 
-  const handleImageDrop = (e: React.DragEvent) => {
+  const uploadFileToSupabase = async (file: File): Promise<string | null> => {
+    try {
+      const supabase = createClient();
+      const ext = file.name.split('.').pop() || 'png';
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${ext}`;
+      const filePath = `products/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('product-images')
+        .upload(filePath, file, { contentType: file.type, upsert: true });
+
+      if (uploadError) {
+        console.error('Supabase Storage Upload Error:', uploadError);
+        // Fallback: Data URL if storage bucket fails
+        return new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onload = (e) => resolve(e.target?.result as string);
+          reader.readAsDataURL(file);
+        });
+      }
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('product-images')
+        .getPublicUrl(filePath);
+
+      return publicUrl;
+    } catch (err) {
+      console.error('Image Upload Exception:', err);
+      return null;
+    }
+  };
+
+  const handleImageDrop = async (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
     const files = Array.from(e.dataTransfer.files || []).filter(f => f.type.startsWith('image/'));
     if (files.length > 0) {
-      files.forEach(file => {
-        const reader = new FileReader();
-        reader.onload = (event) => {
-          const result = event.target?.result as string;
-          if (result) {
-            setValue('images', [...(watch('images') || []), result], { shouldValidate: true, shouldDirty: true });
-          }
-        };
-        reader.readAsDataURL(file);
-      });
+      const toastId = toast.loading('Uploading image(s)...');
+      const uploadedUrls: string[] = [];
+      for (const file of files) {
+        const url = await uploadFileToSupabase(file);
+        if (url) uploadedUrls.push(url);
+      }
+      toast.dismiss(toastId);
+      if (uploadedUrls.length > 0) {
+        setValue('images', [...(watch('images') || []), ...uploadedUrls], { shouldValidate: true, shouldDirty: true });
+        toast.success(`Image(s) uploaded successfully`);
+      }
     } else {
-      toast.error('Please drop valid image files');
+      toast.error('Please select valid image files');
     }
   };
 
-  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []).filter(f => f.type.startsWith('image/'));
     if (files.length > 0) {
-      files.forEach(file => {
-        const reader = new FileReader();
-        reader.onload = (event) => {
-          const result = event.target?.result as string;
-          if (result) {
-            setValue('images', [...(watch('images') || []), result], { shouldValidate: true, shouldDirty: true });
-          }
-        };
-        reader.readAsDataURL(file);
-      });
+      const toastId = toast.loading('Uploading image(s)...');
+      const uploadedUrls: string[] = [];
+      for (const file of files) {
+        const url = await uploadFileToSupabase(file);
+        if (url) uploadedUrls.push(url);
+      }
+      toast.dismiss(toastId);
+      if (uploadedUrls.length > 0) {
+        setValue('images', [...(watch('images') || []), ...uploadedUrls], { shouldValidate: true, shouldDirty: true });
+        toast.success(`Image(s) uploaded successfully`);
+      }
     }
   };
 
@@ -239,38 +275,82 @@ export default function SellerAddProductPage() {
 
   const onSubmit = async (data: ProductFormData) => {
     if (!seller) { toast.error('Seller profile not found'); return; }
-    await new Promise((r) => setTimeout(r, 800));
-    createProduct({
-      sellerId: seller.id,
-      name: data.name,
-      description: data.description,
-      mrp: Number(data.mrp),
-      sellingPrice: Number(data.sellingPrice),
-      stock: Number(data.stock),
-      sku: data.sku || `SKU-${Date.now()}`,
-      categoryId: data.categoryId === 'Other' && data.customCategory ? data.customCategory : data.categoryId,
-      subcategoryId: null,
-      tags: [],
-      images: data.images.map((url, index) => ({ id: String(index + 1), url, isPrimary: index === 0, altText: `${data.name} ${index + 1}` })),
-      discount,
-      status: 'pending_review',
-      lowStockThreshold: Number(data.lowStockThreshold),
-      giTagged: data.isGITagged,
-      slug: data.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, ''),
-      story: null,
-      weight: Number(data.weightValue),
-      weightUnit: data.weightUnit,
-      specifications: [],
-      hasVariants: false,
-      variants: [],
-      freeShipping: false,
-      shippingCharge: 0,
-      handmade: data.isHandmade,
-      rejectionReason: null,
-      featuredByAdmin: false,
-    });
-    toast.success('Product submitted for review! 🎉');
-    router.push('/seller-products');
+    const toastId = toast.loading('Publishing product...');
+    
+    try {
+      const skuVal = data.sku || `SKU-${Date.now()}`;
+      const slugVal = data.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') + '-' + Date.now().toString().slice(-4);
+
+      // Use the seller's text ID (e.g. SEL-IND-000004) for server-side resolution
+      const sellerTextId = seller.sellerId || seller.id;
+
+      // Call server action (uses admin client, bypasses RLS)
+      const result = await insertSellerProduct({
+        sellerTextId,
+        name: data.name,
+        slug: slugVal,
+        description: data.description,
+        mrp: Number(data.mrp),
+        sellingPrice: Number(data.sellingPrice),
+        sku: skuVal,
+        stockQuantity: Number(data.stock),
+        weight: Number(data.weightValue),
+        lowStockThreshold: Number(data.lowStockThreshold || 5),
+        imageUrls: data.images || [],
+      });
+
+      if (result.error) {
+        console.error('Server action error:', result.error);
+        toast.dismiss(toastId);
+        toast.error(`Failed to publish product: ${result.error}`);
+        return;
+      }
+
+      // Also sync to local Zustand store for instantaneous UI update
+      createProduct({
+        sellerId: seller.id,
+        name: data.name,
+        description: data.description,
+        mrp: Number(data.mrp),
+        sellingPrice: Number(data.sellingPrice),
+        stock: Number(data.stock),
+        sku: skuVal,
+        categoryId: data.categoryId === 'Other' && data.customCategory ? data.customCategory : data.categoryId,
+        subcategoryId: null,
+        tags: [],
+        images: data.images.map((url, index) => ({ id: String(index + 1), url, isPrimary: index === 0, altText: `${data.name} ${index + 1}` })),
+        discount,
+        status: 'approved',
+        lowStockThreshold: Number(data.lowStockThreshold),
+        giTagged: data.isGITagged,
+        slug: slugVal,
+        story: null,
+        weight: Number(data.weightValue),
+        weightUnit: data.weightUnit,
+        specifications: [],
+        hasVariants: false,
+        variants: [],
+        freeShipping: false,
+        shippingCharge: 0,
+        handmade: data.isHandmade,
+        rejectionReason: null,
+        featuredByAdmin: false,
+      });
+
+      toast.dismiss(toastId);
+      toast.success('Product published successfully! 🎉');
+      router.push('/seller-products');
+    } catch (err: any) {
+      toast.dismiss(toastId);
+      toast.error(err.message ? `Failed to publish product: ${err.message}` : 'Unable to publish product. Please try again.');
+    }
+  };
+
+  const onInvalid = (errors: any) => {
+    const errorKeys = Object.keys(errors);
+    if (errorKeys.length > 0) {
+      toast.error(`Please fix missing required fields before saving (${errorKeys.length} issue(s))`);
+    }
   };
 
   return (
@@ -286,7 +366,7 @@ export default function SellerAddProductPage() {
         </div>
       </div>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-5" noValidate>
+      <form onSubmit={handleSubmit(onSubmit, onInvalid)} className="space-y-5" noValidate>
 
         {/* ── 1. Basic Info ───────────────────────────── */}
         <SectionCard icon={Package} title="Basic Information">
@@ -666,9 +746,9 @@ export default function SellerAddProductPage() {
           </Link>
           <button
             type="submit"
-            disabled={!isValid || isSubmitting}
+            disabled={isSubmitting}
             className={`flex-1 sm:flex-none px-8 h-12 rounded-xl bg-gradient-to-r from-[#FF7A00] to-[#FF4500] text-white text-sm font-bold flex items-center justify-center gap-2 shadow-lg shadow-orange-500/30 active:scale-[0.98] transition-all ${
-              (!isValid || isSubmitting) ? 'opacity-50 cursor-not-allowed' : 'hover:opacity-95 cursor-pointer'
+              isSubmitting ? 'opacity-50 cursor-not-allowed' : 'hover:opacity-95 cursor-pointer'
             }`}
           >
             {isSubmitting ? <><Loader2 className="w-4 h-4 animate-spin" /> Saving…</> : <><Save size={16} /> Save Product</>}
@@ -676,7 +756,7 @@ export default function SellerAddProductPage() {
         </div>
 
         {!isValid && (
-          <p className="text-center text-xs text-[#9B8F84]">Please fill all required fields correctly to enable Save</p>
+          <p className="text-center text-xs text-[#9B8F84]">Click <strong>Save Product</strong> to highlight any remaining required fields</p>
         )}
       </form>
     </div>

@@ -8,6 +8,8 @@ import { Store, Palmtree, Truck, ShieldCheck, MapPin, Save, AlertCircle, Loader2
 import { toast } from 'sonner';
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { updateShopDetails } from '@/actions/shop/actions';
+import { updateShopSchema, UpdateShopInput } from '@/actions/shop/validations';
 
 const kycSchema = z.object({
   legalName: z.string().min(2, 'Legal name must be at least 2 characters').max(100, 'Name too long'),
@@ -93,6 +95,40 @@ export default function SellerSettingsPage() {
     toast.success('KYC and Bank Information updated successfully');
   };
 
+  const {
+    register: registerShop,
+    handleSubmit: handleSubmitShop,
+    formState: { errors: shopErrors, isDirty: shopIsDirty, isValid: shopIsValid, isSubmitting: shopIsSubmitting },
+    reset: resetShop,
+  } = useForm<UpdateShopInput>({
+    resolver: zodResolver(updateShopSchema),
+    mode: 'onChange',
+    defaultValues: {
+      shopName: seller?.shopName || '',
+      shopStory: seller?.shopDescription || '',
+    },
+  });
+
+  const onShopSubmit = async (data: UpdateShopInput) => {
+    if (!seller) return;
+    try {
+      const res = await updateShopDetails(seller.id, data);
+      if (res.error) {
+        toast.error(res.error);
+        return;
+      }
+      
+      updateProfile({
+        shopName: data.shopName,
+        shopDescription: data.shopStory || '',
+      });
+      resetShop(data);
+      toast.success('Shop details updated successfully');
+    } catch (err) {
+      toast.error('Failed to update shop details');
+    }
+  };
+
   if (!seller) return null;
 
   return (
@@ -104,6 +140,37 @@ export default function SellerSettingsPage() {
 
       <div className="grid lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
+          {/* Shop Details Form */}
+          <div className="bg-white rounded-2xl border border-[#F0EDE8] p-5 shadow-sm">
+            <h3 className="text-sm font-black text-[#1A1A1A] mb-4 uppercase tracking-wide flex items-center gap-2 border-b border-[#F0EDE8] pb-3">
+              <Store size={16} className="text-[#FF7A00]" /> Shop Profile
+            </h3>
+            
+            <form onSubmit={handleSubmitShop(onShopSubmit)} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-[#1A1A1A] mb-1">Shop Name <span className="text-red-500">*</span></label>
+                <input {...registerShop('shopName')} className={inputBase(!!shopErrors.shopName)} placeholder="e.g. My Awesome Shop" />
+                <AnimatePresence mode="wait"><FieldError message={shopErrors.shopName?.message} /></AnimatePresence>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-[#1A1A1A] mb-1">Shop Description</label>
+                <textarea {...registerShop('shopStory')} className={inputBase(!!shopErrors.shopStory)} placeholder="Tell customers about your shop..." rows={3} />
+                <AnimatePresence mode="wait"><FieldError message={shopErrors.shopStory?.message} /></AnimatePresence>
+              </div>
+              <div className="flex justify-end pt-2">
+                <button
+                  type="submit"
+                  disabled={!shopIsDirty || !shopIsValid || shopIsSubmitting}
+                  className={`px-6 py-2.5 rounded-xl bg-gradient-to-r from-[#FF7A00] to-[#FF4500] text-white text-xs font-bold flex items-center justify-center gap-2 transition-all shadow-lg ${
+                    (!shopIsDirty || !shopIsValid || shopIsSubmitting) ? 'opacity-50 cursor-not-allowed' : 'hover:opacity-95 hover:-translate-y-0.5 shadow-orange-500/20'
+                  }`}
+                >
+                  {shopIsSubmitting ? <><Loader2 size={14} className="animate-spin" /> Saving...</> : <><Save size={14} /> Save Details</>}
+                </button>
+              </div>
+            </form>
+          </div>
+
           {/* KYC Form */}
           <div className="bg-white rounded-2xl border border-[#F0EDE8] p-5 shadow-sm">
             <h3 className="text-sm font-black text-[#1A1A1A] mb-4 uppercase tracking-wide flex items-center gap-2 border-b border-[#F0EDE8] pb-3">

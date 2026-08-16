@@ -9,3 +9,10 @@ export const shopSchema = z.object({
 })
 
 export type ShopInput = z.infer<typeof shopSchema>
+
+export const updateShopSchema = z.object({
+  shopName: z.string().min(2, 'Shop name is required').max(100, 'Name too long'),
+  shopStory: z.string().max(500, 'Description too long').optional(),
+})
+
+export type UpdateShopInput = z.infer<typeof updateShopSchema>
