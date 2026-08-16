@@ -3,7 +3,7 @@
 // TODO: When Supabase is added, move this to middleware.ts for server-side route protection.
 
 import React, { useEffect, useState, useCallback } from 'react'
-import { useRouter, useParams } from 'next/navigation'
+import { useRouter, useParams, usePathname } from 'next/navigation'
 import { notFound } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Shield, LogIn } from 'lucide-react'
@@ -150,9 +150,10 @@ function IdleWarningModal({ countdown, onStayLoggedIn, onLogout }: {
 export default function SuperAdminPortalLayout({ children }: { children: React.ReactNode }) {
   const params = useParams()
   const router = useRouter()
+  const pathname = usePathname()
   const saToken = params.saToken as string
   
-  const { isAuthenticated, checkSession, logout } = useSAAuthStore()
+  const { isAuthenticated, checkSession, logout, superAdmin } = useSAAuthStore()
   const { openCommandPalette } = useSAUIStore()
   
   const [authState, setAuthState] = useState<'checking' | 'ok' | 'expired'>('checking')
@@ -257,7 +258,6 @@ export default function SuperAdminPortalLayout({ children }: { children: React.R
   if (authState === 'checking') return <FortressLoader />
 
   // ── Access Guard Check ──
-  const pathname = usePathname()
   const role = (superAdmin?.role as AdminRole) || 'SUPER_ADMIN'
   const permissions = superAdmin?.permissions || DEFAULT_ROLE_PERMISSIONS[role]
   
