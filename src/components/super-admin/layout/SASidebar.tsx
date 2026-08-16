@@ -10,6 +10,8 @@ import { useSAUIStore } from '@/lib/store/sa-ui-store'
 import { useSAAuthStore } from '@/lib/store/sa-auth-store'
 import { useSuperAdminStore } from '@/lib/store/super-admin-store'
 import { cn } from '@/lib/utils'
+import { DEFAULT_ROLE_PERMISSIONS } from '@/lib/constants/sa-permissions'
+import type { AdminRole } from '@/types/super-admin.types'
 
 // ─── Tooltip for collapsed sidebar ───────────────────────────────────────────
 function SidebarTooltip({ label, description }: { label: string; description?: string }) {
@@ -185,7 +187,29 @@ export function SASidebar({ isDrawer = false, onClose }: SASidebarProps) {
   const pendingRequests = panelRequests.filter(r => r.status === 'pending').length
   const openTickets = getOpenTicketsCount()
 
+  const role = (superAdmin?.role as AdminRole) || 'SUPER_ADMIN'
+  const permissions = DEFAULT_ROLE_PERMISSIONS[role]
+
   const navSections = getSANavigation(saToken)
+    .map((section) => ({
+      ...section,
+      items: section.items
+        .filter((item) => {
+          const perm = permissions[item.panel]
+          return perm && perm !== 'none'
+        })
+        .map((item) => {
+          if (!item.subItems) return item
+          return {
+            ...item,
+            subItems: item.subItems.filter((sub) => {
+              const perm = permissions[sub.panel]
+              return perm && perm !== 'none'
+            }),
+          }
+        }),
+    }))
+    .filter((section) => section.items.length > 0)
   
   const collapsed = !isDrawer && sidebarCollapsed
 
@@ -222,7 +246,7 @@ export function SASidebar({ isDrawer = false, onClose }: SASidebarProps) {
                 Bharat Bazaar
               </p>
               <span className="inline-block px-1.5 py-0.5 bg-[#F5C842]/10 border border-[#F5C842]/20 rounded-full text-[9px] font-bold text-[#F5C842] tracking-widest uppercase whitespace-nowrap">
-                Super Admin
+                {superAdmin?.role.replace('_', ' ') || 'Super Admin'}
               </span>
             </motion.div>
           )}
@@ -292,7 +316,7 @@ export function SASidebar({ isDrawer = false, onClose }: SASidebarProps) {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold text-white truncate">{superAdmin.name}</p>
-                <p className="text-[10px] text-[#6B6B80] font-medium">Super Admin</p>
+                <p className="text-[10px] text-[#6B6B80] font-medium">{superAdmin.role.replace('_', ' ')}</p>
               </div>
             </div>
           )}

@@ -52,7 +52,7 @@ export function SAProfileDropdown({ onClose }: { onClose: () => void }) {
           <p className="font-bold text-white text-sm">{superAdmin?.name || 'Super Admin'}</p>
           <p className="text-xs text-[#8B8B9E] mt-0.5">{superAdmin?.email}</p>
           <span className="inline-block mt-2 px-2 py-0.5 bg-[#F5C842]/10 border border-[#F5C842]/20 rounded-full text-[10px] font-bold text-[#F5C842] uppercase tracking-widest">
-            Super Admin
+            {superAdmin?.role.replace('_', ' ') || 'Super Admin'}
           </span>
         </div>
       </div>
