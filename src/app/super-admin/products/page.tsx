@@ -1,16 +1,30 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Package, Search, Filter, AlertOctagon, CheckCircle2, Eye, Trash2 } from 'lucide-react';
+import { Package, Search, Filter, AlertOctagon, CheckCircle2, Eye, Trash2, Loader2 } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils/format-currency';
 import { toast } from 'sonner';
-import { MOCK_ADMIN_PRODUCTS } from '@/lib/mock/super-admin';
+import { getAdminProducts, updateProductStatus } from '@/actions/products/admin-actions';
 
 export default function ProductsPage() {
-  const [products, setProducts] = useState(MOCK_ADMIN_PRODUCTS);
-  const [tab, setTab]           = useState<'all' | 'flagged' | 'pending' | 'approved' | 'rejected'>('all');
+  const [products, setProducts] = useState<any[]>([]);
+  const [loading, setLoading]   = useState(true);
+  const [tab, setTab]           = useState<'all' | 'pending_review' | 'published' | 'rejected' | 'archived'>('all');
   const [search, setSearch]     = useState('');
+
+  useEffect(() => {
+    async function load() {
+      const { data, error } = await getAdminProducts();
+      if (error) {
+        toast.error(error);
+      } else if (data) {
+        setProducts(data);
+      }
+      setLoading(false);
+    }
+    load();
+  }, []);
 
   const filtered = products.filter((p) => {
     const matchesTab = tab === 'all' || p.status === tab;
@@ -18,9 +32,16 @@ export default function ProductsPage() {
     return matchesTab && matchesSearch;
   });
 
-  const handleToggleFlag = (id: string, name: string) => {
-    setProducts((prev) => prev.map((p) => (p.id === id ? { ...p, status: p.status === 'flagged' ? 'approved' : 'flagged' } : p)));
-    toast.info(`Updated product moderation state for ${name}`);
+  const handleToggleFlag = async (id: string, name: string, currentStatus: string) => {
+    const newStatus = currentStatus === 'rejected' ? 'pending_review' : 'rejected';
+    setProducts((prev) => prev.map((p) => (p.id === id ? { ...p, status: newStatus } : p)));
+    const res = await updateProductStatus(id, newStatus);
+    if (!res.success) {
+      toast.error(`Failed to update ${name}: ${res.error}`);
+      setProducts((prev) => prev.map((p) => (p.id === id ? { ...p, status: currentStatus } : p)));
+    } else {
+      toast.info(`Updated product state for ${name}`);
+    }
   };
 
   return (
@@ -38,7 +59,7 @@ export default function ProductsPage() {
       {/* Tabs & Search */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
         <div className="flex gap-2 flex-wrap bg-[#111118] border border-[#1E1E2E] p-1 rounded-xl">
-          {(['all', 'flagged', 'pending', 'approved', 'rejected'] as const).map((t) => (
+          {(['all', 'pending_review', 'published', 'rejected', 'archived'] as const).map((t) => (
             <button
               key={t}
               onClick={() => setTab(t)}
@@ -46,7 +67,7 @@ export default function ProductsPage() {
                 tab === t ? 'bg-[#FF7A00] text-white' : 'text-[#9898B0] hover:text-[#F0F0F8]'
               }`}
             >
-              {t} ({products.filter((p) => (t === 'all' ? true : p.status === t)).length})
+              {t.replace('_', ' ')} ({products.filter((p) => (t === 'all' ? true : p.status === t)).length})
             </button>
           ))}
         </div>
@@ -100,16 +121,16 @@ export default function ProductsPage() {
                   <td className="px-5 py-3.5">
                     <span
                       className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase ${
-                        p.status === 'approved'
+                        p.status === 'published'
                           ? 'bg-[#22C55E]/10 text-[#22C55E]'
-                          : p.status === 'flagged'
-                          ? 'bg-[#EF4444]/10 text-[#EF4444] animate-pulse'
                           : p.status === 'rejected'
+                          ? 'bg-[#EF4444]/10 text-[#EF4444]'
+                          : p.status === 'archived'
                           ? 'bg-[#9898B0]/10 text-[#9898B0]'
                           : 'bg-[#F59E0B]/10 text-[#F59E0B]'
                       }`}
                     >
-                      {p.status}
+                      {p.status.replace('_', ' ')}
                     </span>
                   </td>
                   <td className="px-5 py-3.5 text-right">
@@ -121,10 +142,10 @@ export default function ProductsPage() {
                         Review →
                       </Link>
                       <button
-                        onClick={() => handleToggleFlag(p.id, p.name)}
+                        onClick={() => handleToggleFlag(p.id, p.name, p.status)}
                         className="px-2.5 py-1 rounded-lg bg-[#111118] border border-[#1E1E2E] text-xs font-semibold text-[#EF4444] hover:bg-[#EF4444]/10 cursor-pointer"
                       >
-                        {p.status === 'flagged' ? 'Unflag' : 'Flag'}
+                        {p.status === 'rejected' ? 'Unreject' : 'Reject'}
                       </button>
                     </div>
                   </td>
@@ -132,7 +153,11 @@ export default function ProductsPage() {
               ))}
             </tbody>
           </table>
-          {filtered.length === 0 && <div className="text-center py-12 text-[#5C5C78] text-sm">No products found.</div>}
+          {loading ? (
+            <div className="flex items-center justify-center py-12 text-[#5C5C78]"><Loader2 className="animate-spin w-6 h-6" /></div>
+          ) : filtered.length === 0 ? (
+            <div className="text-center py-12 text-[#5C5C78] text-sm">No products found.</div>
+          ) : null}
         </div>
       </div>
     </div>
