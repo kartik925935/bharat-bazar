@@ -237,7 +237,7 @@ export default function ReturnsPage() {
         {showRequestModal && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4"
-            onClick={() => !submitting && setShowRequestModal(false)}>
+            onClick={() => !isSubmitting && setShowRequestModal(false)}>
             <motion.div initial={{ scale: 0.95, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95 }}
               className="bg-white rounded-2xl max-w-lg w-full p-6 space-y-5 max-h-[90vh] overflow-y-auto"
               onClick={(e) => e.stopPropagation()}>

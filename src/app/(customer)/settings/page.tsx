@@ -210,11 +210,11 @@ export default function SettingsPage() {
 
   // ── Delete Account form ────────────────────────────────────────────────────
   const delForm = useForm<DeleteAccountData>({
-    resolver: zodResolver(deleteAccountSchema),
+    resolver: zodResolver(deleteAccountSchema) as any,
     mode: 'onChange',
     reValidateMode: 'onChange',
     defaultValues: {
-      confirmText: '',
+      confirmText: '' as 'DELETE MY ACCOUNT',
       password: '',
       reason: undefined,
       acknowledgeDataLoss: false,

@@ -159,7 +159,7 @@ export default function AddressesPage() {
   const [pincodeLoading, setPincodeLoading] = useState(false);
 
   const form = useForm<AddressFormData>({
-    resolver: zodResolver(addressSchema),
+    resolver: zodResolver(addressSchema) as any,
     mode: 'onChange',
     reValidateMode: 'onChange',
     defaultValues: {
@@ -171,7 +171,7 @@ export default function AddressesPage() {
       addressLine2: '',
       landmark: '',
       city: '',
-      state: undefined,
+      state: undefined as any,
       addressType: 'home',
       customLabel: '',
       isDefault: false,

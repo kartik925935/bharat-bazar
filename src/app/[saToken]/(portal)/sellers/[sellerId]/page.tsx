@@ -1,0 +1,2 @@
+﻿// Seller Detail Page placeholder
+export default function SellerDetailPage() { return (<div className="flex items-center justify-center h-full min-h-[400px]"><div className="text-center space-y-3"><div className="w-16 h-16 rounded-2xl bg-[#1A1A2E] border border-[#2A2A3E] flex items-center justify-center mx-auto"><span className="text-2xl">🏪</span></div><p className="text-[#A0A0B8] text-sm">Seller Detail — Loading</p></div></div>) }
