@@ -39,6 +39,10 @@ interface ProductRow {
     id: string
     quantity_available: number
   }>
+  categories?: {
+    name: string
+    slug: string
+  } | null
 }
 
 /**
@@ -57,7 +61,7 @@ function mapProductRow(row: ProductRow): Product {
     rating: row.sellers?.rating || 4.0,
   }
 
-  const images = row.product_images
+  const images = row.product_images && row.product_images.length > 0
     ? row.product_images
         .sort((a, b) => (a.is_primary ? -1 : 1))
         .map((img) => img.image_url)
@@ -74,16 +78,16 @@ function mapProductRow(row: ProductRow): Product {
     price: Number(row.selling_price),
     mrp: Number(row.mrp),
     discount: Math.round(((Number(row.mrp) - Number(row.selling_price)) / Number(row.mrp)) * 100),
-    rating: 4.5, // TODO: aggregate from reviews table
-    reviewCount: 0, // TODO: aggregate from reviews table
+    rating: row.sellers?.rating || 4.5, // Use seller rating as fallback for now
+    reviewCount: 0,
     images,
-    category: 'Handcrafted', // TODO: join to categories table
+    category: row.categories?.slug || 'handcrafted',
     subcategory: undefined,
     seller,
-    isNew: false, // TODO: check created_at within recent window
+    isNew: false,
     inStock,
-    freeDelivery: true, // TODO: apply business logic
-    tags: [], // TODO: extract from specifications or dedicated tags table
+    freeDelivery: true,
+    tags: [],
     specifications: row.specifications || {},
   }
 }
@@ -99,6 +103,7 @@ export async function getStorefrontProducts(filters?: {
   maxPrice?: number
   sellerTier?: string
   location?: string
+  rating?: number
   sort?: 'featured' | 'price-low' | 'price-high' | 'rating' | 'new'
   limit?: number
   offset?: number
@@ -142,6 +147,10 @@ export async function getStorefrontProducts(filters?: {
         inventory (
           id,
           quantity_available
+        ),
+        categories (
+          name,
+          slug
         )
       `,
         { count: 'exact' }
@@ -149,7 +158,10 @@ export async function getStorefrontProducts(filters?: {
       .eq('status', 'published')
       .order('created_at', { ascending: false })
 
-    // Apply filters
+    if (filters?.category) {
+      query = query.eq('categories.slug', filters.category)
+    }
+
     if (filters?.search) {
       query = query.or(
         `name.ilike.%${filters.search}%,description.ilike.%${filters.search}%`
@@ -162,6 +174,10 @@ export async function getStorefrontProducts(filters?: {
 
     if (filters?.maxPrice) {
       query = query.lte('selling_price', filters.maxPrice)
+    }
+
+    if (filters?.rating) {
+      query = query.gte('sellers.rating', filters.rating)
     }
 
     if (filters?.sellerTier) {
@@ -248,6 +264,10 @@ export async function getStorefrontProductBySlug(
         inventory (
           id,
           quantity_available
+        ),
+        categories (
+          name,
+          slug
         )
       `
       )
@@ -324,6 +344,10 @@ export async function getStorefrontProductsBySeller(
         inventory (
           id,
           quantity_available
+        ),
+        categories (
+          name,
+          slug
         )
       `
       )
@@ -420,6 +444,10 @@ export async function getFeaturedProducts(limit: number = 12): Promise<{
         inventory (
           id,
           quantity_available
+        ),
+        categories (
+          name,
+          slug
         )
       `
       )
@@ -435,6 +463,79 @@ export async function getFeaturedProducts(limit: number = 12): Promise<{
     return { data: products }
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : 'Failed to fetch featured products'
+    return { data: [], error: errorMessage }
+  }
+}
+
+/**
+ * Fetch products by a search query for the search modal
+ */
+export async function searchProducts(queryText: string, limit: number = 5): Promise<{
+  data: Product[]
+  error?: string
+}> {
+  try {
+    const supabase = await createClient()
+
+    if (!queryText || queryText.trim() === '') {
+      return { data: [] }
+    }
+
+    const { data, error } = await supabase
+      .from('products')
+      .select(
+        `
+        id,
+        name,
+        slug,
+        description,
+        mrp,
+        selling_price,
+        sku,
+        weight,
+        status,
+        category_id,
+        seller_id,
+        specifications,
+        sellers (
+          id,
+          seller_id,
+          first_name,
+          last_name,
+          tier,
+          type,
+          location,
+          avatar_url,
+          rating
+        ),
+        product_images (
+          id,
+          image_url,
+          is_primary
+        ),
+        inventory (
+          id,
+          quantity_available
+        ),
+        categories (
+          name,
+          slug
+        )
+      `
+      )
+      .eq('status', 'published')
+      .or(`name.ilike.%${queryText}%,description.ilike.%${queryText}%`)
+      .order('created_at', { ascending: false })
+      .limit(limit)
+
+    if (error) {
+      return { data: [], error: (error as Error).message }
+    }
+
+    const products = (data as unknown as ProductRow[]).map(mapProductRow)
+    return { data: products }
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : 'Failed to search products'
     return { data: [], error: errorMessage }
   }
 }

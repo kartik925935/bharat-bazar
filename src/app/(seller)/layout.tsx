@@ -77,9 +77,10 @@ export default function SellerLayout({ children }: { children: React.ReactNode }
 
   useEffect(() => {
     // Synchronize Supabase user seller details if authenticated but not yet populated in seller store
-    if (isUserAuthed && user?.role === 'seller' && !isAuthenticated) {
+    // or if the stored seller belongs to a different user.
+    if (isUserAuthed && user?.role === 'seller') {
       const dbSeller = user.seller;
-      if (dbSeller) {
+      if (dbSeller && (!isAuthenticated || seller?.id !== dbSeller.id)) {
         useSellerStore.setState({
           seller: {
             id: dbSeller.id,

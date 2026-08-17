@@ -1,23 +1,39 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
 import { ProductCard } from '../product-card';
-import { mockProducts } from '@/lib/mock/products';
+import { getFeaturedProducts } from '@/actions/products/storefront-queries';
+import { Product } from '@/types';
+import { SkeletonCard } from '@/components/ui/skeletons';
 
 const tabs = ['All', 'New Arrivals', 'Best Sellers', 'Offers', 'Under ₹500'];
 
 export function FeaturedProducts() {
   const [activeTab, setActiveTab] = useState('All');
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchProducts = async () => {
+      setLoading(true);
+      const res = await getFeaturedProducts(12);
+      if (res.data) {
+        setProducts(res.data);
+      }
+      setLoading(false);
+    };
+    fetchProducts();
+  }, []);
 
   const filteredProducts = activeTab === 'Under ₹500'
-    ? mockProducts.filter((p) => p.price < 500)
+    ? products.filter((p) => p.price < 500)
     : activeTab === 'New Arrivals'
-    ? mockProducts.filter((p) => p.isNew)
+    ? products.filter((p) => p.isNew)
     : activeTab === 'Offers'
-    ? mockProducts.filter((p) => p.discount > 30)
-    : mockProducts;
+    ? products.filter((p) => p.discount > 30)
+    : products;
 
   return (
     <section className="py-20 bg-[#FAFAF8]">
@@ -54,9 +70,16 @@ export function FeaturedProducts() {
 
         {/* Grid */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
-          {(filteredProducts.length > 0 ? filteredProducts : mockProducts).map((product) => (
-            <ProductCard key={product.id} product={product} />
-          ))}
+          {loading ? (
+            // Array of 4 skeletons
+            Array.from({ length: 4 }).map((_, i) => (
+              <SkeletonCard key={i} variant="product" />
+            ))
+          ) : (
+            filteredProducts.map((product) => (
+              <ProductCard key={product.id} product={product} />
+            ))
+          )}
         </div>
       </div>
     </section>

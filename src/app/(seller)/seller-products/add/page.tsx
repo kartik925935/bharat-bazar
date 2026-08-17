@@ -275,7 +275,7 @@ export default function SellerAddProductPage() {
 
   const onSubmit = async (data: ProductFormData) => {
     if (!seller) { toast.error('Seller profile not found'); return; }
-    const toastId = toast.loading('Publishing product...');
+    const toastId = toast.loading('Submitting product for review...');
     
     try {
       const skuVal = data.sku || `SKU-${Date.now()}`;
@@ -320,7 +320,7 @@ export default function SellerAddProductPage() {
         tags: [],
         images: data.images.map((url, index) => ({ id: String(index + 1), url, isPrimary: index === 0, altText: `${data.name} ${index + 1}` })),
         discount,
-        status: 'approved',
+        status: 'pending_review',
         lowStockThreshold: Number(data.lowStockThreshold),
         giTagged: data.isGITagged,
         slug: slugVal,
@@ -338,11 +338,11 @@ export default function SellerAddProductPage() {
       });
 
       toast.dismiss(toastId);
-      toast.success('Product published successfully! 🎉');
+      toast.success('Product submitted for review! 🎉');
       router.push('/seller-products');
     } catch (err: any) {
       toast.dismiss(toastId);
-      toast.error(err.message ? `Failed to publish product: ${err.message}` : 'Unable to publish product. Please try again.');
+      toast.error(err.message ? `Failed to submit product: ${err.message}` : 'Unable to submit product. Please try again.');
     }
   };
 
@@ -751,12 +751,12 @@ export default function SellerAddProductPage() {
               isSubmitting ? 'opacity-50 cursor-not-allowed' : 'hover:opacity-95 cursor-pointer'
             }`}
           >
-            {isSubmitting ? <><Loader2 className="w-4 h-4 animate-spin" /> Saving…</> : <><Save size={16} /> Save Product</>}
+            {isSubmitting ? <><Loader2 className="w-4 h-4 animate-spin" /> Submitting…</> : <><Save size={16} /> Submit for Review</>}
           </button>
         </div>
 
         {!isValid && (
-          <p className="text-center text-xs text-[#9B8F84]">Click <strong>Save Product</strong> to highlight any remaining required fields</p>
+          <p className="text-center text-xs text-[#9B8F84]">Click <strong>Submit for Review</strong> to highlight any remaining required fields</p>
         )}
       </form>
     </div>

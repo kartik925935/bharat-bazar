@@ -13,7 +13,9 @@ import { useWishlistStore } from '@/lib/store/wishlist-store';
 import { useBrowsingStore } from '@/lib/store/browsing-store';
 import { useNotificationStore } from '@/lib/store/notification-store';
 import { mockOrders, STATUS_CONFIG } from '@/lib/mock/orders';
-import { mockProducts } from '@/lib/mock/products';
+import { getFeaturedProducts } from '@/actions/products/storefront-queries';
+import { Product } from '@/types';
+import { SkeletonCard } from '@/components/ui/skeletons';
 import { MOCK_USER_LOYALTY } from '@/lib/mock/customer';
 import { formatCurrency } from '@/lib/utils/format-currency';
 import { ProductCard } from '@/components/storefront/product-card';
@@ -104,9 +106,24 @@ export default function CustomerDashboardPage() {
   const { recentlyViewed } = useBrowsingStore();
   const unreadCount = useNotificationStore((s) => s.unreadCount);
 
+  const [recommendations, setRecommendations] = useState<Product[]>([]);
+  const [recommendationsLoading, setRecommendationsLoading] = useState(true);
+
   useEffect(() => {
     const t = setTimeout(() => setLoading(false), 1000);
     return () => clearTimeout(t);
+  }, []);
+
+  useEffect(() => {
+    const fetchRecs = async () => {
+      setRecommendationsLoading(true);
+      const res = await getFeaturedProducts(6);
+      if (res.data) {
+        setRecommendations(res.data);
+      }
+      setRecommendationsLoading(false);
+    };
+    fetchRecs();
   }, []);
 
   if (!user) return null;
@@ -124,8 +141,6 @@ export default function CustomerDashboardPage() {
     .filter(o => o.status === 'delivered')
     .flatMap(o => o.items)
     .filter(i => !i.reviewed).length;
-
-  const recommendations = mockProducts.slice(0, 6);
 
   const STATS = [
     { icon: Package, label: 'Total Orders', value: mockOrders.length, sub: `${activeOrders.length} active`, link: '/orders', iconBg: 'bg-[#FFF3E8]', iconColor: 'text-[#FF7A00]' },
@@ -417,9 +432,15 @@ export default function CustomerDashboardPage() {
           </Link>
         </div>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-          {recommendations.slice(0, 4).map((p) => (
-            <ProductCard key={p.id} product={p} />
-          ))}
+          {recommendationsLoading ? (
+            Array.from({ length: 4 }).map((_, i) => (
+              <SkeletonCard key={i} variant="product" />
+            ))
+          ) : (
+            recommendations.slice(0, 4).map((p) => (
+              <ProductCard key={p.id} product={p} />
+            ))
+          )}
         </div>
       </div>
 

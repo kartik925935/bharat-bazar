@@ -251,10 +251,10 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-0.5">
                 <Star size={14} className="fill-[#FFB800] stroke-[#FFB800]" />
-                <span className="text-xs font-bold text-[#1A1A1A]">{product.rating}</span>
+                <span className="text-xs font-bold text-[#1A1A1A]">{(product.rating ?? 4.5).toFixed(1)}</span>
               </div>
               <span className="text-xs text-[#8C8B80]">|</span>
-              <span className="text-xs text-[#8C8B80] font-semibold">{product.reviewCount} customer reviews</span>
+              <span className="text-xs text-[#8C8B80] font-semibold">{(product.reviewCount ?? 0).toLocaleString()} customer reviews</span>
             </div>
 
             {/* Pricing */}
@@ -431,7 +431,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
                 {/* Score breakdown bar */}
                 <div className="flex flex-col md:flex-row gap-8 items-center border-b border-[#E5E4DE]/50 pb-6">
                   <div className="text-center space-y-1">
-                    <div className="text-4xl font-black text-[#1A1A1A]">{product.rating}</div>
+                    <div className="text-4xl font-black text-[#1A1A1A]">{(product.rating ?? 4.5).toFixed(1)}</div>
                     <div className="flex gap-0.5 text-[#FFB800] justify-center">
                       <Star size={16} className="fill-[#FFB800]" />
                       <Star size={16} className="fill-[#FFB800]" />
