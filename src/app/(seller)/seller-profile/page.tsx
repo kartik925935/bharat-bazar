@@ -96,15 +96,50 @@ export default function SellerProfilePage() {
           </div>
 
           {/* KYC Status */}
-          <div className="bg-emerald-50 rounded-2xl border border-emerald-100 p-6 flex items-center gap-4">
-            <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600">
-              <ShieldCheck size={24} />
+          {seller.kycStatus === 'verified' && (
+            <div className="bg-emerald-50 rounded-2xl border border-emerald-100 p-6 flex items-center gap-4">
+              <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600">
+                <ShieldCheck size={24} />
+              </div>
+              <div>
+                <h3 className="text-sm font-black text-emerald-800">KYC Verified</h3>
+                <p className="text-xs text-emerald-600 mt-1">Your documents (PAN, Aadhaar) have been verified successfully.</p>
+              </div>
             </div>
-            <div>
-              <h3 className="text-sm font-black text-emerald-800">KYC Verified</h3>
-              <p className="text-xs text-emerald-600 mt-1">Your documents (PAN, Aadhaar) have been verified successfully.</p>
+          )}
+          {seller.kycStatus === 'pending' && (
+            <div className="bg-orange-50 rounded-2xl border border-orange-100 p-6 flex items-center gap-4">
+              <div className="w-12 h-12 rounded-full bg-orange-100 flex items-center justify-center text-orange-600">
+                <ShieldCheck size={24} />
+              </div>
+              <div>
+                <h3 className="text-sm font-black text-orange-800">KYC Pending</h3>
+                <p className="text-xs text-orange-600 mt-1">Your documents are currently under review by our admin team.</p>
+              </div>
             </div>
-          </div>
+          )}
+          {seller.kycStatus === 'failed' && (
+            <div className="bg-red-50 rounded-2xl border border-red-100 p-6 flex items-center gap-4">
+              <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center text-red-600">
+                <ShieldCheck size={24} />
+              </div>
+              <div>
+                <h3 className="text-sm font-black text-red-800">KYC Failed</h3>
+                <p className="text-xs text-red-600 mt-1">Your documents could not be verified. Please update your details.</p>
+              </div>
+            </div>
+          )}
+          {seller.kycStatus === 'changes_required' && (
+            <div className="bg-amber-50 rounded-2xl border border-amber-100 p-6 flex items-center gap-4">
+              <div className="w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center text-amber-600">
+                <ShieldCheck size={24} />
+              </div>
+              <div>
+                <h3 className="text-sm font-black text-amber-800">Changes Required</h3>
+                <p className="text-xs text-amber-600 mt-1">Please provide the requested documents to complete your KYC.</p>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

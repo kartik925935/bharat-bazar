@@ -119,7 +119,7 @@ const step3OtherFields = z.object({
     .transform(v => v.trim().toUpperCase())
     .pipe(
       z.string()
-        .refine(v => v === '' || /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z][Z][0-9A-Z]$/.test(v), {
+        .refine(v => v === '' || /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z][A-Z0-9][0-9A-Z]$/.test(v), {
           message: "Invalid GSTIN — must be 15 characters (e.g. 22ABCDE1234F1Z5)"
         })
     )
