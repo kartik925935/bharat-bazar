@@ -339,6 +339,11 @@ export const useAuthStore = create<AuthState>()(
         try {
           useWishlistStore.getState().clearWishlist();
         } catch (e) {}
+        // Clear seller store
+        try {
+          const { useSellerStore } = await import('./seller-store');
+          useSellerStore.getState().logout();
+        } catch (e) {}
       },
 
       updateProfile: async (profileData) => {
