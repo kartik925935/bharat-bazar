@@ -155,6 +155,8 @@ export async function getStorefrontProducts(filters?: {
         `name.ilike.%${filters.search}%,description.ilike.%${filters.search}%`
       )
     }
+
+    if (filters?.minPrice) {
       query = query.gte('selling_price', filters.minPrice)
     }
 
@@ -182,7 +184,7 @@ export async function getStorefrontProducts(filters?: {
     }
 
     // Map rows to Product UI type
-    const products = (data as ProductRow[]).map(mapProductRow)
+    const products = (data as unknown as ProductRow[]).map(mapProductRow)
 
     // Apply client-side sorts that require computed fields
     if (filters?.sort === 'price-low') {
@@ -261,7 +263,7 @@ export async function getStorefrontProductBySlug(
       return { data: null }
     }
 
-    const product = mapProductRow(data as ProductRow)
+    const product = mapProductRow(data as unknown as ProductRow)
     return { data: product }
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : 'Failed to fetch product'
@@ -353,7 +355,7 @@ export async function getStorefrontProductsBySeller(
       return { data: [], error: (error as Error).message }
     }
 
-    const products = (data as ProductRow[]).map(mapProductRow)
+    const products = (data as unknown as ProductRow[]).map(mapProductRow)
 
     if (filters?.sort === 'price-low') {
       products.sort((a, b) => a.price - b.price)
@@ -429,7 +431,7 @@ export async function getFeaturedProducts(limit: number = 12): Promise<{
       return { data: [], error: (error as Error).message }
     }
 
-    const products = (data as ProductRow[]).map(mapProductRow)
+    const products = (data as unknown as ProductRow[]).map(mapProductRow)
     return { data: products }
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : 'Failed to fetch featured products'
