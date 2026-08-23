@@ -218,7 +218,7 @@ export default function AddressesPage() {
       addressLine2: '',
       landmark: '',
       city: '',
-      state: undefined,
+      state: undefined as any,
       addressType: 'home',
       customLabel: '',
       isDefault: false,

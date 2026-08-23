@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useParams } from 'next/navigation';
@@ -92,4 +93,5 @@ export default function SellerStorefront() {
       </div>
     </div>
   );
+
 }
