@@ -51,9 +51,9 @@ export const AUDIT_CATEGORY_LABELS: Record<AuditActionCategory, string> = {
   coupon_management: 'Coupon Management',
 }
 
-export const AUDIT_ACTORS = {
-  super_admin: 'Super Admin',
-  admin: 'Admin',
-} as const
+export const AUDIT_ACTORS: { id: string; name: string; role: string }[] = [
+  { id: 'super_admin', name: 'Super Admin', role: 'super_admin' },
+  { id: 'admin', name: 'Admin', role: 'admin' },
+]
 
 export const MOCK_AUDIT_LOGS_V2: SAAuditLogV2[] = []

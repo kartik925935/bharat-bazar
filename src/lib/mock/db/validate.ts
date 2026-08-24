@@ -1,24 +1,8 @@
 import type { MockDB } from './index'
 
 export function assertMinimumVolumes(db: MockDB): void {
-  const requirements: [string, unknown[], number][] = [
-    ['orders', db.orders, 60],
-    ['sellers', db.sellers, 30],
-    ['customers', db.customers, 35],
-    ['deliveryPartners', db.deliveryPartners, 20],
-    ['products', db.products, 40],
-    ['coupons', db.coupons, 8],
-    ['auditLogs', db.auditLogs, 50],
-    ['commissions', db.commissions, 30],
-    ['settlements', db.settlements, 5],
-  ]
-  const failures = requirements.filter(([, arr, min]) => arr.length < min)
-  if (failures.length && process.env.NODE_ENV === 'development') {
-    console.error(
-      '🚨 MOCK DATA VOLUME REGRESSION:\n' +
-      failures.map(([name, arr, min]) => `  - ${name}: has ${(arr as unknown[]).length}, requires ≥ ${min}`).join('\n')
-    )
-  }
+  // Disabled during Supabase migration as mock data has been cleared
+  return;
 }
 
 export function validateMockDataIntegrity(db: MockDB): string[] {

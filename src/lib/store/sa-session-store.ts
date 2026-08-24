@@ -112,9 +112,9 @@ export const useSASessionStore = create<SASessionState & SASessionActions>()(
         const admin = allAdmins.find((a) => a.id === adminId)
         if (!admin) return
         
-        // Ensure localStorage knows we're logged in (mimic authService)
+        // Ensure mock auth service knows we're logged in
         if (typeof window !== 'undefined') {
-          localStorage.setItem('sa-session', JSON.stringify({
+          localStorage.setItem('sa-auth-session', JSON.stringify({
             adminId: admin.id,
             email: admin.email,
             loggedInAt: new Date().toISOString(),
