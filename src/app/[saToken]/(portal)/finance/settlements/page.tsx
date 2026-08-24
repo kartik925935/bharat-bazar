@@ -6,7 +6,7 @@ import {
   AlertTriangle, XCircle, Eye, RefreshCw, Filter,
   Building, ChevronDown, ChevronUp, Play, RotateCcw
 } from 'lucide-react'
-import { MOCK_SA_SETTLEMENTS } from '@/lib/mock/sa-finance.mock'
+import { useSAStore } from '@/lib/store/super-admin-store'
 import type { SASettlement } from '@/types/super-admin.types'
 import { ResponsiveSheet } from '@/components/ui/responsive-sheet'
 import { useIsMobile } from '@/hooks/useBreakpoint'
@@ -171,7 +171,10 @@ function SettlementCard({ settlement, onClick }: { settlement: SASettlement; onC
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function SettlementsPage() {
   const isMobile = useIsMobile()
-  const [settlements, setSettlements] = useState<SASettlement[]>(MOCK_SA_SETTLEMENTS)
+  const settlements = useSAStore(state => state.settlements)
+  const setSettlements = (updater: (prev: SASettlement[]) => SASettlement[]) => {
+    useSAStore.setState(state => ({ settlements: updater(state.settlements) }))
+  }
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<SettlementStatus | 'all'>('all')
   const [selected, setSelected] = useState<SASettlement | null>(null)

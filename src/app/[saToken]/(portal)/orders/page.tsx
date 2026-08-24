@@ -7,7 +7,7 @@ import {
   RotateCcw, CreditCard, Banknote, Smartphone, Globe,
   MapPin, User, Store, Copy, Check, RefreshCw
 } from 'lucide-react'
-import { MOCK_SA_ORDERS } from '@/lib/mock/sa-orders.mock'
+import { useSuperAdminStore } from '@/lib/store/super-admin-store'
 import type { SAOrder, OrderStatus } from '@/types/super-admin.types'
 import { ResponsiveSheet } from '@/components/ui/responsive-sheet'
 import { useIsMobile } from '@/hooks/useBreakpoint'
@@ -251,7 +251,7 @@ const STATUS_FILTER_GROUPS = [
 
 export default function OrdersPage() {
   const isMobile = useIsMobile()
-  const [orders, setOrders] = useState<SAOrder[]>(MOCK_SA_ORDERS)
+  const { orders, setOrders } = useSuperAdminStore()
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [selected, setSelected] = useState<SAOrder | null>(null)
@@ -277,7 +277,7 @@ export default function OrdersPage() {
   }), [orders])
 
   const handleStatusUpdate = (id: string, status: OrderStatus) => {
-    setOrders(prev => prev.map(o => o.id === id ? { ...o, status, updatedAt: new Date().toISOString() } : o))
+    setOrders(orders.map(o => o.id === id ? { ...o, status, updatedAt: new Date().toISOString() } : o))
     if (selected?.id === id) setSelected(prev => prev ? { ...prev, status } : null)
   }
 

@@ -125,35 +125,41 @@ export function RevenueChart({ data, granularity, onGranularityChange, onExport 
       {/* Chart */}
       <div className="overflow-x-auto -mx-2">
         <div className="min-w-[560px]">
-          <ResponsiveContainer width="100%" height={280}>
-            <AreaChart data={data} margin={{ top: 5, right: 10, left: 10, bottom: 5 }}>
-              <defs>
-                {SERIES.map(s => (
-                  <linearGradient key={s.key} id={`grad_${s.key}`} x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor={s.color} stopOpacity={0.25} />
-                    <stop offset="95%" stopColor={s.color} stopOpacity={0} />
-                  </linearGradient>
+          {!data || data.length === 0 ? (
+            <div className="w-full h-[280px] flex items-center justify-center text-[#6B6B80] text-sm">
+              No revenue data available for this period.
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height={280}>
+              <AreaChart data={data} margin={{ top: 5, right: 10, left: 10, bottom: 5 }}>
+                <defs>
+                  {SERIES.map(s => (
+                    <linearGradient key={s.key} id={`grad_${s.key}`} x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor={s.color} stopOpacity={0.25} />
+                      <stop offset="95%" stopColor={s.color} stopOpacity={0} />
+                    </linearGradient>
+                  ))}
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#1A1A26" vertical={false} />
+                <XAxis dataKey="date" tickFormatter={formatXAxis} tick={{ fill: '#6B6B80', fontSize: 10 }} axisLine={false} tickLine={false} />
+                <YAxis tickFormatter={formatINR} tick={{ fill: '#6B6B80', fontSize: 10 }} axisLine={false} tickLine={false} width={60} />
+                <Tooltip content={<CustomTooltip />} />
+                {SERIES.map(s => activeSeries.has(s.key) && (
+                  <Area
+                    key={s.key}
+                    type="monotone"
+                    dataKey={s.key}
+                    name={s.label}
+                    stroke={s.color}
+                    fill={`url(#grad_${s.key})`}
+                    strokeWidth={2}
+                    dot={false}
+                    activeDot={{ r: 4, fill: s.color }}
+                  />
                 ))}
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#1A1A26" vertical={false} />
-              <XAxis dataKey="date" tickFormatter={formatXAxis} tick={{ fill: '#6B6B80', fontSize: 10 }} axisLine={false} tickLine={false} />
-              <YAxis tickFormatter={formatINR} tick={{ fill: '#6B6B80', fontSize: 10 }} axisLine={false} tickLine={false} width={60} />
-              <Tooltip content={<CustomTooltip />} />
-              {SERIES.map(s => activeSeries.has(s.key) && (
-                <Area
-                  key={s.key}
-                  type="monotone"
-                  dataKey={s.key}
-                  name={s.label}
-                  stroke={s.color}
-                  fill={`url(#grad_${s.key})`}
-                  strokeWidth={2}
-                  dot={false}
-                  activeDot={{ r: 4, fill: s.color }}
-                />
-              ))}
-            </AreaChart>
-          </ResponsiveContainer>
+              </AreaChart>
+            </ResponsiveContainer>
+          )}
         </div>
       </div>
     </div>

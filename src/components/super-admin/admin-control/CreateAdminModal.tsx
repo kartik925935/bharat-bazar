@@ -8,8 +8,8 @@ import { X, Check, Loader2, UserPlus } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { useSAStore } from '@/lib/store/super-admin-store'
-import { DEFAULT_ROLE_PERMISSIONS } from '@/lib/constants/sa-permissions'
-import type { AdminRole } from '@/types/super-admin.types'
+import { buildDefaultGrants } from '@/lib/constants/sa-permissions'
+import type { SAAdminRole, SAPanelAccessGrant } from '@/types/super-admin.types'
 
 interface CreateAdminModalProps {
   open: boolean
@@ -18,7 +18,7 @@ interface CreateAdminModalProps {
 
 type FormData = { name: string; email: string; department: string }
 
-const ROLE_CONFIGS: { role: AdminRole; label: string; description: string; keyPanels: string[] }[] = [
+const ROLE_CONFIGS: { role: SAAdminRole; label: string; description: string; keyPanels: string[] }[] = [
   { role: 'SENIOR_ADMIN', label: 'Senior Admin', description: 'Broad platform oversight across most modules', keyPanels: ['Orders (Full)', 'Sellers (Edit)', 'Support (Full)'] },
   { role: 'OPERATIONS_ADMIN', label: 'Operations Admin', description: 'Manages orders, delivery and daily ops', keyPanels: ['Orders (Full)', 'Delivery (Full)', 'Products (Edit)'] },
   { role: 'SUPPORT_ADMIN', label: 'Support Admin', description: 'Handles customer support and tickets', keyPanels: ['Support (Full)', 'Reviews (Edit)', 'Customers (View)'] },
@@ -55,7 +55,7 @@ export function CreateAdminModal({ open, onClose }: CreateAdminModalProps) {
       role: selectedRole,
       department: data.department,
       status: 'pending' as const,
-      permissions: DEFAULT_ROLE_PERMISSIONS[selectedRole],
+      permissions: buildDefaultGrants(selectedRole),
       createdAt: new Date().toISOString(),
       lastActive: '—',
       createdBy: 'Arjun Mehta', // would come from current SA session
@@ -68,10 +68,10 @@ export function CreateAdminModal({ open, onClose }: CreateAdminModalProps) {
     handleClose()
   }
 
-  const defaultPerms = DEFAULT_ROLE_PERMISSIONS[selectedRole]
-  const fullPanels = Object.entries(defaultPerms).filter(([, v]) => v === 'full').map(([k]) => k)
-  const editPanels = Object.entries(defaultPerms).filter(([, v]) => v === 'edit').map(([k]) => k)
-  const viewPanels = Object.entries(defaultPerms).filter(([, v]) => v === 'view').map(([k]) => k)
+  const defaultPerms = buildDefaultGrants(selectedRole)
+  const fullPanels = defaultPerms.filter((p) => p.level === 'full').map((p) => p.panel)
+  const editPanels = defaultPerms.filter((p) => p.level === 'edit').map((p) => p.panel)
+  const viewPanels = defaultPerms.filter((p) => p.level === 'view').map((p) => p.panel)
 
   return (
     <AnimatePresence>

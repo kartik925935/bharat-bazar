@@ -37,28 +37,34 @@ export function SellerGrowthChart({ data }: SellerGrowthChartProps) {
         <h3 className="text-base font-bold text-white">Seller Growth</h3>
         <p className="text-xs text-[#6B6B80]">12-month view — new, approved & cumulative active</p>
       </div>
-      <ResponsiveContainer width="100%" height={260}>
-        <ComposedChart data={data} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#1A1A26" vertical={false} />
-          <XAxis dataKey="month" tick={{ fill: '#6B6B80', fontSize: 10 }} axisLine={false} tickLine={false} />
-          <YAxis yAxisId="left" tick={{ fill: '#6B6B80', fontSize: 10 }} axisLine={false} tickLine={false} />
-          <YAxis yAxisId="right" orientation="right" tick={{ fill: '#6B6B80', fontSize: 10 }} axisLine={false} tickLine={false} />
-          <Tooltip content={<CustomTooltip />} />
-          <Legend wrapperStyle={{ fontSize: 11, color: '#8B8B9E' }} />
-          <Bar yAxisId="left" dataKey="newSellers" name="New Sellers" fill="#FF7A0066" radius={[3, 3, 0, 0]} />
-          <Bar yAxisId="left" dataKey="approvedSellers" name="Approved" fill="#22C55E66" radius={[3, 3, 0, 0]} />
-          <Line
-            yAxisId="right"
-            type="monotone"
-            dataKey="cumulativeActive"
-            name="Cumulative Active"
-            stroke="#F5C842"
-            strokeWidth={2.5}
-            dot={false}
-            activeDot={{ r: 4 }}
-          />
-        </ComposedChart>
-      </ResponsiveContainer>
+      {!data || data.length === 0 ? (
+        <div className="w-full h-[260px] flex items-center justify-center text-[#6B6B80] text-sm">
+          No seller data available.
+        </div>
+      ) : (
+        <ResponsiveContainer width="100%" height={260}>
+          <ComposedChart data={data} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#1A1A26" vertical={false} />
+            <XAxis dataKey="month" tick={{ fill: '#6B6B80', fontSize: 10 }} axisLine={false} tickLine={false} />
+            <YAxis yAxisId="left" tick={{ fill: '#6B6B80', fontSize: 10 }} axisLine={false} tickLine={false} />
+            <YAxis yAxisId="right" orientation="right" tick={{ fill: '#6B6B80', fontSize: 10 }} axisLine={false} tickLine={false} />
+            <Tooltip content={<CustomTooltip />} />
+            <Legend wrapperStyle={{ fontSize: 11, color: '#8B8B9E' }} />
+            <Bar yAxisId="left" dataKey="newSellers" name="New Sellers" fill="#FF7A0066" radius={[3, 3, 0, 0]} />
+            <Bar yAxisId="left" dataKey="approvedSellers" name="Approved" fill="#22C55E66" radius={[3, 3, 0, 0]} />
+            <Line
+              yAxisId="right"
+              type="monotone"
+              dataKey="cumulativeActive"
+              name="Cumulative Active"
+              stroke="#F5C842"
+              strokeWidth={2.5}
+              dot={false}
+              activeDot={{ r: 4 }}
+            />
+          </ComposedChart>
+        </ResponsiveContainer>
+      )}
     </div>
   )
 }

@@ -1,13 +1,20 @@
 'use client'
 
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { Server, Database, CreditCard, HardDrive, Activity } from 'lucide-react'
-import { useSuperAdminStore } from '@/lib/store/super-admin-store'
+import { getSystemHealthMetrics } from '@/lib/store/selectors/dashboard.selectors'
 import { SkeletonBase } from '@/components/super-admin/shared/SkeletonBase'
 
 export function SystemHealthWidget({ isLoading = false }: { isLoading?: boolean }) {
-  const { systemHealth } = useSuperAdminStore()
+  const [metrics, setMetrics] = useState(getSystemHealthMetrics())
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setMetrics(getSystemHealthMetrics())
+    }, 15000)
+    return () => clearInterval(interval)
+  }, [])
 
   const STATUS_COLORS = {
     operational: 'bg-[#22C55E]',
@@ -16,11 +23,11 @@ export function SystemHealthWidget({ isLoading = false }: { isLoading?: boolean 
   }
 
   const services = [
-    { label: 'API Gateway', status: systemHealth.apiStatus, icon: Server },
-    { label: 'Primary Database', status: systemHealth.dbStatus, icon: Database },
-    { label: 'Payment Gateway', status: systemHealth.paymentGatewayStatus, icon: CreditCard },
-    { label: 'Cloud Storage', status: systemHealth.storageStatus, icon: HardDrive },
-  ]
+    { label: 'API Gateway', status: metrics.status, icon: Server },
+    { label: 'Primary Database', status: metrics.status, icon: Database },
+    { label: 'Payment Gateway', status: metrics.status, icon: CreditCard },
+    { label: 'Cloud Storage', status: metrics.status, icon: HardDrive },
+  ] as const
 
   return (
     <motion.div
@@ -83,11 +90,11 @@ export function SystemHealthWidget({ isLoading = false }: { isLoading?: boolean 
           <div className="mt-6 pt-4 border-t border-[#1E1E2E] flex items-center justify-between">
             <div className="flex flex-col">
               <span className="text-[10px] font-bold text-[#6B6B80] uppercase tracking-widest mb-0.5">Response</span>
-              <span className="text-xs font-bold text-white tabular-nums">{systemHealth.avgResponseTime}ms</span>
+              <span className="text-xs font-bold text-white tabular-nums">{metrics.responseMs}ms</span>
             </div>
             <div className="flex flex-col items-end">
               <span className="text-[10px] font-bold text-[#6B6B80] uppercase tracking-widest mb-0.5">Uptime</span>
-              <span className="text-xs font-bold text-[#22C55E] tabular-nums">{systemHealth.uptimePercentage}%</span>
+              <span className="text-xs font-bold text-[#22C55E] tabular-nums">{metrics.uptimePercent}%</span>
             </div>
           </div>
         </>

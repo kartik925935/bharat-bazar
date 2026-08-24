@@ -1,6 +1,11 @@
 'use client'
 import React from 'react'
 import { usePhase11Store } from '@/lib/store/phase11-store'
+import { useSuperAdminStore } from '@/lib/store/super-admin-store'
+import { 
+  getAnalyticsRevenue, getGeographicData, getFunnelData, getCohortData, 
+  getSellerGrowth, getProductHealth, getPlatformHealth 
+} from '@/lib/store/selectors/analytics.selectors'
 import { PlatformHealthCard } from '@/components/super-admin/analytics/PlatformHealthCard'
 import { RevenueChart } from '@/components/super-admin/analytics/RevenueChart'
 import { ConversionFunnel } from '@/components/super-admin/analytics/ConversionFunnel'
@@ -9,13 +14,29 @@ import { GeographicBreakdown } from '@/components/super-admin/analytics/Geograph
 import { SellerGrowthChart, ProductHealthCard } from '@/components/super-admin/analytics/SellerGrowthChart'
 
 export default function AnalyticsPage() {
+  const { orders, settlements, sellers, customers, products } = useSuperAdminStore()
+  
   const {
-    platformHealth, funnelData, cohortData, geographicData, sellerGrowth, productHealth,
     revenueGranularity, setRevenueGranularity, geographyMetric, setGeographyMetric,
-    getActiveRevenueSeries, exportAnalyticsReport,
+    exportAnalyticsReport,
   } = usePhase11Store()
 
-  const revenueSeries = getActiveRevenueSeries()
+  // Compute live data instead of mock
+  const revenueSeries = React.useMemo(
+    () => getAnalyticsRevenue({ orders: orders as any, settlements }, revenueGranularity),
+    [orders, settlements, revenueGranularity]
+  )
+
+  const geographicData = React.useMemo(
+    () => getGeographicData({ orders: orders as any, sellers, customers }),
+    [orders, sellers, customers]
+  )
+
+  const funnelData = React.useMemo(() => getFunnelData({ customers, orders: orders as any }), [customers, orders])
+  const cohortData = React.useMemo(() => getCohortData({ customers }), [customers])
+  const sellerGrowth = React.useMemo(() => getSellerGrowth({ sellers }), [sellers])
+  const productHealth = React.useMemo(() => getProductHealth({ products }), [products])
+  const platformHealth = React.useMemo(() => getPlatformHealth(), [])
 
   return (
     <div className="flex flex-col gap-6 p-4 md:p-6 overflow-y-auto h-full bg-[#09090B]">
@@ -23,7 +44,7 @@ export default function AnalyticsPage() {
       <div>
         <h1 className="text-2xl font-bold text-white">Deep Analytics</h1>
         <p className="text-sm text-[#6B6B80] mt-1">
-          Platform intelligence & business metrics · All data from mock pipeline
+          Platform intelligence & business metrics
         </p>
       </div>
 

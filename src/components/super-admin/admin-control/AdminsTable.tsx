@@ -11,9 +11,9 @@ import { useSAStore } from '@/lib/store/super-admin-store'
 import { useSAUIStore } from '@/lib/store/sa-ui-store'
 import { formatRelativeTime } from '@/lib/utils/formatters'
 import { cn } from '@/lib/utils'
-import type { SAAdmin, AdminRole, AdminStatus } from '@/types/super-admin.types'
+import type { SAAdmin, AdminStatus, SAAdminRole } from '@/types/super-admin.types'
 
-const ROLE_COLORS: Record<AdminRole, string> = {
+const ROLE_COLORS: Record<SAAdminRole, string> = {
   SUPER_ADMIN: 'text-[#F5C842] bg-[#F5C842]/10 border-[#F5C842]/20',
   SENIOR_ADMIN: 'text-[#A855F7] bg-[#A855F7]/10 border-[#A855F7]/20',
   OPERATIONS_ADMIN: 'text-[#3B82F6] bg-[#3B82F6]/10 border-[#3B82F6]/20',

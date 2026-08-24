@@ -12,9 +12,9 @@ import { useSAUIStore } from '@/lib/store/sa-ui-store'
 import { saAdminEditSchema, type SAAdminEditInput } from '@/lib/validators/sa-validators'
 import { PermissionMatrix } from './PermissionMatrix'
 import { StatusBadge } from '@/components/super-admin/shared/StatusBadge'
-import { DEFAULT_ROLE_PERMISSIONS } from '@/lib/constants/sa-permissions'
+import { buildDefaultGrants } from '@/lib/constants/sa-permissions'
 import { formatRelativeTime } from '@/lib/utils/formatters'
-import type { SAAdmin, SAPanel, SAPermissionLevel, AdminStatus } from '@/types/super-admin.types'
+import type { SAAdmin, PanelKey, AccessLevel, AdminStatus } from '@/types/super-admin.types'
 
 type Tab = 'overview' | 'permissions' | 'activity'
 
@@ -40,7 +40,7 @@ interface AdminDetailDrawerProps {
 
 export function AdminDetailDrawer({ admin, onClose }: AdminDetailDrawerProps) {
   const [tab, setTab] = useState<Tab>('overview')
-  const [savingPermission, setSavingPermission] = useState<SAPanel | null>(null)
+  const [savingPermission, setSavingPermission] = useState<PanelKey | null>(null)
   const [isSaving, setIsSaving] = useState(false)
   const { updateAdminStatus, updateAdminPermissions, deleteAdmin } = useSAStore()
   const { openConfirmModal } = useSAUIStore()
@@ -85,13 +85,16 @@ export function AdminDetailDrawer({ admin, onClose }: AdminDetailDrawerProps) {
     reset(data)
   }
 
-  const handlePermissionChange = async (panel: SAPanel, level: SAPermissionLevel) => {
+  const handlePermissionChange = async (panel: PanelKey, level: AccessLevel) => {
     if (!admin) return
     setSavingPermission(panel)
     await new Promise((r) => setTimeout(r, 500))
-    const updatedPerms = { ...admin.permissions, [panel]: level }
+    // Update permissions array: replace existing grant or add new one
+    const updatedPerms = [
+      ...(admin.permissions ?? []).filter((g) => g.panel !== panel),
+      { panel, level, source: 'granted' as const },
+    ]
     updateAdminPermissions(admin.id, updatedPerms)
-    // TODO: logAuditEvent({ action: 'permission_changed', panel, level, ... })
     setSavingPermission(null)
     toast.success(`${panel} → ${level}`, { description: 'Permission saved' })
   }
@@ -105,7 +108,7 @@ export function AdminDetailDrawer({ admin, onClose }: AdminDetailDrawerProps) {
       variant: 'warning',
       onConfirm: async () => {
         await new Promise((r) => setTimeout(r, 600))
-        updateAdminPermissions(admin.id, DEFAULT_ROLE_PERMISSIONS[admin.role] as any)
+        updateAdminPermissions(admin.id, buildDefaultGrants(admin.role))
         toast.success('Permissions reset to role defaults')
       },
     })

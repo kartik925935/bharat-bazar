@@ -4,6 +4,7 @@ import React, { useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { useRouter, useParams } from 'next/navigation'
 import { useSAAuthStore } from '@/lib/store/sa-auth-store'
+import { useSASessionStore } from '@/lib/store/sa-session-store'
 
 export function SASuccessAnimation() {
   const router = useRouter()
@@ -13,17 +14,20 @@ export function SASuccessAnimation() {
 
   useEffect(() => {
     // Auto redirect after animation sequence finishes
-    const timer = setTimeout(() => {
+    const timer = setTimeout(async () => {
+      if (superAdmin?.id) {
+        await useSASessionStore.getState().switchAdminDev(superAdmin.id)
+      }
       router.push(`/${saToken}/dashboard`)
     }, 2200)
     return () => clearTimeout(timer)
-  }, [router, saToken])
+  }, [router, saToken, superAdmin])
 
   return (
     <div className="absolute inset-0 z-50 bg-[#09090B] flex flex-col items-center justify-center font-sans overflow-hidden backdrop-blur-xl">
-      
+
       {/* Background radial glow */}
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, scale: 0.5 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 1.5, ease: 'easeOut' }}
@@ -39,7 +43,7 @@ export function SASuccessAnimation() {
           className="w-28 h-28 rounded-full bg-gradient-to-br from-[#FF7A00] to-[#F5C842] shadow-[0_0_60px_rgba(255,122,0,0.4)] flex items-center justify-center mb-10 relative"
         >
           {/* Subtle pulse behind the circle */}
-          <motion.div 
+          <motion.div
             initial={{ scale: 1, opacity: 0.5 }}
             animate={{ scale: 1.5, opacity: 0 }}
             transition={{ duration: 1.5, repeat: Infinity, ease: 'easeOut' }}
@@ -52,7 +56,7 @@ export function SASuccessAnimation() {
               <motion.div
                 key={i}
                 initial={{ opacity: 0, scale: 0, x: 0, y: 0 }}
-                animate={{ 
+                animate={{
                   opacity: [0, 1, 0],
                   scale: [0, Math.random() * 0.5 + 0.8, 0],
                   x: Math.cos((i * 30 * Math.PI) / 180) * (Math.random() * 60 + 80),
@@ -102,7 +106,7 @@ export function SASuccessAnimation() {
       </div>
 
       {/* Loading Bar Container */}
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 1.2 }}

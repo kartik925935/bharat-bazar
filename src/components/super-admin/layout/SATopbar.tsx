@@ -1,15 +1,15 @@
 'use client'
 
-import React, { useEffect, useRef } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { useRouter, useParams, usePathname } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Bell, ChevronDown, Search, Command, Menu, LogOut, Settings, Shield, BarChart3, Users } from 'lucide-react'
-import { useSAAuthStore } from '@/lib/store/sa-auth-store'
+import { Bell, ChevronDown, Search, Menu, LogOut, Repeat2 } from 'lucide-react'
 import { useSAUIStore } from '@/lib/store/sa-ui-store'
-import { useSuperAdminStore } from '@/lib/store/super-admin-store'
+import { useSASessionStore } from '@/lib/store/sa-session-store'
+import { useSAStore } from '@/lib/store/super-admin-store'
 import { cn } from '@/lib/utils'
 import { SANotificationDropdown } from './SANotificationDropdown'
-import { SAProfileDropdown } from './SAProfileDropdown'
+import { AdminSwitcherWidget } from '@/components/super-admin/panel-access/AdminSwitcherWidget'
 
 // ─── Breadcrumbs derived from pathname ───────────────────────────────────────
 function Breadcrumbs() {
@@ -49,19 +49,33 @@ export function SATopbar() {
   const router = useRouter()
   const params = useParams()
   const saToken = params.saToken as string
-  
-  const { superAdmin } = useSAAuthStore()
+
   const { toggleMobileSidebar, openCommandPalette, activeDropdown, setActiveDropdown } = useSAUIStore()
-  const { notifications } = useSuperAdminStore()
-  
-  const unreadCount = notifications.filter((n) => !n.isRead).length
+
+  // New service-backed session
+  const currentAdmin = useSASessionStore((s) => s.currentAdmin)
+  const logout = useSASessionStore((s) => s.logout)
+
+  // Notifications from legacy store
+  const { notifications } = useSAStore()
+  const unreadCount = (notifications ?? []).filter((n) => !n.isRead).length
+
+  const [showSwitcher, setShowSwitcher] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
 
-  // Close dropdown on outside click
+  const isDev = process.env.NODE_ENV !== 'production'
+
+  const handleLogout = async () => {
+    await logout()
+    router.replace(`/${saToken}/secure-access`)
+  }
+
+  // Close dropdowns on outside click
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
         setActiveDropdown(null)
+        setShowSwitcher(false)
       }
     }
     document.addEventListener('mousedown', handler)
@@ -118,6 +132,34 @@ export function SATopbar() {
           <span className="text-[11px] font-medium text-[#22C55E]">All Systems Operational</span>
         </div>
 
+        {/* Dev Mode Admin Switcher */}
+        {isDev && (
+          <div className="relative">
+            <button
+              aria-label="Dev admin switcher"
+              onClick={() => setShowSwitcher((v) => !v)}
+              className="hidden lg:flex items-center gap-1.5 h-8 px-3 rounded-xl bg-purple-900/30 border border-purple-700/40 text-purple-300 text-xs font-medium hover:bg-purple-900/50 transition-colors"
+            >
+              <Repeat2 className="w-3.5 h-3.5" />
+              <span>Dev Switch</span>
+            </button>
+            <AnimatePresence>
+              {showSwitcher && (
+                <motion.div
+                  initial={{ opacity: 0, y: -6, scale: 0.97 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -6, scale: 0.97 }}
+                  transition={{ duration: 0.15 }}
+                  className="absolute right-0 top-full mt-2 w-[440px] bg-[#111118] border border-[#2A2A3E] rounded-2xl shadow-2xl p-3 z-50"
+                >
+                  <p className="text-[10px] text-purple-400 font-bold tracking-widest uppercase mb-2 px-1">Dev — Quick Switch Admin</p>
+                  <AdminSwitcherWidget onClose={() => setShowSwitcher(false)} />
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        )}
+
         {/* Divider */}
         <div className="hidden xl:block w-px h-5 bg-[#2A2A3E]" />
 
@@ -150,38 +192,27 @@ export function SATopbar() {
         {/* Divider */}
         <div className="w-px h-5 bg-[#2A2A3E] mx-1" />
 
-        {/* Profile trigger */}
-        <div className="relative">
-          <button
-            onClick={() => setActiveDropdown(activeDropdown === 'profile' ? null : 'profile')}
-            className={cn(
-              "flex items-center gap-2 rounded-xl px-2 py-1.5 transition-colors",
-              activeDropdown === 'profile'
-                ? "bg-[#FF7A00]/10"
-                : "hover:bg-white/5"
-            )}
-          >
-            {/* Avatar */}
+        {/* Admin Profile */}
+        {currentAdmin && (
+          <div className="flex items-center gap-2">
             <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[#FF7A00]/30 to-[#F5C842]/20 border border-[#FF7A00]/30 flex items-center justify-center text-sm font-bold text-[#FF7A00]">
-              {superAdmin?.name.charAt(0) || 'A'}
+              {currentAdmin.name.charAt(0)}
             </div>
-            <span className="hidden lg:block text-sm font-medium text-white max-w-[120px] truncate">
-              {superAdmin?.name || 'Super Admin'}
-            </span>
-            <motion.div
-              animate={{ rotate: activeDropdown === 'profile' ? 180 : 0 }}
-              transition={{ duration: 0.2 }}
-            >
-              <ChevronDown className="w-4 h-4 text-[#6B6B80]" />
-            </motion.div>
-          </button>
+            <div className="hidden lg:block">
+              <p className="text-sm font-medium text-white leading-tight">{currentAdmin.name}</p>
+              <p className="text-[10px] text-[#6B6B80]">{currentAdmin.role.replace(/_/g, ' ')}</p>
+            </div>
 
-          <AnimatePresence>
-            {activeDropdown === 'profile' && (
-              <SAProfileDropdown onClose={() => setActiveDropdown(null)} />
-            )}
-          </AnimatePresence>
-        </div>
+            {/* Logout */}
+            <button
+              aria-label="Logout"
+              onClick={handleLogout}
+              className="ml-1 w-8 h-8 rounded-xl flex items-center justify-center text-[#6B6B80] hover:text-red-400 hover:bg-red-500/10 transition-colors"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
+          </div>
+        )}
       </div>
     </div>
   )

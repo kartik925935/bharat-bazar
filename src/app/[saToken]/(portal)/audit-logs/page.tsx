@@ -1,25 +1,26 @@
 'use client'
 import React, { useMemo } from 'react'
 import { Download, Search, Filter, ShieldCheck, AlertCircle, AlertTriangle } from 'lucide-react'
-import { usePhase11Store } from '@/lib/store/phase11-store'
+import { useSAStore } from '@/lib/store/super-admin-store'
 import { AuditDetailPanel } from '@/components/super-admin/audit/AuditDetailPanel'
-import { AUDIT_CATEGORY_LABELS, AUDIT_ACTORS, type AuditSeverity, type AuditActionCategory } from '@/lib/mock/sa-audit-v2.mock'
+import { AUDIT_CATEGORY_LABELS, AUDIT_ACTORS } from '@/lib/mock/sa-audit-v2.mock'
+import type { AuditSeverity, AuditActionCategory } from '@/types/super-admin.types'
 import { cn } from '@/lib/utils'
 
 export default function AuditLogsPage({ params }: { params: Promise<{ saToken: string }> }) {
   const resolvedParams = React.use(params)
   const {
-    auditLogsV2, auditFilter, setAuditFilter, clearAuditFilter,
+    auditLogs, auditFilter, setAuditFilter, clearAuditFilter,
     selectedAuditLogId, setSelectedAuditLogId, getFilteredLogs,
     exportAuditLog, getCriticalActionsToday
-  } = usePhase11Store()
+  } = useSAStore()
 
   const filteredLogs = getFilteredLogs()
   const criticalToday = getCriticalActionsToday()
-  const selectedLog = useMemo(() => auditLogsV2.find(l => l.id === selectedAuditLogId) || null, [auditLogsV2, selectedAuditLogId])
+  const selectedLog = useMemo(() => auditLogs.find(l => l.id === selectedAuditLogId) || null, [auditLogs, selectedAuditLogId])
 
   const todayStr = new Date().toISOString().split('T')[0]
-  const logsToday = auditLogsV2.filter(l => l.timestamp.startsWith(todayStr))
+  const logsToday = auditLogs.filter(l => l.timestamp.startsWith(todayStr))
   const uniqueActorsToday = new Set(logsToday.map(l => l.actorId)).size
   const warningsToday = logsToday.filter(l => l.severity === 'warning').length
 

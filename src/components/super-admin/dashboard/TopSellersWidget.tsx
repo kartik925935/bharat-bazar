@@ -9,9 +9,10 @@ import { useSuperAdminStore } from '@/lib/store/super-admin-store'
 import { formatCurrency, formatNumber } from '@/lib/utils/formatters'
 import { SkeletonBase } from '@/components/super-admin/shared/SkeletonBase'
 import { cn } from '@/lib/utils'
-import type { DashboardTopSeller } from '@/lib/mock/sa-dashboard.mock'
+import { getTopPerformingSellers } from '@/lib/store/selectors/dashboard.selectors'
+import type { SASeller, SellerTier } from '@/types/super-admin.types'
 
-const TIER_STYLES: Record<DashboardTopSeller['tier'], string> = {
+const TIER_STYLES: Record<SellerTier, string> = {
   platinum: 'bg-gradient-to-r from-[#E5E4E2] via-white to-[#E5E4E2] text-[#4A4A5E] border-white/40 shadow-[0_0_10px_rgba(255,255,255,0.2)]',
   gold: 'bg-gradient-to-r from-[#F5C842] to-[#F59E0B] text-white border-[#F5C842]/40',
   silver: 'bg-gradient-to-r from-[#C0C0C0] to-[#A0A0A0] text-white border-[#C0C0C0]/40',
@@ -34,7 +35,10 @@ const itemVariants: any = {
 export function TopSellersWidget({ isLoading = false }: { isLoading?: boolean }) {
   const params = useParams()
   const saToken = params.saToken as string
-  const { topSellers } = useSuperAdminStore()
+  const storeState = useSuperAdminStore()
+  
+  // Need to pass the full state required by selector
+  const topSellers = getTopPerformingSellers(storeState, 7)
 
   return (
     <motion.div
@@ -85,13 +89,13 @@ export function TopSellersWidget({ isLoading = false }: { isLoading?: boolean })
 
                 {/* Avatar */}
                 <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#2A2A3E] to-[#1A1A26] flex items-center justify-center text-sm font-bold text-[#A0A0B8] shrink-0 border border-[#2A2A3E]">
-                  {seller.name.charAt(0)}
+                  {seller.displayName.charAt(0)}
                 </div>
 
                 {/* Info */}
                 <div className="flex-1 min-w-0 pr-2">
                   <div className="flex items-center gap-2">
-                    <p className="text-sm font-semibold text-white truncate">{seller.name}</p>
+                    <p className="text-sm font-semibold text-white truncate">{seller.displayName}</p>
                     <span className={cn('text-[9px] font-bold px-1.5 py-0.5 rounded-full border uppercase tracking-widest flex items-center gap-0.5', TIER_STYLES[seller.tier])}>
                       {seller.tier === 'platinum' && <Award className="w-2.5 h-2.5" />}
                       {seller.tier}
@@ -102,12 +106,11 @@ export function TopSellersWidget({ isLoading = false }: { isLoading?: boolean })
 
                 {/* Stats */}
                 <div className="text-right shrink-0">
-                  <p className="text-sm font-bold text-white tabular-nums">{formatCurrency(seller.sales, true)}</p>
+                  <p className="text-sm font-bold text-white tabular-nums">{formatCurrency(seller.totalSales, true)}</p>
                   <div className="flex items-center justify-end gap-1 mt-0.5">
-                    {seller.trend === 'up' && <TrendingUp className="w-3 h-3 text-[#22C55E]" />}
-                    {seller.trend === 'down' && <TrendingDown className="w-3 h-3 text-[#EF4444]" />}
-                    {seller.trend === 'stable' && <Minus className="w-3 h-3 text-[#6B6B80]" />}
-                    <span className="text-[10px] text-[#6B6B80] font-medium">{formatNumber(seller.orders)} orders</span>
+                    {/* Simulated trend since not tracked historically per-seller yet */}
+                    {index < 3 ? <TrendingUp className="w-3 h-3 text-[#22C55E]" /> : <Minus className="w-3 h-3 text-[#6B6B80]" />}
+                    <span className="text-[10px] text-[#6B6B80] font-medium">{formatNumber(seller.totalOrders)} orders</span>
                   </div>
                 </div>
               </Link>
