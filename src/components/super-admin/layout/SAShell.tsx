@@ -12,6 +12,7 @@ import { SASessionBar } from './SASessionBar'
 import { ActionCenterSheet } from './ActionCenterSheet'
 import { ConfirmModal } from '@/components/super-admin/shared/ConfirmModal'
 import { KeyboardShortcutsModal } from '@/components/super-admin/shared/KeyboardShortcutsModal'
+import { DataIntegrityPanel } from './DataIntegrityPanel'
 
 // Mobile "More" menu reuses the full sidebar hierarchy in a slide-up sheet
 import { getSANavigation } from '@/lib/constants/sa-navigation'
@@ -215,6 +216,7 @@ export function SAShell({ children }: { children: React.ReactNode }) {
       {/* ── Global Overlays ───────────────────────────────────────────────── */}
       <ConfirmModal />
       <KeyboardShortcutsModal />
+      <DataIntegrityPanel />
     </div>
   )
 }

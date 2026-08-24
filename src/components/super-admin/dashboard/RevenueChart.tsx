@@ -4,6 +4,7 @@ import React, { useMemo } from 'react'
 import { motion } from 'framer-motion'
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { useSuperAdminStore } from '@/lib/store/super-admin-store'
+import { getRevenueTrend } from '@/lib/store/selectors/finance.selectors'
 import { DateRangeFilter } from '@/components/super-admin/shared/DateRangeFilter'
 import { formatCurrency, formatNumber } from '@/lib/utils/formatters'
 import { SA_CHART_COLORS, SA_CHART_GRADIENT_ID } from '@/lib/constants/sa-chart-theme'
@@ -31,29 +32,19 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 }
 
 export function RevenueChart({ isLoading = false }: { isLoading?: boolean }) {
-  const { chartData, dashboardDateRange, setDashboardDateRange } = useSuperAdminStore()
+  const { dashboardDateRange, setDashboardDateRange, orders, settlements } = useSuperAdminStore()
 
-  // Generate a mock subset based on date range just to make it look dynamic
   const data = useMemo(() => {
     let days = 30
     if (dashboardDateRange === '7d') days = 7
     if (dashboardDateRange === '90d') days = 90
     
-    // Quick mock to expand or contract chartData based on range
-    if (days === 30) return chartData
-    if (days === 7) return chartData.slice(-7)
-    
-    // For 90d, we'll duplicate some data to fake it
-    return Array.from({ length: 90 }, (_, i) => {
-      const idx = i % chartData.length
-      return {
-        ...chartData[idx],
-        date: new Date(Date.now() - (89 - i) * 86400000).toISOString().split('T')[0],
-      }
-    })
-  }, [chartData, dashboardDateRange])
+    // Use the selector!
+    return getRevenueTrend({ orders: orders as any, settlements }, days)
+  }, [orders, settlements, dashboardDateRange])
 
-  const totalRevenue = data.reduce((sum, item) => sum + item.revenue, 0)
+  const totalRevenue = data.reduce((sum, item) => sum + item.commission, 0)
+  const totalGMV = data.reduce((sum, item) => sum + item.gmv, 0)
 
   return (
     <motion.div
@@ -91,7 +82,12 @@ export function RevenueChart({ isLoading = false }: { isLoading?: boolean }) {
 
       {/* Chart */}
       <div className="flex-1 w-full h-[240px] md:h-[320px] min-h-[240px]">
-        <ResponsiveContainer width="100%" height="100%">
+        {!data || data.length === 0 ? (
+          <div className="w-full h-full flex flex-col items-center justify-center text-[#6B6B80] text-sm">
+            No data available for this period.
+          </div>
+        ) : (
+          <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={data} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
             <defs>
               <linearGradient id={SA_CHART_GRADIENT_ID} x1="0" y1="0" x2="0" y2="1">
@@ -105,10 +101,7 @@ export function RevenueChart({ isLoading = false }: { isLoading?: boolean }) {
               axisLine={false}
               tickLine={false}
               tick={{ fill: SA_CHART_COLORS.axis, fontSize: 12, fontWeight: 500 }}
-              tickFormatter={(val) => {
-                const date = new Date(val)
-                return `${date.getDate()} ${date.toLocaleString('default', { month: 'short' })}`
-              }}
+              tickFormatter={(val) => val}
               minTickGap={20}
               dy={10}
             />
@@ -121,7 +114,7 @@ export function RevenueChart({ isLoading = false }: { isLoading?: boolean }) {
             <Tooltip content={<CustomTooltip />} cursor={{ stroke: '#3A3A50', strokeWidth: 1, strokeDasharray: '4 4' }} />
             <Area
               type="monotone"
-              dataKey="revenue"
+              dataKey="commission"
               name="Revenue"
               stroke={SA_CHART_COLORS.primary}
               strokeWidth={3}
@@ -131,7 +124,8 @@ export function RevenueChart({ isLoading = false }: { isLoading?: boolean }) {
               animationDuration={1500}
             />
           </AreaChart>
-        </ResponsiveContainer>
+          </ResponsiveContainer>
+        )}
       </div>
     </motion.div>
   )

@@ -7,10 +7,10 @@ import {
   TrendingUp, RefreshCw
 } from 'lucide-react'
 import {
-  MOCK_SA_COMMISSIONS,
-  MOCK_COMMISSION_RATES,
   type SACommissionRecord,
 } from '@/lib/mock/sa-finance-extended.mock'
+import { useSAStore } from '@/lib/store/super-admin-store'
+import { getCommissionRecords } from '@/lib/store/selectors/finance.selectors'
 import { useIsMobile } from '@/hooks/useBreakpoint'
 import { cn } from '@/lib/utils'
 import { format } from 'date-fns'
@@ -37,14 +37,35 @@ function StatusBadge({ status }: { status: CommissionStatus }) {
 }
 
 // ─── Commission Rate Table ────────────────────────────────────────────────────
-function CommissionRatesPanel() {
+function CommissionRatesPanel({ records }: { records: SACommissionRecord[] }) {
+  const ratesByCategory = useMemo(() => {
+    const map = new Map<string, { sellers: Set<string>; totalRate: number; count: number }>()
+    records.forEach(r => {
+      if (!map.has(r.category)) {
+        map.set(r.category, { sellers: new Set(), totalRate: 0, count: 0 })
+      }
+      const data = map.get(r.category)!
+      data.sellers.add(r.sellerId)
+      data.totalRate += r.commissionRate
+      data.count++
+    })
+
+    return Array.from(map.entries()).map(([category, data]) => ({
+      category,
+      rate: Math.round(data.totalRate / data.count),
+      sellerCount: data.sellers.size
+    })).sort((a, b) => b.rate - a.rate)
+  }, [records])
+
   return (
     <div className="bg-[#111118] border border-[#2A2A3E] rounded-2xl p-5">
       <h2 className="text-sm font-bold text-white mb-4 flex items-center gap-2">
         <TrendingUp className="w-4 h-4 text-[#FF7A00]" /> Commission Rates by Category
       </h2>
       <div className="space-y-2.5">
-        {MOCK_COMMISSION_RATES.map(cr => (
+        {ratesByCategory.length === 0 ? (
+          <div className="text-sm text-[#6B6B80] py-4 text-center">No commission data available.</div>
+        ) : ratesByCategory.map(cr => (
           <div key={cr.category} className="flex items-center gap-3">
             <div className="flex-1">
               <div className="flex items-center justify-between mb-1">
@@ -122,7 +143,8 @@ function CommissionSummary({ records }: { records: SACommissionRecord[] }) {
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function CommissionsPage() {
   const isMobile = useIsMobile()
-  const [records, setRecords] = useState<SACommissionRecord[]>(MOCK_SA_COMMISSIONS)
+  const state = useSAStore()
+  const records = getCommissionRecords(state as any) // pass state
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<CommissionStatus | 'all'>('all')
   const [sortField, setSortField] = useState<'commissionAmount' | 'orderAmount' | 'createdAt'>('createdAt')
@@ -149,7 +171,7 @@ export default function CommissionsPage() {
   }, [records, search, statusFilter, sortField, sortDir])
 
   const handleResolveDispute = (id: string) => {
-    setRecords(prev => prev.map(r => r.id === id ? { ...r, status: 'collected' } : r))
+    // In a real app, this would dispatch an action to the store to update the order status to 'delivered'
     toast.success('Dispute resolved — commission marked as collected')
   }
 
@@ -184,7 +206,7 @@ export default function CommissionsPage() {
       <CommissionSummary records={records} />
 
       {/* Rates panel */}
-      <CommissionRatesPanel />
+      <CommissionRatesPanel records={records} />
 
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-3">

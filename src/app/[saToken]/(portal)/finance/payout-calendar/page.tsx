@@ -7,9 +7,10 @@ import {
   RefreshCw, ArrowUpRight, Ban, Loader2
 } from 'lucide-react'
 import {
-  MOCK_PAYOUT_CALENDAR, MOCK_PAYOUT_SUMMARY,
   type PayoutCalendarEvent, type PayoutStatus
 } from '@/lib/mock/sa-payout-calendar.mock'
+import { useSAStore } from '@/lib/store/super-admin-store'
+import { getPayoutCalendarEvents } from '@/lib/store/selectors/finance.selectors'
 import { ResponsiveSheet } from '@/components/ui/responsive-sheet'
 import { cn } from '@/lib/utils'
 import {
@@ -193,12 +194,22 @@ function CalendarDay({ date, events, currentMonth, onSelect }: {
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function PayoutCalendarPage() {
-  const [events, setEvents] = useState<PayoutCalendarEvent[]>(MOCK_PAYOUT_CALENDAR)
-  const [currentMonth, setCurrentMonth] = useState(new Date())
+  const state = useSAStore()
+  const [events, setEvents] = useState<PayoutCalendarEvent[]>(getPayoutCalendarEvents(state as any))
+  const [currentMonth, setCurrentMonth] = useState(() => startOfMonth(new Date()))
   const [selected, setSelected] = useState<PayoutCalendarEvent | null>(null)
   const [statusFilter, setStatusFilter] = useState<PayoutStatus | 'all'>('all')
 
-  const summary = MOCK_PAYOUT_SUMMARY
+  const summary = useMemo(() => ({
+    totalScheduled: events.filter(e => e.status === 'upcoming').reduce((s, e) => s + e.amount, 0),
+    totalPaid: events.filter(e => e.status === 'paid').reduce((s, e) => s + e.amount, 0),
+    totalFailed: events.filter(e => e.status === 'failed').reduce((s, e) => s + e.amount, 0),
+    totalOnHold: events.filter(e => e.status === 'on_hold').reduce((s, e) => s + e.amount, 0),
+    upcomingCount: events.filter(e => e.status === 'upcoming').length,
+    processingCount: events.filter(e => e.status === 'processing').length,
+    paidCount: events.filter(e => e.status === 'paid').length,
+    failedCount: events.filter(e => e.status === 'failed' || e.status === 'on_hold').length,
+  }), [events])
 
   const filteredEvents = useMemo(() =>
     statusFilter === 'all' ? events : events.filter(e => e.status === statusFilter)

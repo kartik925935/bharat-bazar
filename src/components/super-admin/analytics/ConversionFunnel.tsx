@@ -30,7 +30,7 @@ export function ConversionFunnel({ data }: ConversionFunnelProps) {
           <p className="text-xs text-[#6B6B80]">Last 30 days · {data[0]?.count.toLocaleString()} total sessions</p>
         </div>
         <span className="px-2 py-1 bg-[#F59E0B]/10 border border-[#F59E0B]/20 rounded-lg text-[10px] font-bold text-[#F59E0B] uppercase">
-          Overall {((data[data.length - 1]?.count / data[0]?.count) * 100).toFixed(1)}% Conversion
+          Overall {data[0]?.count ? ((data[data.length - 1]?.count / data[0]?.count) * 100).toFixed(1) : '0.0'}% Conversion
         </span>
       </div>
 

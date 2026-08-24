@@ -4,21 +4,26 @@ import React from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ShoppingCart, UserCheck, FileCheck, RotateCcw, ClipboardList, CheckCircle2, DollarSign, UserPlus, Package } from 'lucide-react'
 import { useSuperAdminStore } from '@/lib/store/super-admin-store'
+import { getLiveActivityFeed } from '@/lib/store/selectors/dashboard.selectors'
 import { formatRelativeTime } from '@/lib/utils/formatters'
 import { SkeletonBase } from '@/components/super-admin/shared/SkeletonBase'
-import type { ActivityType, DashboardActivity } from '@/lib/mock/sa-dashboard.mock'
+import type { AuditAction, SAAuditLog } from '@/types/super-admin.types'
 
-const ACTIVITY_CONFIG: Record<ActivityType, { icon: React.ElementType, color: string, bg: string }> = {
-  new_order: { icon: ShoppingCart, color: '#3B82F6', bg: 'bg-[#3B82F6]/10 border-[#3B82F6]/20' },
-  seller_approved: { icon: UserCheck, color: '#22C55E', bg: 'bg-[#22C55E]/10 border-[#22C55E]/20' },
-  kyc_submitted: { icon: FileCheck, color: '#F59E0B', bg: 'bg-[#F59E0B]/10 border-[#F59E0B]/20' },
-  return_requested: { icon: RotateCcw, color: '#EF4444', bg: 'bg-[#EF4444]/10 border-[#EF4444]/20' },
-  panel_request: { icon: ClipboardList, color: '#A855F7', bg: 'bg-[#A855F7]/10 border-[#A855F7]/20' },
-  product_submitted: { icon: Package, color: '#FF7A00', bg: 'bg-[#FF7A00]/10 border-[#FF7A00]/20' },
+const AUDIT_CONFIG: Record<string, { icon: React.ElementType, color: string, bg: string }> = {
+  login_success: { icon: UserCheck, color: '#3B82F6', bg: 'bg-[#3B82F6]/10 border-[#3B82F6]/20' },
+  login_failed: { icon: RotateCcw, color: '#EF4444', bg: 'bg-[#EF4444]/10 border-[#EF4444]/20' },
+  seller_approved: { icon: CheckCircle2, color: '#22C55E', bg: 'bg-[#22C55E]/10 border-[#22C55E]/20' },
+  seller_suspended: { icon: RotateCcw, color: '#EF4444', bg: 'bg-[#EF4444]/10 border-[#EF4444]/20' },
+  customer_blocked: { icon: RotateCcw, color: '#EF4444', bg: 'bg-[#EF4444]/10 border-[#EF4444]/20' },
+  product_approved: { icon: Package, color: '#22C55E', bg: 'bg-[#22C55E]/10 border-[#22C55E]/20' },
+  product_rejected: { icon: RotateCcw, color: '#EF4444', bg: 'bg-[#EF4444]/10 border-[#EF4444]/20' },
+  order_cancelled: { icon: ShoppingCart, color: '#F59E0B', bg: 'bg-[#F59E0B]/10 border-[#F59E0B]/20' },
+  refund_initiated: { icon: RotateCcw, color: '#F59E0B', bg: 'bg-[#F59E0B]/10 border-[#F59E0B]/20' },
   settlement_processed: { icon: DollarSign, color: '#22C55E', bg: 'bg-[#22C55E]/10 border-[#22C55E]/20' },
-  customer_registered: { icon: UserPlus, color: '#3B82F6', bg: 'bg-[#3B82F6]/10 border-[#3B82F6]/20' },
-  new_seller: { icon: UserCheck, color: '#F5C842', bg: 'bg-[#F5C842]/10 border-[#F5C842]/20' },
-  payment_completed: { icon: CheckCircle2, color: '#22C55E', bg: 'bg-[#22C55E]/10 border-[#22C55E]/20' },
+  admin_created: { icon: UserPlus, color: '#A855F7', bg: 'bg-[#A855F7]/10 border-[#A855F7]/20' },
+  permission_granted: { icon: ClipboardList, color: '#A855F7', bg: 'bg-[#A855F7]/10 border-[#A855F7]/20' },
+  settings_changed: { icon: FileCheck, color: '#6B7280', bg: 'bg-[#6B7280]/10 border-[#6B7280]/20' },
+  default: { icon: CheckCircle2, color: '#6B7280', bg: 'bg-[#6B7280]/10 border-[#6B7280]/20' },
 }
 
 const itemVariants: any = {
@@ -28,7 +33,13 @@ const itemVariants: any = {
 }
 
 export function ActivityFeed({ isLoading = false }: { isLoading?: boolean }) {
-  const { recentActivity } = useSuperAdminStore()
+  const storeState = useSuperAdminStore()
+  // Combine real audit logs with any live UI events
+  const liveAuditLogs = getLiveActivityFeed(storeState, 15)
+  // We'll merge with recentActivity if there are any live UI dispatches
+  const mergedActivity = [...storeState.recentActivity, ...liveAuditLogs]
+    .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+    .slice(0, 15)
 
   return (
     <motion.div
@@ -62,7 +73,7 @@ export function ActivityFeed({ isLoading = false }: { isLoading?: boolean }) {
               </div>
             ))}
           </div>
-        ) : recentActivity.length === 0 ? (
+        ) : mergedActivity.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 text-center">
             <ClipboardList className="w-8 h-8 text-[#3A3A50] mb-3" />
             <p className="text-sm font-medium text-[#6B6B80]">No recent activity</p>
@@ -73,9 +84,14 @@ export function ActivityFeed({ isLoading = false }: { isLoading?: boolean }) {
             <div className="absolute left-[19px] top-4 bottom-4 w-[2px] bg-gradient-to-b from-[#2A2A3E] via-[#2A2A3E] to-transparent -z-10" />
             
             <AnimatePresence initial={false}>
-              {recentActivity.map((activity: DashboardActivity) => {
-                const config = ACTIVITY_CONFIG[activity.type] || ACTIVITY_CONFIG.new_order
+              {mergedActivity.map((activity: any) => {
+                // Handle both SAAuditLog and DashboardActivity shapes
+                const type = activity.action || activity.type
+                const config = AUDIT_CONFIG[type] || AUDIT_CONFIG.default
                 const Icon = config.icon
+                
+                const actorName = activity.performedByName || activity.actorName || 'System'
+                const message = activity.details || activity.message || `Action: ${type}`
 
                 return (
                   <motion.div
@@ -93,8 +109,8 @@ export function ActivityFeed({ isLoading = false }: { isLoading?: boolean }) {
                     
                     <div className="flex-1 min-w-0 pt-0.5">
                       <p className="text-sm text-[#D0D0E0] leading-snug">
-                        <span className="font-bold text-white mr-1">{activity.actorName}</span>
-                        {activity.message}
+                        <span className="font-bold text-white mr-1">{actorName}</span>
+                        {message}
                       </p>
                       <p className="text-[10px] font-medium text-[#6B6B80] mt-1.5 uppercase tracking-wider">
                         {formatRelativeTime(activity.timestamp)}

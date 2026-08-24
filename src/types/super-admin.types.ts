@@ -8,12 +8,12 @@ export interface SASuperAdmin {
   email: string
   name: string
   avatar?: string
-  role: AdminRole
+  role: SAAdminRole
   createdAt: string
   lastLogin: string
   twoFactorEnabled: boolean
   trustedDevices: string[]
-  permissions?: SAAdminPermissions
+  permissions?: SAPanelAccessGrant[]
 }
 
 export interface SASession {
@@ -28,38 +28,31 @@ export interface SASession {
 // ============================================
 // ADMIN PANEL PERMISSION TYPES
 // ============================================
-export type SAPanel =
-  | 'dashboard'
-  | 'admin-control'
-  | 'panel-requests'
-  | 'customers'
-  | 'sellers'
-  | 'products'
-  | 'orders'
-  | 'delivery'
-  | 'finance'
-  | 'kyc-verification'
-  | 'reviews'
-  | 'coupons'
-  | 'offers'
-  | 'notifications'
-  | 'analytics'
-  | 'audit-logs'
-  | 'support'
-  | 'settings'
+export type PanelKey =
+  | 'dashboard' | 'analytics'
+  | 'finance' | 'finance.commissions' | 'finance.settlements'
+  | 'kyc-verification' | 'products' | 'reviews'
+  | 'sellers' | 'customers' | 'orders' | 'returns'
+  | 'delivery' | 'coupons' | 'offers'
+  | 'panel-requests' | 'settings' | 'storefront' | 'audit-logs'
 
-export type SAPermissionLevel = 'none' | 'view' | 'edit' | 'full'
+export type AccessLevel = 'none' | 'view' | 'edit' | 'full'
 
-export interface SAAdminPermissions {
-  [panel: string]: SAPermissionLevel
+export interface SAPanelAccessGrant {
+  panel: PanelKey
+  level: AccessLevel
+  source: 'default' | 'granted' | 'blocked'
+  grantedBy?: string
+  grantedAt?: string
+  note?: string
 }
 
-export type AdminRole =
+export type SAAdminRole =
   | 'SUPER_ADMIN'
   | 'SENIOR_ADMIN'
+  | 'FINANCE_ADMIN'
   | 'OPERATIONS_ADMIN'
   | 'SUPPORT_ADMIN'
-  | 'FINANCE_ADMIN'
   | 'CONTENT_ADMIN'
   | 'DELIVERY_ADMIN'
   | 'CUSTOM_ADMIN'
@@ -71,9 +64,9 @@ export interface SAAdmin {
   name: string
   email: string
   avatar?: string
-  role: AdminRole
+  role: SAAdminRole
   status: AdminStatus
-  permissions: SAAdminPermissions
+  permissions: SAPanelAccessGrant[]
   createdAt: string
   lastActive: string
   createdBy: string
@@ -83,18 +76,31 @@ export interface SAAdmin {
 // ============================================
 // PANEL REQUEST TYPES
 // ============================================
-export type PanelRequestStatus = 'pending' | 'approved' | 'rejected'
+export type SAPanelRequestStatus = 'pending' | 'approved' | 'rejected' | 'withdrawn'
+
+// ── Backward-compat aliases (do not use in new code) ──────────────────────
+/** @deprecated Use PanelKey */
+export type SAPanel = PanelKey
+/** @deprecated Use AccessLevel */
+export type SAPermissionLevel = AccessLevel
+/** @deprecated Use SAAdminRole */
+export type AdminRole = SAAdminRole
+/** @deprecated Use SAPanelRequestStatus */
+export type PanelRequestStatus = SAPanelRequestStatus
+/** @deprecated Use SAPanelAccessGrant[] */
+export type SAAdminPermissions = SAPanelAccessGrant[]
+
 
 export interface SAPanelRequest {
   id: string
   adminId: string
   adminName: string
   adminEmail: string
-  adminRole: AdminRole
-  requestedPanel: SAPanel
-  requestedLevel: SAPermissionLevel
+  adminRole: SAAdminRole
+  requestedPanel: PanelKey
+  requestedLevel: AccessLevel
   reason: string
-  status: PanelRequestStatus
+  status: SAPanelRequestStatus
   requestedAt: string
   reviewedAt?: string
   reviewedBy?: string
@@ -322,36 +328,46 @@ export interface SAChartData {
 // ============================================
 // AUDIT LOG TYPES
 // ============================================
-export type AuditAction =
-  | 'admin_created'
-  | 'admin_suspended'
-  | 'admin_deleted'
-  | 'permission_granted'
-  | 'permission_revoked'
-  | 'seller_approved'
-  | 'seller_suspended'
-  | 'customer_blocked'
-  | 'product_approved'
-  | 'product_rejected'
-  | 'order_cancelled'
-  | 'refund_initiated'
-  | 'settlement_processed'
-  | 'settings_changed'
+export type AuditAction = 'login_success' | 'login_failed' | 'admin_created' | 'admin_suspended' | 'admin_deleted' |
+  'permission_granted' | 'permission_revoked' | 'seller_approved' | 'seller_suspended' |
+  'customer_blocked' | 'product_approved' | 'product_rejected' | 'order_cancelled' |
+  'refund_initiated' | 'settlement_processed' | 'settings_changed'
   | 'login_success'
   | 'login_failed'
 
+export type AuditActionCategory =
+  | 'authentication'
+  | 'admin_management'
+  | 'seller_management'
+  | 'product_management'
+  | 'order_management'
+  | 'finance'
+  | 'customer_management'
+  | 'platform_settings'
+  | 'review_management'
+  | 'support'
+  | 'coupon_management'
+
+export type AuditSeverity = 'info' | 'warning' | 'critical'
+
 export interface SAAuditLog {
   id: string
-  action: AuditAction
-  performedBy: string
-  performedByName: string
-  targetId?: string
-  targetType?: string
-  targetName?: string
-  details: string
+  timestamp: string
+  actorId: string
+  actorName: string
+  actorRole: 'super_admin' | 'admin'
+  action: string
+  actionCode: string
+  category: AuditActionCategory
+  severity: AuditSeverity
+  targetEntityType?: string
+  targetEntityId?: string
+  targetEntityLabel?: string
   ipAddress: string
   userAgent: string
-  timestamp: string
+  before?: Record<string, unknown>
+  after?: Record<string, unknown>
+  metadata?: Record<string, unknown>
 }
 
 // ============================================

@@ -11,12 +11,12 @@ import { SkeletonBase } from '@/components/super-admin/shared/SkeletonBase'
 export function QuickActionsPanel({ isLoading = false }: { isLoading?: boolean }) {
   const params = useParams()
   const saToken = params.saToken as string
-  const { getPendingRequestCount } = useSuperAdminStore()
+  const { getPendingRequestCount, sellers, products } = useSuperAdminStore()
   
   // Pending counts (would normally derive from store logic)
   const pendingPanel = getPendingRequestCount()
-  const pendingKYC = 12 // mockup for now
-  const pendingProducts = 8 // mockup for now
+  const pendingKYC = sellers.filter(s => s.status === 'pending').length
+  const pendingProducts = products.filter(p => p.status === 'pending_review').length
 
   const ACTIONS = [
     { label: 'Review Panel Requests', icon: ClipboardList, href: `/${saToken}/panel-requests`, count: pendingPanel, color: '#A855F7' },

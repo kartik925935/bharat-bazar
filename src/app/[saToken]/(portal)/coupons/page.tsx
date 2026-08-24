@@ -6,7 +6,7 @@ import {
   Clock, Users, TrendingUp, AlertTriangle, Eye,
   EyeOff, Trash2, Search, Filter, RefreshCw, X
 } from 'lucide-react'
-import { MOCK_SA_COUPONS } from '@/lib/mock/sa-finance.mock'
+import { useSuperAdminStore } from '@/lib/store/super-admin-store'
 import type { SACoupon } from '@/types/super-admin.types'
 import { ResponsiveSheet } from '@/components/ui/responsive-sheet'
 import { useIsMobile } from '@/hooks/useBreakpoint'
@@ -264,7 +264,7 @@ function CouponAnalytics({ coupon }: { coupon: SACoupon }) {
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function CouponsPage() {
   const isMobile = useIsMobile()
-  const [coupons, setCoupons] = useState<SACoupon[]>(MOCK_SA_COUPONS)
+  const { coupons, setCoupons } = useSuperAdminStore()
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<CouponStatus | 'all'>('all')
   const [selected, setSelected] = useState<SACoupon | null>(null)
@@ -284,7 +284,7 @@ export default function CouponsPage() {
   }), [coupons])
 
   const handleDeleteCoupon = (id: string) => {
-    setCoupons(prev => prev.filter(c => c.id !== id))
+    setCoupons(coupons.filter(c => c.id !== id))
     setSelected(null)
     toast.success('Coupon deleted')
   }
@@ -403,7 +403,7 @@ export default function CouponsPage() {
 
       {/* Create Sheet */}
       <ResponsiveSheet isOpen={showCreate} onClose={() => setShowCreate(false)} title="New Coupon" desktopWidth="w-[520px]">
-        <CreateCouponForm onClose={() => setShowCreate(false)} onCreated={c => setCoupons(prev => [c, ...prev])} />
+        <CreateCouponForm onClose={() => setShowCreate(false)} onCreated={c => setCoupons([c, ...coupons])} />
       </ResponsiveSheet>
     </div>
   )

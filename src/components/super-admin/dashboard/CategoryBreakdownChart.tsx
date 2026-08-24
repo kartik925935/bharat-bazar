@@ -4,6 +4,7 @@ import React, { useState } from 'react'
 import { motion } from 'framer-motion'
 import { PieChart, Pie, Cell, ResponsiveContainer, Sector } from 'recharts'
 import { useSuperAdminStore } from '@/lib/store/super-admin-store'
+import { getSalesByCategory } from '@/lib/store/selectors/dashboard.selectors'
 import { formatCurrency } from '@/lib/utils/formatters'
 import { SkeletonBase } from '@/components/super-admin/shared/SkeletonBase'
 import { cn } from '@/lib/utils'
@@ -36,10 +37,17 @@ const renderActiveShape = (props: any) => {
 }
 
 export function CategoryBreakdownChart({ isLoading = false }: { isLoading?: boolean }) {
-  const { categoryBreakdown } = useSuperAdminStore()
+  const { orders } = useSuperAdminStore()
   const [activeIndex, setActiveIndex] = useState(-1)
 
-  const totalValue = categoryBreakdown.reduce((sum, item) => sum + item.value, 0)
+  const CHART_COLORS = ['#FF7A00', '#F5C842', '#22C55E', '#3B82F6', '#A855F7', '#EC4899', '#14B8A6', '#6B7280']
+  
+  const categoryBreakdown = getSalesByCategory({ orders }).map((cat, i) => ({
+    ...cat,
+    color: CHART_COLORS[i % CHART_COLORS.length]
+  }))
+
+  const totalValue = categoryBreakdown.reduce((sum, item) => sum + item.total, 0)
 
   return (
     <motion.div
@@ -70,7 +78,12 @@ export function CategoryBreakdownChart({ isLoading = false }: { isLoading?: bool
       <div className="flex-1 flex flex-col xl:flex-row items-center gap-6 xl:gap-8">
         {/* Donut Chart */}
         <div className="relative w-full max-w-[240px] aspect-square shrink-0">
-          <ResponsiveContainer width="100%" height="100%">
+          {!categoryBreakdown || categoryBreakdown.length === 0 ? (
+            <div className="w-full h-full flex flex-col items-center justify-center text-[#6B6B80] text-sm text-center px-4 bg-[#1A1A26] rounded-full">
+              No category data available.
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie
                 data={categoryBreakdown}
@@ -79,7 +92,7 @@ export function CategoryBreakdownChart({ isLoading = false }: { isLoading?: bool
                 innerRadius={70}
                 outerRadius={95}
                 paddingAngle={4}
-                dataKey="value"
+                dataKey="total"
                 stroke="none"
                 isAnimationActive={true}
                 animationDuration={1200}
@@ -96,13 +109,16 @@ export function CategoryBreakdownChart({ isLoading = false }: { isLoading?: bool
               </Pie>
             </PieChart>
           </ResponsiveContainer>
+          )}
           {/* Center Text */}
-          <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-            <span className="text-2xl font-bold text-white tabular-nums tracking-tight">
-              {formatCurrency(totalValue, true)}
-            </span>
-            <span className="text-[10px] font-semibold text-[#8B8B9E] uppercase tracking-widest">Total</span>
-          </div>
+          {categoryBreakdown && categoryBreakdown.length > 0 && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+              <span className="text-2xl font-bold text-white tabular-nums tracking-tight">
+                {formatCurrency(totalValue, true)}
+              </span>
+              <span className="text-[10px] font-semibold text-[#8B8B9E] uppercase tracking-widest">Total</span>
+            </div>
+          )}
         </div>
 
         {/* Custom Legend */}

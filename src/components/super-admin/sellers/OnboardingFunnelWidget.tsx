@@ -22,7 +22,7 @@ const FUNNEL_STEPS = [
 ]
 
 export function OnboardingFunnelWidget({ steps }: OnboardingFunnelWidgetProps) {
-  const isCompleted = (id: string) => steps.some((s) => s.step === id && s.completedAt !== null)
+  const isCompleted = (id: string) => (steps || []).some((s) => s.step === id && s.completedAt !== null)
   const isCurrent = (id: string) => {
     const idx = FUNNEL_STEPS.findIndex((s) => s.id === id)
     if (idx === 0) return !isCompleted(id)

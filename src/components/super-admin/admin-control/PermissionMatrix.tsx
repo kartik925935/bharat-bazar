@@ -1,22 +1,22 @@
 'use client'
 
 import React from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion } from 'framer-motion'
 import { Lock } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { SUPER_ADMIN_ONLY_PANELS } from '@/lib/constants/sa-permissions'
-import type { SAPanel, SAPermissionLevel } from '@/types/super-admin.types'
+import type { PanelKey, AccessLevel, SAPanelAccessGrant } from '@/types/super-admin.types'
 
 interface PermissionMatrixProps {
-  permissions: Record<SAPanel, SAPermissionLevel>
-  onChange: (panel: SAPanel, level: SAPermissionLevel) => void
+  permissions: SAPanelAccessGrant[]
+  onChange: (panel: PanelKey, level: AccessLevel) => void
   disabled?: boolean
-  highlightPanel?: SAPanel
+  highlightPanel?: PanelKey
 }
 
 type LevelConfig = {
   label: string
-  value: SAPermissionLevel
+  value: AccessLevel
   selectedBg: string
   selectedText: string
   description: string
@@ -29,35 +29,36 @@ const LEVELS: LevelConfig[] = [
   { label: 'Full', value: 'full', selectedBg: 'bg-gradient-to-r from-[#F5C842] to-[#F59E0B]', selectedText: 'text-[#1C1B14]', description: 'Complete control including delete' },
 ]
 
-const PANEL_SECTIONS: { title: string; panels: SAPanel[] }[] = [
+const PANEL_SECTIONS: { title: string; panels: PanelKey[] }[] = [
   { title: 'Main', panels: ['dashboard', 'analytics'] },
-  { title: 'Admin Management', panels: ['admin-control', 'panel-requests'] },
+  { title: 'Admin Management', panels: ['panel-requests'] },
   { title: 'User Management', panels: ['customers', 'sellers', 'kyc-verification'] },
   { title: 'Catalogue', panels: ['products', 'reviews', 'coupons', 'offers'] },
-  { title: 'Operations', panels: ['orders', 'delivery', 'support'] },
+  { title: 'Operations', panels: ['orders', 'delivery', 'returns'] },
   { title: 'Finance', panels: ['finance'] },
-  { title: 'Audit & System', panels: ['audit-logs', 'notifications', 'settings'] },
+  { title: 'Audit & System', panels: ['audit-logs', 'settings', 'storefront'] },
 ]
 
-const PANEL_LABELS: Record<SAPanel, string> = {
+const PANEL_LABELS: Record<PanelKey, string> = {
   'dashboard': 'Dashboard',
-  'admin-control': 'Admin Control',
-  'panel-requests': 'Panel Requests',
-  'customers': 'Customers',
-  'sellers': 'Sellers',
-  'products': 'Products',
-  'orders': 'Orders',
-  'delivery': 'Delivery',
+  'analytics': 'Analytics',
   'finance': 'Finance',
+  'finance.commissions': 'Commissions',
+  'finance.settlements': 'Settlements',
   'kyc-verification': 'KYC Verification',
+  'products': 'Products',
   'reviews': 'Reviews',
+  'sellers': 'Sellers',
+  'customers': 'Customers',
+  'orders': 'Orders',
+  'returns': 'Returns',
+  'delivery': 'Delivery',
   'coupons': 'Coupons',
   'offers': 'Offers',
-  'notifications': 'Notifications',
-  'analytics': 'Analytics',
-  'audit-logs': 'Audit Logs',
-  'support': 'Support',
+  'panel-requests': 'Panel Requests',
   'settings': 'Settings',
+  'storefront': 'Storefront',
+  'audit-logs': 'Audit Logs',
 }
 
 function PermissionRow({
@@ -68,9 +69,9 @@ function PermissionRow({
   isHighlighted,
   isLocked,
 }: {
-  panel: SAPanel
-  currentLevel: SAPermissionLevel
-  onChange: (level: SAPermissionLevel) => void
+  panel: PanelKey
+  currentLevel: AccessLevel
+  onChange: (level: AccessLevel) => void
   disabled: boolean
   isHighlighted: boolean
   isLocked: boolean
@@ -92,7 +93,7 @@ function PermissionRow({
           'text-sm font-semibold truncate',
           isHighlighted ? 'text-[#F5C842]' : 'text-[#D0D0E0]'
         )}>
-          {PANEL_LABELS[panel]}
+          {PANEL_LABELS[panel] ?? panel}
         </span>
         {isLocked && (
           <div title="Reserved for Super Admin only" className="cursor-default">
@@ -104,7 +105,7 @@ function PermissionRow({
       {/* Level selector */}
       <div
         role="radiogroup"
-        aria-label={`${PANEL_LABELS[panel]} permission level`}
+        aria-label={`${PANEL_LABELS[panel] ?? panel} permission level`}
         className="flex items-center gap-1 flex-1 sm:justify-end"
       >
         {LEVELS.map((lvl) => {
@@ -143,6 +144,9 @@ function PermissionRow({
 }
 
 export function PermissionMatrix({ permissions, onChange, disabled = false, highlightPanel }: PermissionMatrixProps) {
+  // Convert array to quick-lookup map
+  const permMap = new Map(permissions.map((g) => [g.panel, g.level]))
+
   return (
     <div className="w-full space-y-1">
       {/* Legend */}
@@ -167,7 +171,7 @@ export function PermissionMatrix({ permissions, onChange, disabled = false, high
           <div className="space-y-0.5">
             {section.panels.map((panel) => {
               const isLocked = SUPER_ADMIN_ONLY_PANELS.includes(panel)
-              const currentLevel = isLocked ? 'none' : ((permissions as any)[panel] ?? 'none') as SAPermissionLevel
+              const currentLevel = isLocked ? 'none' : (permMap.get(panel) ?? 'none')
               return (
                 <PermissionRow
                   key={panel}

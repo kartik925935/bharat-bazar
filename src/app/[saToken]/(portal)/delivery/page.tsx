@@ -6,7 +6,7 @@ import {
   AlertTriangle, AlertCircle, Phone, Mail, MapPin, Search, Filter,
   TrendingUp, RefreshCw, ChevronRight, Bike, User, Plus, X
 } from 'lucide-react'
-import { MOCK_SA_DELIVERY } from '@/lib/mock/sa-delivery.mock'
+import { useSuperAdminStore } from '@/lib/store/super-admin-store'
 import type { SADeliveryPartner, DeliveryPartnerStatus } from '@/types/super-admin.types'
 import { ResponsiveSheet } from '@/components/ui/responsive-sheet'
 import { useIsMobile } from '@/hooks/useBreakpoint'
@@ -236,6 +236,36 @@ const partnerSchema = z.object({
 
 type NewPartnerForm = z.infer<typeof partnerSchema>
 
+const Field = ({ id, label, placeholder, type = 'text', registerFn, error, touched, disabled }: any) => (
+  <div className="space-y-1.5">
+    <label htmlFor={id} className="text-xs font-semibold text-[#A0A0B8]">
+      {label} <span className="text-red-500 ml-1">*</span>
+    </label>
+    <div className="relative">
+      <input
+        id={id}
+        type={type}
+        placeholder={placeholder}
+        disabled={disabled}
+        {...registerFn}
+        className={cn(
+          'w-full h-12 bg-[#1A1A26] border-2 rounded-xl px-3 text-base text-white outline-none transition-all duration-200',
+          error ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' 
+                : touched && !error 
+                  ? 'border-green-500 focus:border-green-500' 
+                  : 'border-[#2A2A3E] focus:border-[#FF7A00] focus:ring-2 focus:ring-[#FF7A00]/20'
+        )}
+      />
+    </div>
+    {error && (
+      <p className="text-red-500 text-sm flex items-center gap-1">
+        <AlertCircle className="w-3.5 h-3.5" />
+        {error}
+      </p>
+    )}
+  </div>
+)
+
 function CreatePartnerModal({ onClose, onCreate }: {
   onClose: () => void
   onCreate: (partner: SADeliveryPartner) => void
@@ -280,36 +310,6 @@ function CreatePartnerModal({ onClose, onCreate }: {
     onClose()
   }
 
-  const Field = ({ id, label, placeholder, type = 'text', registerFn, error, touched }: any) => (
-    <div className="space-y-1.5">
-      <label htmlFor={id} className="text-xs font-semibold text-[#A0A0B8]">
-        {label} <span className="text-red-500 ml-1">*</span>
-      </label>
-      <div className="relative">
-        <input
-          id={id}
-          type={type}
-          placeholder={placeholder}
-          disabled={isSubmitting}
-          {...registerFn}
-          className={cn(
-            'w-full h-12 bg-[#1A1A26] border-2 rounded-xl px-3 text-base text-white outline-none transition-all duration-200',
-            error ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' 
-                  : touched && !error 
-                    ? 'border-green-500 focus:border-green-500' 
-                    : 'border-[#2A2A3E] focus:border-[#FF7A00] focus:ring-2 focus:ring-[#FF7A00]/20'
-          )}
-        />
-      </div>
-      {error && (
-        <p className="text-red-500 text-sm flex items-center gap-1">
-          <AlertCircle className="w-3.5 h-3.5" />
-          {error}
-        </p>
-      )}
-    </div>
-  )
-
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
@@ -334,17 +334,17 @@ function CreatePartnerModal({ onClose, onCreate }: {
 
         {/* Form */}
         <div className="p-5 space-y-4 max-h-[70vh] overflow-y-auto">
-          <Field id="name" label="Full Name" placeholder="e.g. Raju Kumar"
+          <Field id="name" label="Full Name" placeholder="e.g. Raju Kumar" disabled={isSubmitting}
             registerFn={register('name')} error={errors.name?.message} touched={touchedFields.name} />
           
-          <Field id="email" label="Email Address" placeholder="e.g. raju@delivery.in" type="email"
+          <Field id="email" label="Email Address" placeholder="e.g. raju@delivery.in" type="email" disabled={isSubmitting}
             registerFn={register('email')} error={errors.email?.message} touched={touchedFields.email} />
           
-          <Field id="phone" label="Mobile Number (10 digits)" placeholder="e.g. 9876543210"
+          <Field id="phone" label="Mobile Number (10 digits)" placeholder="e.g. 9876543210" disabled={isSubmitting}
             registerFn={register('phone')} error={errors.phone?.message} touched={touchedFields.phone} />
 
           <div className="grid grid-cols-2 gap-3">
-            <Field id="city" label="City" placeholder="e.g. Mumbai"
+            <Field id="city" label="City" placeholder="e.g. Mumbai" disabled={isSubmitting}
               registerFn={register('city')} error={errors.city?.message} touched={touchedFields.city} />
             
             <div className="space-y-1.5">
@@ -410,7 +410,7 @@ function CreatePartnerModal({ onClose, onCreate }: {
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function DeliveryPartnersPage() {
   const isMobile = useIsMobile()
-  const [partners, setPartners] = useState<SADeliveryPartner[]>(MOCK_SA_DELIVERY)
+  const { deliveryPartners: partners, setDeliveryPartners: setPartners } = useSuperAdminStore()
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<DeliveryPartnerStatus | 'all'>('all')
   const [selected, setSelected] = useState<SADeliveryPartner | null>(null)
@@ -431,12 +431,12 @@ export default function DeliveryPartnersPage() {
   }), [partners])
 
   const handleStatusChange = (id: string, status: DeliveryPartnerStatus) => {
-    setPartners(prev => prev.map(p => p.id === id ? { ...p, status } : p))
+    setPartners(partners.map(p => p.id === id ? { ...p, status } : p))
     if (selected?.id === id) setSelected(prev => prev ? { ...prev, status } : null)
   }
 
   const handleCreate = (partner: SADeliveryPartner) => {
-    setPartners(prev => [partner, ...prev])
+    setPartners([partner, ...partners])
   }
 
   return (

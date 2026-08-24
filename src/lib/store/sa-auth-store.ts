@@ -3,6 +3,8 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { SASuperAdmin } from '@/types/super-admin.types'
 import { MOCK_SA_CREDENTIALS, MOCK_SUPER_ADMIN, simulateNetworkDelay } from '@/lib/mock/sa-auth.mock'
+import { MOCK_SA_CREDENTIALS as NEW_MOCK_SA_CREDENTIALS } from '@/lib/mock/db/sa-credentials.seed'
+import { MOCK_ADMINS } from '@/lib/mock/sa-admins.mock'
 import { useSAStore } from '@/lib/store/super-admin-store'
 import type { SACredentialsInput } from '@/lib/validators/sa-validators'
 
@@ -88,16 +90,15 @@ export const useSAAuthStore = create<SAAuthState & SAAuthActions>()(
         // Security: never log passwords to console
         const emailLower = data.email.toLowerCase().trim()
         
-        // 1. Check if it's the hardcoded super admin
-        const isSuperAdmin = emailLower === MOCK_SA_CREDENTIALS.email.toLowerCase() && data.password === MOCK_SA_CREDENTIALS.password
+        // 1. Find matching credential in the new multi-role seed
+        const credential = NEW_MOCK_SA_CREDENTIALS.find(
+          (c) => c.email.toLowerCase() === emailLower && c.password === data.password
+        )
         
-        // 2. Check if it's any admin created/managed in the store
-        const storeAdmins = useSAStore.getState().admins
-        const foundStoreAdmin = storeAdmins.find(a => a.email.toLowerCase().trim() === emailLower)
-        // For mockup purposes, accept the default mock password for all store admins
-        const isStoreAdmin = foundStoreAdmin && data.password === MOCK_SA_CREDENTIALS.password
+        // 2. Check if admin account exists and is active
+        const admin = credential ? MOCK_ADMINS.find((a) => a.id === credential.adminId) : null
         
-        const isMatch = isSuperAdmin || isStoreAdmin
+        const isMatch = !!credential && !!admin && admin.status === 'active'
 
         if (isMatch) {
           set((s) => ({
@@ -139,8 +140,7 @@ export const useSAAuthStore = create<SAAuthState & SAAuthActions>()(
             const token = `sa_mem_token_${Date.now()}`
             const expiresAt = new Date(Date.now() + 8 * 3_600_000).toISOString()
             const emailForFlow = get().emailForFlow
-            const storeAdmins = useSAStore.getState().admins
-            const admin = storeAdmins.find(a => a.email.toLowerCase().trim() === emailForFlow)
+            const admin = MOCK_ADMINS.find(a => a.email.toLowerCase().trim() === emailForFlow)
             
             const resolvedSuperAdmin = admin ? {
               ...MOCK_SUPER_ADMIN,
@@ -205,8 +205,7 @@ export const useSAAuthStore = create<SAAuthState & SAAuthActions>()(
           const token = `sa_mem_token_${Date.now()}`
           const expiresAt = new Date(Date.now() + 8 * 3_600_000).toISOString()
           const emailForFlow = get().emailForFlow
-          const storeAdmins = useSAStore.getState().admins
-          const admin = storeAdmins.find(a => a.email.toLowerCase().trim() === emailForFlow)
+          const admin = MOCK_ADMINS.find(a => a.email.toLowerCase().trim() === emailForFlow)
           
           const resolvedSuperAdmin = admin ? {
             ...MOCK_SUPER_ADMIN,

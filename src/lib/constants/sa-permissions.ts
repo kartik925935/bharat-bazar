@@ -1,190 +1,90 @@
-import type { SAPanel, SAPermissionLevel, AdminRole } from '@/types/super-admin.types'
+import type { SAAdminRole, PanelKey, SAPanelAccessGrant } from '@/types/super-admin.types'
 
-// Default permissions for each admin role
-// Super Admin can override any of these at any time
-export const DEFAULT_ROLE_PERMISSIONS: Record<AdminRole, Record<SAPanel, SAPermissionLevel>> = {
-  SUPER_ADMIN: {
-    'dashboard': 'full',
-    'admin-control': 'full',
-    'panel-requests': 'full',
-    'customers': 'full',
-    'sellers': 'full',
-    'products': 'full',
-    'orders': 'full',
-    'delivery': 'full',
-    'finance': 'full',
-    'kyc-verification': 'full',
-    'reviews': 'full',
-    'coupons': 'full',
-    'offers': 'full',
-    'notifications': 'full',
-    'analytics': 'full',
-    'audit-logs': 'full',
-    'support': 'full',
-    'settings': 'full',
-  },
-  SENIOR_ADMIN: {
-    'dashboard': 'view',
-    'admin-control': 'none',
-    'panel-requests': 'none',
-    'customers': 'edit',
-    'sellers': 'edit',
-    'products': 'edit',
-    'orders': 'full',
-    'delivery': 'edit',
-    'finance': 'view',
-    'kyc-verification': 'edit',
-    'reviews': 'edit',
-    'coupons': 'edit',
-    'offers': 'edit',
-    'notifications': 'view',
-    'analytics': 'view',
-    'audit-logs': 'view',
-    'support': 'full',
-    'settings': 'none',
-  },
-  OPERATIONS_ADMIN: {
-    'dashboard': 'view',
-    'admin-control': 'none',
-    'panel-requests': 'none',
-    'customers': 'view',
-    'sellers': 'view',
-    'products': 'edit',
-    'orders': 'full',
-    'delivery': 'full',
-    'finance': 'none',
-    'kyc-verification': 'none',
-    'reviews': 'view',
-    'coupons': 'none',
-    'offers': 'none',
-    'notifications': 'view',
-    'analytics': 'view',
-    'audit-logs': 'none',
-    'support': 'edit',
-    'settings': 'none',
-  },
-  SUPPORT_ADMIN: {
-    'dashboard': 'view',
-    'admin-control': 'none',
-    'panel-requests': 'none',
-    'customers': 'view',
-    'sellers': 'view',
-    'products': 'view',
-    'orders': 'view',
-    'delivery': 'view',
-    'finance': 'none',
-    'kyc-verification': 'none',
-    'reviews': 'edit',
-    'coupons': 'none',
-    'offers': 'none',
-    'notifications': 'view',
-    'analytics': 'none',
-    'audit-logs': 'none',
-    'support': 'full',
-    'settings': 'none',
-  },
-  FINANCE_ADMIN: {
-    'dashboard': 'view',
-    'admin-control': 'none',
-    'panel-requests': 'none',
-    'customers': 'view',
-    'sellers': 'view',
-    'products': 'none',
-    'orders': 'view',
-    'delivery': 'none',
-    'finance': 'full',
-    'kyc-verification': 'view',
-    'reviews': 'none',
-    'coupons': 'full',
-    'offers': 'full',
-    'notifications': 'view',
-    'analytics': 'full',
-    'audit-logs': 'view',
-    'support': 'none',
-    'settings': 'none',
-  },
-  CONTENT_ADMIN: {
-    'dashboard': 'view',
-    'admin-control': 'none',
-    'panel-requests': 'none',
-    'customers': 'none',
-    'sellers': 'view',
-    'products': 'full',
-    'orders': 'none',
-    'delivery': 'none',
-    'finance': 'none',
-    'kyc-verification': 'none',
-    'reviews': 'full',
-    'coupons': 'view',
-    'offers': 'view',
-    'notifications': 'edit',
-    'analytics': 'view',
-    'audit-logs': 'none',
-    'support': 'none',
-    'settings': 'none',
-  },
-  DELIVERY_ADMIN: {
-    'dashboard': 'view',
-    'admin-control': 'none',
-    'panel-requests': 'none',
-    'customers': 'none',
-    'sellers': 'none',
-    'products': 'none',
-    'orders': 'view',
-    'delivery': 'full',
-    'finance': 'none',
-    'kyc-verification': 'none',
-    'reviews': 'none',
-    'coupons': 'none',
-    'offers': 'none',
-    'notifications': 'view',
-    'analytics': 'view',
-    'audit-logs': 'none',
-    'support': 'none',
-    'settings': 'none',
-  },
-  CUSTOM_ADMIN: {
-    'dashboard': 'view',
-    'admin-control': 'none',
-    'panel-requests': 'none',
-    'customers': 'none',
-    'sellers': 'none',
-    'products': 'none',
-    'orders': 'none',
-    'delivery': 'none',
-    'finance': 'none',
-    'kyc-verification': 'none',
-    'reviews': 'none',
-    'coupons': 'none',
-    'offers': 'none',
-    'notifications': 'none',
-    'analytics': 'none',
-    'audit-logs': 'none',
-    'support': 'none',
-    'settings': 'none',
-  },
-}
+/** Panels that only SUPER_ADMIN may access — other roles cannot be granted these */
+export const SUPER_ADMIN_ONLY_PANELS: PanelKey[] = ['audit-logs', 'settings', 'panel-requests']
 
-// Panels that can NEVER be accessed by any admin (Super Admin only)
-export const SUPER_ADMIN_ONLY_PANELS: SAPanel[] = [
-  'admin-control',
-  'panel-requests',
-  'audit-logs',
-  'settings',
+const PANEL_KEYS: PanelKey[] = [
+  'dashboard', 'analytics', 'finance', 'finance.commissions', 'finance.settlements',
+  'kyc-verification', 'products', 'reviews', 'sellers', 'customers', 'orders', 'returns',
+  'delivery', 'coupons', 'offers', 'panel-requests', 'settings', 'storefront', 'audit-logs'
 ]
 
-// Helper to check if an admin has access to a panel
-export function hasAccess(
-  permissions: Record<string, SAPermissionLevel>,
-  panel: SAPanel,
-  requiredLevel: SAPermissionLevel = 'view'
-): boolean {
-  const levelMap: Record<SAPermissionLevel, number> = {
-    none: 0,
-    view: 1,
-    edit: 2,
-    full: 3,
+export function buildDefaultGrants(role: SAAdminRole): SAPanelAccessGrant[] {
+  const grants: Partial<Record<PanelKey, SAPanelAccessGrant['level']>> = {}
+
+  switch (role) {
+    case 'SUPER_ADMIN':
+      // ALL panels -> full
+      PANEL_KEYS.forEach(panel => {
+        grants[panel] = 'full'
+      })
+      break
+
+    case 'SENIOR_ADMIN':
+      grants['dashboard'] = 'full'
+      grants['analytics'] = 'full'
+      grants['sellers'] = 'full'
+      grants['customers'] = 'full'
+      grants['products'] = 'edit'
+      grants['kyc-verification'] = 'edit'
+      grants['orders'] = 'edit'
+      grants['returns'] = 'edit'
+      grants['reviews'] = 'view'
+      grants['panel-requests'] = 'view'
+      grants['audit-logs'] = 'view'
+      grants['settings'] = 'view'
+      break
+
+    case 'FINANCE_ADMIN':
+      grants['dashboard'] = 'view'
+      grants['analytics'] = 'view'
+      grants['finance'] = 'full'
+      grants['finance.commissions'] = 'full'
+      grants['finance.settlements'] = 'full'
+      grants['audit-logs'] = 'view'
+      break
+
+    case 'OPERATIONS_ADMIN':
+      grants['dashboard'] = 'view'
+      grants['orders'] = 'full'
+      grants['returns'] = 'full'
+      grants['delivery'] = 'full'
+      grants['sellers'] = 'view'
+      grants['products'] = 'view'
+      break
+
+    case 'SUPPORT_ADMIN':
+      grants['dashboard'] = 'view'
+      grants['orders'] = 'view'
+      grants['returns'] = 'view'
+      grants['customers'] = 'view'
+      grants['reviews'] = 'edit'
+      break
+
+    case 'CONTENT_ADMIN':
+      grants['dashboard'] = 'view'
+      grants['products'] = 'full'
+      grants['reviews'] = 'full'
+      grants['storefront'] = 'full'
+      grants['coupons'] = 'edit'
+      grants['offers'] = 'edit'
+      break
+
+    case 'DELIVERY_ADMIN':
+      grants['dashboard'] = 'view'
+      grants['delivery'] = 'full'
+      grants['orders'] = 'view'
+      break
+
+    case 'CUSTOM_ADMIN':
+      grants['dashboard'] = 'view'
+      break
   }
-  const userLevel = permissions[panel] || 'none'
-  return levelMap[userLevel] >= levelMap[requiredLevel]
+
+  // Convert map to array format
+  return Object.entries(grants).map(([panel, level]) => ({
+    panel: panel as PanelKey,
+    level: level as SAPanelAccessGrant['level'],
+    source: 'default'
+  }))
 }

@@ -4,14 +4,14 @@ import React, { useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useParams } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ChevronRight, ChevronLeft, Shield, X } from 'lucide-react'
+import { ChevronRight, ChevronLeft, Shield, X, Lock } from 'lucide-react'
 import { getSANavigation, type SANavItem } from '@/lib/constants/sa-navigation'
 import { useSAUIStore } from '@/lib/store/sa-ui-store'
-import { useSAAuthStore } from '@/lib/store/sa-auth-store'
-import { useSuperAdminStore } from '@/lib/store/super-admin-store'
+import { useSASessionStore } from '@/lib/store/sa-session-store'
+import { useSAStore as useSuperAdminStore } from '@/lib/store/super-admin-store'
+import { hasPanelAccess, getPendingRequestsCount } from '@/lib/store/selectors/access.selectors'
 import { cn } from '@/lib/utils'
-import { DEFAULT_ROLE_PERMISSIONS } from '@/lib/constants/sa-permissions'
-import type { AdminRole } from '@/types/super-admin.types'
+import type { PanelKey } from '@/types/super-admin.types'
 
 // ─── Tooltip for collapsed sidebar ───────────────────────────────────────────
 function SidebarTooltip({ label, description }: { label: string; description?: string }) {
@@ -179,33 +179,41 @@ export function SASidebar({ isDrawer = false, onClose }: SASidebarProps) {
   const params = useParams()
   const saToken = params.saToken as string
   const { sidebarCollapsed, toggleSidebar } = useSAUIStore()
-  const { superAdmin } = useSAAuthStore()
-  
-  // Get notification/pending counts from store
-  const { notifications, panelRequests, getOpenTicketsCount } = useSuperAdminStore()
-  const unreadNotifs = notifications.filter(n => !n.isRead).length
-  const pendingRequests = panelRequests.filter(r => r.status === 'pending').length
-  const openTickets = getOpenTicketsCount()
 
-  const role = (superAdmin?.role as AdminRole) || 'SUPER_ADMIN'
-  const permissions = superAdmin?.permissions || DEFAULT_ROLE_PERMISSIONS[role]
+  // ── New service-backed session store ──────────────────────────────
+  const currentAdmin = useSASessionStore((s) => s.currentAdmin)
+  const currentGrants = useSASessionStore((s) => s.currentGrants)
+  const allRequests = useSASessionStore((s) => s.allRequests)
+
+  // Pending count badge for panel-requests nav item
+  const pendingRequests = getPendingRequestsCount(allRequests)
+
+  // Legacy notification/ticket counts from super-admin-store
+  const { notifications, getOpenTicketsCount } = useSuperAdminStore()
+  const unreadNotifs = (notifications ?? []).filter((n) => !n.isRead).length
+  const openTickets = getOpenTicketsCount ? getOpenTicketsCount() : 0
+
+  // Filter nav items based on effective grants from service layer
+  const canSee = (panel: string) => {
+    if (!currentAdmin) return false
+    // SUPER_ADMIN always sees everything
+    if (currentAdmin.role === 'SUPER_ADMIN') return true
+    // Always show my-access
+    if (panel === 'my-access') return true
+    const grant = currentGrants.find((g) => g.panel === (panel as PanelKey))
+    return !!grant && grant.source !== 'blocked' && grant.level !== 'none'
+  }
 
   const navSections = getSANavigation(saToken)
     .map((section) => ({
       ...section,
       items: section.items
-        .filter((item) => {
-          const perm = permissions[item.panel]
-          return perm && perm !== 'none'
-        })
+        .filter((item) => canSee(item.panel))
         .map((item) => {
           if (!item.subItems) return item
           return {
             ...item,
-            subItems: item.subItems.filter((sub) => {
-              const perm = permissions[sub.panel]
-              return perm && perm !== 'none'
-            }),
+            subItems: item.subItems.filter((sub) => canSee(sub.panel)),
           }
         }),
     }))
@@ -246,7 +254,7 @@ export function SASidebar({ isDrawer = false, onClose }: SASidebarProps) {
                 Bharat Bazaar
               </p>
               <span className="inline-block px-1.5 py-0.5 bg-[#F5C842]/10 border border-[#F5C842]/20 rounded-full text-[9px] font-bold text-[#F5C842] tracking-widest uppercase whitespace-nowrap">
-                {superAdmin?.role.replace('_', ' ') || 'Super Admin'}
+                {currentAdmin?.role.replace(/_/g, ' ') || 'Super Admin'}
               </span>
             </motion.div>
           )}
@@ -300,23 +308,23 @@ export function SASidebar({ isDrawer = false, onClose }: SASidebarProps) {
       </div>
 
       {/* ── Admin Mini Profile Footer ── */}
-      {superAdmin && (
+      {currentAdmin && (
         <div className={cn(
           'shrink-0 border-t border-[#1E1E2E] p-3',
           collapsed ? 'flex justify-center' : ''
         )}>
           {collapsed ? (
             <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#FF7A00]/20 to-[#F5C842]/10 border border-[#FF7A00]/20 flex items-center justify-center text-sm font-bold text-[#FF7A00]">
-              {superAdmin.name.charAt(0)}
+              {currentAdmin.name.charAt(0)}
             </div>
           ) : (
             <div className="flex items-center gap-3 px-1">
               <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#FF7A00]/20 to-[#F5C842]/10 border border-[#FF7A00]/20 flex items-center justify-center text-sm font-bold text-[#FF7A00] shrink-0">
-                {superAdmin.name.charAt(0)}
+                {currentAdmin.name.charAt(0)}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-white truncate">{superAdmin.name}</p>
-                <p className="text-[10px] text-[#6B6B80] font-medium">{superAdmin.role.replace('_', ' ')}</p>
+                <p className="text-sm font-semibold text-white truncate">{currentAdmin.name}</p>
+                <p className="text-[10px] text-[#6B6B80] font-medium">{currentAdmin.role.replace(/_/g, ' ')}</p>
               </div>
             </div>
           )}

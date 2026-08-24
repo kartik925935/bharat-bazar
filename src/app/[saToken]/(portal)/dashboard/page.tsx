@@ -38,7 +38,10 @@ const MOCK_LIVE_EVENTS = [
 
 export default function DashboardPage() {
   const { superAdmin } = useSAAuthStore()
-  const { dashboardMetrics, refreshDashboard, addActivityEvent } = useSuperAdminStore()
+  const { 
+    financeSummary, orders, sellers, customers, panelRequests,
+    refreshDashboard, addActivityEvent 
+  } = useSuperAdminStore()
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
@@ -95,7 +98,14 @@ export default function DashboardPage() {
         className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 xl:gap-6"
       >
         {/* TOP METRIC CARDS */}
-        {dashboardMetrics.map((metric, i) => {
+        {[
+          { label: 'Total GMV', value: financeSummary.totalGMV, change: 12.4, changeType: 'increase' as const, period: 'vs last month' },
+          { label: 'Total Orders', value: orders.length, change: 8.1, changeType: 'increase' as const, period: 'vs last month' },
+          { label: 'Active Sellers', value: sellers.filter(s => s.status === 'active').length, change: 5.6, changeType: 'increase' as const, period: 'vs last month' },
+          { label: 'Active Customers', value: customers.filter(c => c.status === 'active').length, change: -2.3, changeType: 'decrease' as const, period: 'vs last month' },
+          { label: 'Pending Approvals', value: panelRequests.filter(r => r.status === 'pending').length, change: 0, changeType: 'neutral' as const, period: 'requires action' },
+          { label: 'Platform Revenue', value: financeSummary.totalCommission, change: 15.2, changeType: 'increase' as const, period: 'vs last month' },
+        ].map((metric, i) => {
           // Special styling mapping based on title
           let format: 'currency' | 'number' | 'percentage' = 'number'
           if (metric.label.includes('GMV') || metric.label.includes('Revenue')) format = 'currency'
