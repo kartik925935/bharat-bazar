@@ -106,7 +106,7 @@ export async function fetchProductsAction(): Promise<{ data: SAProduct[], error?
       .from('products')
       .select(`
         *,
-        sellers ( business_name, first_name, last_name )
+        sellers ( legal_name, display_name )
       `)
       .order('created_at', { ascending: false })
 
@@ -117,7 +117,7 @@ export async function fetchProductsAction(): Promise<{ data: SAProduct[], error?
       name: p.name,
       sku: p.sku || p.id.substring(0, 8),
       sellerId: p.seller_id,
-      sellerName: p.sellers?.business_name || `${p.sellers?.first_name || ''} ${p.sellers?.last_name || ''}`.trim() || 'Unknown',
+      sellerName: p.sellers?.display_name || p.sellers?.legal_name || 'Unknown',
       category: p.category_id || 'Uncategorized',
       price: p.selling_price || 0,
       mrp: p.selling_price || 0,

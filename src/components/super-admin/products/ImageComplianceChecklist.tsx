@@ -20,7 +20,7 @@ export function ImageComplianceChecklist({ flags, className }: ImageComplianceCh
       <h3 className="text-xs font-bold text-[#8B8B9E] uppercase tracking-wider mb-3">Image Guidelines</h3>
       <div className="space-y-2">
         {CHECKLIST.map((item) => {
-          const failed = flags.includes(item.id)
+          const failed = (flags || []).includes(item.id)
           return (
             <div key={item.id} className="flex items-center gap-2">
               <div className={cn(

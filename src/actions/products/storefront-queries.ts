@@ -14,21 +14,20 @@ interface ProductRow {
   mrp: string | number
   selling_price: string | number
   sku: string
+  stock_quantity: number
   weight?: number
   status: string
   category_id: string | null
   seller_id: string
+  created_at: string
   specifications?: Record<string, string>
   sellers?: {
     id: string
     seller_id: string
-    first_name: string
-    last_name: string
-    tier: string
-    type: string
-    location: string
-    avatar_url: string
-    rating: number
+    display_name: string
+    current_tier: string
+    seller_type: string
+    state: string
   }
   product_images?: Array<{
     id: string
@@ -52,22 +51,23 @@ interface ProductRow {
 function mapProductRow(row: ProductRow): Product {
   const seller: ProductSeller = {
     id: row.sellers?.id || row.seller_id,
-    name: row.sellers ? `${row.sellers.first_name} ${row.sellers.last_name}`.trim() : 'Unknown Seller',
+    name: row.sellers ? row.sellers.display_name : 'Unknown Seller',
     username: row.sellers?.seller_id || 'seller',
-    tier: (row.sellers?.tier as any) || 'bronze',
-    type: (row.sellers?.type as any) || 'shop_owner',
-    location: row.sellers?.location || 'India',
-    avatar: row.sellers?.avatar_url || 'https://via.placeholder.com/48',
-    rating: row.sellers?.rating || 4.0,
+    tier: (row.sellers?.current_tier as any) || 'bronze',
+    type: (row.sellers?.seller_type as any) || 'shop_owner',
+    location: row.sellers?.state || 'India',
+    avatar: 'https://via.placeholder.com/48',
+    rating: 4.0,
   }
 
   const images = row.product_images && row.product_images.length > 0
     ? row.product_images
-        .sort((a, b) => (a.is_primary ? -1 : 1))
+        .sort((a) => (a.is_primary ? -1 : 1))
         .map((img) => img.image_url)
     : ['https://via.placeholder.com/400']
 
-  const inventoryQty = row.inventory?.[0]?.quantity_available || 0
+  const inv = row.inventory as any
+  const inventoryQty = row.stock_quantity || (inv ? inv.quantity_available : 0) || 0
   const inStock = inventoryQty > 0
 
   return {
@@ -78,13 +78,13 @@ function mapProductRow(row: ProductRow): Product {
     price: Number(row.selling_price),
     mrp: Number(row.mrp),
     discount: Math.round(((Number(row.mrp) - Number(row.selling_price)) / Number(row.mrp)) * 100),
-    rating: row.sellers?.rating || 4.5, // Use seller rating as fallback for now
+    rating: 4.5, // Mocked rating since sellers doesn't have rating directly
     reviewCount: 0,
     images,
     category: row.categories?.slug || 'handcrafted',
     subcategory: undefined,
     seller,
-    isNew: false,
+    isNew: row.created_at ? (new Date().getTime() - new Date(row.created_at).getTime()) < 7 * 24 * 60 * 60 * 1000 : false,
     inStock,
     freeDelivery: true,
     tags: [],
@@ -123,21 +123,20 @@ export async function getStorefrontProducts(filters?: {
         mrp,
         selling_price,
         sku,
+        stock_quantity,
         weight,
         status,
         category_id,
         seller_id,
+        created_at,
         specifications,
         sellers (
           id,
           seller_id,
-          first_name,
-          last_name,
-          tier,
-          type,
-          location,
-          avatar_url,
-          rating
+          display_name,
+          current_tier,
+          seller_type,
+          state
         ),
         product_images (
           id,
@@ -240,21 +239,20 @@ export async function getStorefrontProductBySlug(
         mrp,
         selling_price,
         sku,
+        stock_quantity,
         weight,
         status,
         category_id,
         seller_id,
+        created_at,
         specifications,
         sellers (
           id,
           seller_id,
-          first_name,
-          last_name,
-          tier,
-          type,
-          location,
-          avatar_url,
-          rating
+          display_name,
+          current_tier,
+          seller_type,
+          state
         ),
         product_images (
           id,
@@ -272,6 +270,77 @@ export async function getStorefrontProductBySlug(
       `
       )
       .eq('slug', slug)
+      .eq('status', 'published')
+      .maybeSingle()
+
+    if (error) {
+      return { data: null, error: (error as Error).message }
+    }
+
+    if (!data) {
+      return { data: null }
+    }
+
+    const product = mapProductRow(data as unknown as ProductRow)
+    return { data: product }
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : 'Failed to fetch product'
+    return { data: null, error: errorMessage }
+  }
+}
+
+/**
+ * Fetch a single product by ID for realtime customer updates
+ * Returns null if product doesn't exist or isn't published
+ */
+export async function getStorefrontProductById(
+  id: string
+): Promise<{ data: Product | null; error?: string }> {
+  try {
+    const supabase = await createClient()
+
+    const { data, error } = await supabase
+      .from('products')
+      .select(
+        `
+        id,
+        name,
+        slug,
+        description,
+        mrp,
+        selling_price,
+        sku,
+        stock_quantity,
+        weight,
+        status,
+        category_id,
+        seller_id,
+        created_at,
+        specifications,
+        sellers (
+          id,
+          seller_id,
+          display_name,
+          current_tier,
+          seller_type,
+          state
+        ),
+        product_images (
+          id,
+          image_url,
+          is_primary
+        ),
+        inventory (
+          id,
+          quantity_available
+        ),
+        categories (
+          name,
+          slug
+        )
+      `
+      )
+      .eq('id', id)
       .eq('status', 'published')
       .maybeSingle()
 
@@ -320,21 +389,20 @@ export async function getStorefrontProductsBySeller(
         mrp,
         selling_price,
         sku,
+        stock_quantity,
         weight,
         status,
         category_id,
         seller_id,
+        created_at,
         specifications,
         sellers (
           id,
           seller_id,
-          first_name,
-          last_name,
-          tier,
-          type,
-          location,
-          avatar_url,
-          rating
+          display_name,
+          current_tier,
+          seller_type,
+          state
         ),
         product_images (
           id,
@@ -420,21 +488,20 @@ export async function getFeaturedProducts(limit: number = 12): Promise<{
         mrp,
         selling_price,
         sku,
+        stock_quantity,
         weight,
         status,
         category_id,
         seller_id,
+        created_at,
         specifications,
         sellers (
           id,
           seller_id,
-          first_name,
-          last_name,
-          tier,
-          type,
-          location,
-          avatar_url,
-          rating
+          display_name,
+          current_tier,
+          seller_type,
+          state
         ),
         product_images (
           id,
@@ -492,21 +559,20 @@ export async function searchProducts(queryText: string, limit: number = 5): Prom
         mrp,
         selling_price,
         sku,
+        stock_quantity,
         weight,
         status,
         category_id,
         seller_id,
+        created_at,
         specifications,
         sellers (
           id,
           seller_id,
-          first_name,
-          last_name,
-          tier,
-          type,
-          location,
-          avatar_url,
-          rating
+          display_name,
+          current_tier,
+          seller_type,
+          state
         ),
         product_images (
           id,

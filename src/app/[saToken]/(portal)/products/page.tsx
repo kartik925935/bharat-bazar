@@ -10,7 +10,8 @@ import { SavedViewsBar } from '@/components/super-admin/shared/SavedViewsBar'
 import { StatusBadge } from '@/components/super-admin/shared/StatusBadge'
 import { ProductReviewModal } from '@/components/super-admin/products/ProductReviewModal'
 import { BulkImportModal } from '@/components/super-admin/products/BulkImportModal'
-import { useSuperAdminStore } from '@/lib/store/super-admin-store'
+import { getAdminProducts, updateProductStatus as serverUpdateProductStatus, ProductStatus as ServerProductStatus } from '@/actions/products/admin-actions'
+import { toast } from 'sonner'
 import { useUndoableAction } from '@/lib/hooks/useUndoableAction'
 import { formatCurrency, formatRelativeTime } from '@/lib/utils/formatters'
 import { cn } from '@/lib/utils'
@@ -39,21 +40,51 @@ const PRODUCT_FIELDS: FilterField[] = [
 ]
 
 export default function ProductsPage() {
-  const { products, updateProductStatus } = useSuperAdminStore()
   const { execute } = useUndoableAction()
   
   const [activeRules, setActiveRules] = useState<FilterRule[]>([])
   const [selectedProduct, setSelectedProduct] = useState<SAProductDetail | null>(null)
   const [isBulkImportOpen, setIsBulkImportOpen] = useState(false)
+  const [products, setProducts] = useState<SAProductDetail[]>([])
+  const [isLoading, setIsLoading] = useState(true)
   const searchParams = useSearchParams()
+
+  const fetchProducts = async () => {
+    setIsLoading(true)
+    const result = await getAdminProducts()
+    if (result.error) {
+      toast.error('Failed to load products: ' + result.error)
+    } else {
+      setProducts(result.data || [])
+    }
+    setIsLoading(false)
+  }
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchProducts()
+  }, [])
 
   useEffect(() => {
     const productId = searchParams.get('productId')
-    if (productId) {
+    if (productId && products.length > 0) {
       const prod = products.find(p => p.id === productId)
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       if (prod) setSelectedProduct(prod as SAProductDetail)
     }
   }, [searchParams, products])
+
+  const updateProductStatusLocal = async (id: string, status: ServerProductStatus, reason?: string) => {
+    // Optimistic update
+    setProducts(current => current.map(p => p.id === id ? { ...p, status: status as any } : p))
+    const res = await serverUpdateProductStatus(id, status, reason)
+    if (!res.success) {
+      toast.error('Failed to update status: ' + res.error)
+      // Revert on failure by refetching
+      fetchProducts()
+      throw new Error(res.error)
+    }
+  }
 
   const filteredProducts = applyFilterRules(products as SAProductDetail[], activeRules, PRODUCT_FIELDS)
 
@@ -65,7 +96,7 @@ export default function ProductsPage() {
       render: (row) => (
         <div className="flex items-center gap-3 min-w-[240px]">
           <div className="w-10 h-10 rounded-xl overflow-hidden bg-[#1A1A26] border border-[#2A2A3E] shrink-0">
-            {row.images[0] ? (
+            {row.images && row.images[0] ? (
               <img src={row.images[0]} alt="" className="w-full h-full object-cover" />
             ) : null}
           </div>
@@ -159,11 +190,11 @@ export default function ProductsPage() {
         await execute({
           description: `Approved ${ids.length} products`,
           action: async () => {
-            ids.forEach(id => updateProductStatus(id, 'published'))
+            for (const id of ids) await updateProductStatusLocal(id, 'published')
             return true
           },
           undoAction: async () => {
-            ids.forEach(id => updateProductStatus(id, 'pending_review'))
+            for (const id of ids) await updateProductStatusLocal(id, 'pending_review')
           }
         })
       }
@@ -182,11 +213,11 @@ export default function ProductsPage() {
         await execute({
           description: `Suspended ${ids.length} products`,
           action: async () => {
-            ids.forEach(id => updateProductStatus(id, 'suspended'))
+            for (const id of ids) await updateProductStatusLocal(id, 'suspended')
             return true
           },
           undoAction: async () => {
-            ids.forEach(id => updateProductStatus(id, 'published'))
+            for (const id of ids) await updateProductStatusLocal(id, 'published')
           }
         })
       }
@@ -209,18 +240,17 @@ export default function ProductsPage() {
   const handleApprove = async (id: string) => {
     await execute({
       description: 'Approved product listing',
-      action: async () => updateProductStatus(id, 'published'),
-      undoAction: async () => updateProductStatus(id, 'pending_review')
+      action: async () => { await updateProductStatusLocal(id, 'published'); return true; },
+      undoAction: async () => { await updateProductStatusLocal(id, 'pending_review'); }
     })
     setSelectedProduct(null)
   }
 
   const handleReject = async (id: string, reason: string) => {
-    // In a real app we'd save the reason
     await execute({
       description: 'Rejected product listing',
-      action: async () => updateProductStatus(id, 'rejected'),
-      undoAction: async () => updateProductStatus(id, 'pending_review')
+      action: async () => { await updateProductStatusLocal(id, 'rejected', reason); return true; },
+      undoAction: async () => { await updateProductStatusLocal(id, 'pending_review'); }
     })
     setSelectedProduct(null)
   }
@@ -286,8 +316,8 @@ export default function ProductsPage() {
           const oldStatus = selectedProduct?.status || 'pending_review'
           await execute({
             description: `Updated product status to ${status.replace('_', ' ')}`,
-            action: async () => updateProductStatus(id, status),
-            undoAction: async () => updateProductStatus(id, oldStatus)
+            action: async () => { await updateProductStatusLocal(id, status as ServerProductStatus); return true; },
+            undoAction: async () => { await updateProductStatusLocal(id, oldStatus as ServerProductStatus); }
           })
           setSelectedProduct(null)
         }}

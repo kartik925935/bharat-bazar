@@ -11,6 +11,7 @@ export type ProductStatus =
   | 'published'
   | 'archived'
   | 'changes_required'
+  | 'suspended'
 
 /**
  * Admin/Super-admin action to update product status
@@ -39,10 +40,10 @@ export async function updateProductStatus(
     }
 
     // Revalidate storefront paths when product status changes (e.g. published, rejected, unarchived)
-    revalidatePath('/products')
-    revalidatePath('/')
-    revalidatePath('/super-admin/products')
-    revalidatePath('/seller/**')
+    revalidatePath('/products', 'layout')
+    revalidatePath('/', 'page')
+    revalidatePath('/super-admin/products', 'page')
+    revalidatePath('/seller', 'layout')
 
     // Also revalidate admin pages for any status change
     revalidatePath('/super-admin/products')
@@ -96,12 +97,15 @@ export async function getAdminProducts(): Promise<{ data: any[]; error?: string 
         id,
         name,
         slug,
+        description,
+        specifications,
         selling_price,
         status,
         created_at,
         inventory ( quantity_available ),
         categories ( name ),
-        sellers ( seller_id, first_name, last_name )
+        sellers ( seller_id, display_name ),
+        product_images ( image_url )
       `)
       .order('created_at', { ascending: false })
 
@@ -116,13 +120,27 @@ export async function getAdminProducts(): Promise<{ data: any[]; error?: string 
         id: p.id,
         name: p.name,
         slug: p.slug,
-        seller: seller ? `${seller.first_name} ${seller.last_name}`.trim() : 'Unknown',
+        sellerName: seller ? seller.display_name : 'Unknown',
+        sellerId: seller?.seller_id || '',
         category: category?.name || 'Uncategorized',
-        price: p.selling_price,
-        stock: p.inventory?.[0]?.quantity_available || 0,
-        sales: 0, // Mocked for now until orders are implemented
+        price: p.selling_price || 0,
+        mrp: p.selling_price || 0,
+        stock: p.stock_quantity || (p.inventory ? p.inventory.quantity_available : 0) || 0,
+        images: p.product_images?.map((img: any) => img.image_url) || [],
+        sales: 0,
+        totalSales: 0,
         status: p.status,
-        submittedDate: new Date(p.created_at).toLocaleDateString()
+        createdAt: p.created_at,
+        updatedAt: p.created_at, // Use created_at as fallback since updated_at might not be selected
+        sku: p.slug || p.id,
+        completenessScore: 85, // Mocked for now
+        priceAnomalyFlag: false, // Mocked for now
+        rating: 0,
+        totalReviews: 0,
+        qualityFlags: [],
+        description: p.description || '',
+        specifications: p.specifications || {},
+        discount: 0
       }
     })
 
@@ -144,13 +162,16 @@ export async function getAdminProductById(id: string): Promise<{ data: any | nul
         id,
         name,
         slug,
+        description,
+        specifications,
         selling_price,
         status,
         created_at,
         rejection_notes,
         inventory ( quantity_available ),
         categories ( name ),
-        sellers ( seller_id, first_name, last_name )
+        sellers ( seller_id, display_name ),
+        product_images ( image_url )
       `)
       .eq('id', id)
       .maybeSingle()
@@ -168,14 +189,29 @@ export async function getAdminProductById(id: string): Promise<{ data: any | nul
     const mapped = {
       id: p.id,
       name: p.name,
-      seller: seller ? `${seller.first_name} ${seller.last_name}`.trim() : 'Unknown',
+      slug: p.slug,
+      sellerName: seller ? seller.display_name : 'Unknown',
+      sellerId: seller?.seller_id || '',
       category: category?.name || 'Uncategorized',
-      price: p.selling_price,
-      stock: p.inventory?.[0]?.quantity_available || 0,
+      price: p.selling_price || 0,
+      mrp: p.selling_price || 0,
+      stock: p.stock_quantity || (p.inventory ? p.inventory.quantity_available : 0) || 0,
+      images: p.product_images?.map((img: any) => img.image_url) || [],
       sales: 0,
+      totalSales: 0,
       status: p.status,
       flagReason: p.rejection_notes,
-      submittedDate: new Date(p.created_at).toLocaleDateString()
+      createdAt: p.created_at,
+      updatedAt: p.created_at, // Use created_at as fallback
+      sku: p.slug || p.id,
+      completenessScore: 85, // Mocked for now
+      priceAnomalyFlag: false, // Mocked for now
+      rating: 0,
+      totalReviews: 0,
+      qualityFlags: [],
+      description: p.description || '',
+      specifications: p.specifications || {},
+      discount: 0
     }
 
     return { data: mapped }

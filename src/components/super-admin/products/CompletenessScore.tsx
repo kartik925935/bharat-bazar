@@ -55,7 +55,7 @@ export function CompletenessScore({ score, flags, className }: CompletenessScore
         </div>
       </div>
       
-      {flags.length > 0 && (
+      {flags && flags.length > 0 && (
         <div className="mt-4 pt-3 border-t border-[#1E1E2E] space-y-1.5">
           <h4 className="text-[10px] font-bold text-[#6B6B80] uppercase tracking-wider mb-2">Needs Improvement</h4>
           {flags.map((flag, idx) => (
