@@ -6,6 +6,7 @@
 -- on the storefront product cards and detail pages.
 -- ============================================================
 
+DROP POLICY IF EXISTS "sellers_select_public" ON public.sellers;
 CREATE POLICY "sellers_select_public"
 ON public.sellers
 FOR SELECT
