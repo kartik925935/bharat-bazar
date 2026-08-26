@@ -52,6 +52,7 @@ desktop.ini
 
 # Local temp files
 .temp/
+supabase/.temp/
 tmp/
 
 # AI Agent Configs
