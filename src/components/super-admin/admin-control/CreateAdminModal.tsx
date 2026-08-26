@@ -29,7 +29,7 @@ const ROLE_CONFIGS: { role: SAAdminRole; label: string; description: string; key
 ]
 
 export function CreateAdminModal({ open, onClose }: CreateAdminModalProps) {
-  const [selectedRole, setSelectedRole] = useState<AdminRole>('OPERATIONS_ADMIN')
+  const [selectedRole, setSelectedRole] = useState<SAAdminRole>('OPERATIONS_ADMIN')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const { admins } = useSAStore()
 

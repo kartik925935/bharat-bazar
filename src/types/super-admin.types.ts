@@ -34,15 +34,19 @@ export type PanelKey =
   | 'kyc-verification' | 'products' | 'reviews'
   | 'sellers' | 'customers' | 'orders' | 'returns'
   | 'delivery' | 'coupons' | 'offers'
-  | 'panel-requests' | 'settings' | 'storefront' | 'audit-logs'
+  | 'panel-requests' | 'settings' | 'storefront' | 'audit-logs' | 'notifications' | 'support' | 'admin-control'
 
 export type AccessLevel = 'none' | 'view' | 'edit' | 'full'
 
 export interface SAPanelAccessGrant {
+  id?: string
+  adminId?: string
   panel: PanelKey
   level: AccessLevel
   source: 'default' | 'granted' | 'blocked'
   grantedBy?: string
+  grantedByAdminId?: string
+  grantedByName?: string
   grantedAt?: string
   note?: string
 }
@@ -104,6 +108,8 @@ export interface SAPanelRequest {
   requestedAt: string
   reviewedAt?: string
   reviewedBy?: string
+  reviewedByAdminId?: string
+  reviewedByName?: string
   reviewNote?: string
 }
 

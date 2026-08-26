@@ -3,7 +3,7 @@ import { z } from 'zod'
 const panelKeys = [
   'dashboard', 'analytics', 'finance', 'finance.commissions', 'finance.settlements',
   'kyc-verification', 'products', 'reviews', 'sellers', 'customers', 'orders', 'returns',
-  'delivery', 'coupons', 'offers', 'panel-requests', 'settings', 'storefront', 'audit-logs'
+  'delivery', 'coupons', 'offers', 'panel-requests', 'settings', 'storefront', 'audit-logs', 'notifications', 'support', 'admin-control'
 ] as const
 
 export const loginSchema = z.object({

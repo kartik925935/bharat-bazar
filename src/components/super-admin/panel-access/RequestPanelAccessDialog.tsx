@@ -26,6 +26,7 @@ const PANEL_LABELS: Record<PanelKey, string> = {
   'sellers': 'Sellers', 'customers': 'Customers', 'orders': 'Orders', 'returns': 'Returns',
   'delivery': 'Delivery', 'coupons': 'Coupons', 'offers': 'Offers',
   'panel-requests': 'Panel Requests', 'settings': 'Settings', 'storefront': 'Storefront', 'audit-logs': 'Audit Logs',
+  'notifications': 'Notifications', 'support': 'Support', 'admin-control': 'Admin Control',
 }
 
 const ALL_PANEL_KEYS: PanelKey[] = Object.keys(PANEL_LABELS) as PanelKey[]
@@ -153,7 +154,7 @@ export function RequestPanelAccessDialog({ open, onClose, defaultPanel }: Reques
           </div>
 
           <div className="flex justify-end gap-2 pt-2">
-            <Button type="button" variant="outline" onClick={onClose} className="rounded-xl">
+            <Button type="button" variant="ghost" onClick={onClose} className="rounded-xl">
               Cancel
             </Button>
             <Button

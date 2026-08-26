@@ -59,6 +59,9 @@ const PANEL_LABELS: Record<PanelKey, string> = {
   'settings': 'Settings',
   'storefront': 'Storefront',
   'audit-logs': 'Audit Logs',
+  'notifications': 'Notifications',
+  'support': 'Support',
+  'admin-control': 'Admin Control',
 }
 
 function PermissionRow({
