@@ -1,26 +1,18 @@
 'use client'
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import {
   TrendingUp, IndianRupee, Package, ArrowUpRight,
   ArrowDownRight, Clock, CheckCircle, AlertTriangle,
   BarChart2, Wallet, RefreshCw, ChevronRight
 } from 'lucide-react'
 import { useParams, useRouter } from 'next/navigation'
-import { useSAStore } from '@/lib/store/super-admin-store'
-import {
-  getTotalGMV,
-  getTotalCommission,
-  getPendingSettlementsTotal,
-  getTotalRefunds,
-  getPeriodGMV,
-  getRevenueTrend,
-  RevenueTrendPoint
-} from '@/lib/store/selectors/finance.selectors'
 import { cn } from '@/lib/utils'
 import { format } from 'date-fns'
+import { fetchFinanceOverviewAction, fetchSettlementsAction } from '@/actions/super-admin/queries'
 
 // ─── Tiny Sparkline SVG ──────────────────────────────────────────────────────
 function Sparkline({ data, color = '#FF7A00' }: { data: number[]; color?: string }) {
+  if (!data || data.length === 0) return null
   const max = Math.max(...data)
   const min = Math.min(...data)
   const range = max - min || 1
@@ -74,7 +66,8 @@ function MetricCard({
 }
 
 // ─── Mini Bar Chart ───────────────────────────────────────────────────────────
-function MiniBarChart({ data }: { data: RevenueTrendPoint[] }) {
+function MiniBarChart({ data }: { data: any[] }) {
+  if (!data || data.length === 0) return null
   const maxGmv = Math.max(...data.map(d => d.gmv), 1)
   return (
     <div className="bg-[#111118] border border-[#2A2A3E] rounded-2xl p-5">
@@ -116,22 +109,21 @@ function MiniBarChart({ data }: { data: RevenueTrendPoint[] }) {
 }
 
 // ─── Payout Pipeline ─────────────────────────────────────────────────────────
-const PAYOUT_STATUS_CONFIG = {
+const PAYOUT_STATUS_CONFIG: Record<string, { color: string, bg: string, label: string }> = {
   pending:    { color: '#3B82F6', bg: '#3B82F615', label: 'Upcoming' },
   processing: { color: '#F59E0B', bg: '#F59E0B15', label: 'Processing' },
   completed:  { color: '#22C55E', bg: '#22C55E15', label: 'Paid' },
   failed:     { color: '#EF4444', bg: '#EF444415', label: 'Failed' },
 }
 
-function PayoutPipeline() {
-  const state = useSAStore()
-  const events = state.settlements.filter(s => s.status === 'pending' || s.status === 'processing').slice(0, 5)
+function PayoutPipeline({ settlements }: { settlements: any[] }) {
+  const events = settlements.filter(s => s.status === 'pending' || s.status === 'processing').slice(0, 5)
   return (
     <div className="bg-[#111118] border border-[#2A2A3E] rounded-2xl p-5">
       <h2 className="text-sm font-bold text-white mb-4">Upcoming Payouts</h2>
       <div className="space-y-2">
-        {events.map(ev => {
-          const cfg = PAYOUT_STATUS_CONFIG[ev.status]
+        {events.length === 0 ? <p className="text-xs text-[#6B6B80]">No upcoming payouts.</p> : events.map(ev => {
+          const cfg = PAYOUT_STATUS_CONFIG[ev.status] || PAYOUT_STATUS_CONFIG['pending']
           return (
             <div key={ev.id} className="flex items-center gap-3 p-3 bg-[#1A1A26] rounded-xl">
               <div className="w-2 h-2 rounded-full shrink-0" style={{ background: cfg.color }} />
@@ -140,7 +132,7 @@ function PayoutPipeline() {
                 <p className="text-[10px] text-[#6B6B80]">{format(new Date(ev.periodEnd || ev.createdAt), 'dd MMM yyyy')}</p>
               </div>
               <div className="text-right shrink-0">
-                <p className="text-sm font-bold text-white">₹{ev.netAmount.toLocaleString()}</p>
+                <p className="text-sm font-bold text-white">₹{(ev.netAmount || 0).toLocaleString()}</p>
                 <span className="text-[10px] font-bold" style={{ color: cfg.color }}>{cfg.label}</span>
               </div>
             </div>
@@ -152,11 +144,10 @@ function PayoutPipeline() {
 }
 
 // ─── Settlement Quick List ────────────────────────────────────────────────────
-function SettlementQuickList({ saToken }: { saToken: string }) {
+function SettlementQuickList({ saToken, settlements }: { saToken: string, settlements: any[] }) {
   const router = useRouter()
-  const state = useSAStore()
-  const settlements = state.settlements.slice(0, 5)
-  const STATUS_CFG = {
+  const list = settlements.slice(0, 5)
+  const STATUS_CFG: Record<string, { color: string, label: string }> = {
     pending:    { color: '#F59E0B', label: 'Pending' },
     processing: { color: '#3B82F6', label: 'Processing' },
     completed:  { color: '#22C55E', label: 'Completed' },
@@ -174,19 +165,19 @@ function SettlementQuickList({ saToken }: { saToken: string }) {
         </button>
       </div>
       <div className="space-y-2">
-        {settlements.map(s => {
-          const cfg = STATUS_CFG[s.status]
+        {list.length === 0 ? <p className="text-xs text-[#6B6B80]">No recent settlements.</p> : list.map(s => {
+          const cfg = STATUS_CFG[s.status] || STATUS_CFG['pending']
           return (
             <div key={s.id} className="flex items-center gap-3 p-3 bg-[#1A1A26] rounded-xl">
               <div className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold text-white" style={{ background: `${cfg.color}20`, color: cfg.color }}>
-                {s.sellerName[0]}
+                {s.sellerName?.[0] || '?'}
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold text-white truncate">{s.sellerName}</p>
                 <p className="text-[10px] text-[#6B6B80]">{s.ordersCount} orders</p>
               </div>
               <div className="text-right shrink-0">
-                <p className="text-sm font-bold text-white">₹{s.netAmount.toLocaleString()}</p>
+                <p className="text-sm font-bold text-white">₹{(s.netAmount || 0).toLocaleString()}</p>
                 <span className="text-[10px] font-bold" style={{ color: cfg.color }}>{cfg.label}</span>
               </div>
             </div>
@@ -201,23 +192,28 @@ function SettlementQuickList({ saToken }: { saToken: string }) {
 export default function FinanceOverviewPage() {
   const params = useParams<{ saToken: string }>()
   const saToken = params.saToken
-  const state = useSAStore()
-  
-  const totalGMV = getTotalGMV(state as any)
-  const totalCommission = getTotalCommission(state as any)
-  const pendingSettlements = getPendingSettlementsTotal(state as any)
-  const totalRefunds = getTotalRefunds(state as any)
+  const [data, setData] = useState<any>(null)
+  const [settlements, setSettlements] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
 
-  const periodGMV = getPeriodGMV(state as any, 30)
-  
-  const completedSettlements = state.settlements.filter(s => s.status === 'completed').reduce((sum, s) => sum + s.netAmount, 0)
-  
-  const chartData = getRevenueTrend(state as any, 11)
-  const periodRevenue = chartData.reduce((sum, d) => sum + d.commission, 0)
+  useEffect(() => {
+    async function load() {
+      const [ovRes, setRes] = await Promise.all([
+        fetchFinanceOverviewAction(),
+        fetchSettlementsAction()
+      ])
+      setData(ovRes.data)
+      setSettlements(setRes.data || [])
+      setLoading(false)
+    }
+    load()
+  }, [])
 
-  const gmvSpark = chartData.map(d => d.gmv)
-  const comSpark = chartData.map(d => d.commission)
-  const refSpark = chartData.map(d => d.refunds)
+  if (loading || !data) return <div className="p-6 text-sm text-white">Loading...</div>
+
+  const gmvSpark = data.chartData.map((d: any) => d.gmv)
+  const comSpark = data.chartData.map((d: any) => d.commission)
+  const refSpark = data.chartData.map((d: any) => d.refunds)
 
   return (
     <div className="space-y-6">
@@ -236,25 +232,25 @@ export default function FinanceOverviewPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         <MetricCard
           label="Total GMV" icon={TrendingUp} color="#FF7A00"
-          value={`₹${(totalGMV / 10000000).toFixed(2)}Cr`}
+          value={`₹${(data.totalGMV / 10000000).toFixed(2)}Cr`}
           subtitle="All-time gross merchandise value"
           trend={18.4} sparkData={gmvSpark}
         />
         <MetricCard
           label="Total Commission" icon={BarChart2} color="#8B5CF6"
-          value={`₹${(totalCommission / 100000).toFixed(1)}L`}
+          value={`₹${(data.totalCommission / 100000).toFixed(1)}L`}
           subtitle="Platform revenue collected"
           trend={22.1} sparkData={comSpark}
         />
         <MetricCard
           label="Pending Settlements" icon={Clock} color="#F59E0B"
-          value={`₹${(pendingSettlements / 100000).toFixed(1)}L`}
+          value={`₹${(data.pendingSettlements / 100000).toFixed(1)}L`}
           subtitle="Due to sellers"
           trend={-8.3}
         />
         <MetricCard
           label="Total Refunds" icon={AlertTriangle} color="#EF4444"
-          value={`₹${(totalRefunds / 100000).toFixed(1)}L`}
+          value={`₹${(data.totalRefunds / 100000).toFixed(1)}L`}
           subtitle="All-time refunds issued"
           trend={3.2} sparkData={refSpark}
         />
@@ -264,21 +260,21 @@ export default function FinanceOverviewPage() {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="p-5 bg-[#111118] border border-[#2A2A3E] rounded-2xl">
           <p className="text-[10px] font-bold text-[#6B6B80] uppercase tracking-wider mb-2">Period GMV (Last 30d)</p>
-          <p className="text-2xl font-extrabold text-white">₹{(periodGMV / 100000).toFixed(1)}L</p>
+          <p className="text-2xl font-extrabold text-white">₹{(data.periodGMV / 100000).toFixed(1)}L</p>
           <div className="flex items-center gap-1 mt-1 text-xs font-semibold text-[#22C55E]">
             <ArrowUpRight className="w-3.5 h-3.5" /> +14.2% vs last month
           </div>
         </div>
         <div className="p-5 bg-[#111118] border border-[#2A2A3E] rounded-2xl">
           <p className="text-[10px] font-bold text-[#6B6B80] uppercase tracking-wider mb-2">Period Revenue (Last 11d)</p>
-          <p className="text-2xl font-extrabold text-white">₹{(periodRevenue / 100000).toFixed(1)}L</p>
+          <p className="text-2xl font-extrabold text-white">₹{(data.periodRevenue / 100000).toFixed(1)}L</p>
           <div className="flex items-center gap-1 mt-1 text-xs font-semibold text-[#22C55E]">
             <ArrowUpRight className="w-3.5 h-3.5" /> +19.8% vs last month
           </div>
         </div>
         <div className="p-5 bg-[#111118] border border-[#2A2A3E] rounded-2xl">
           <p className="text-[10px] font-bold text-[#6B6B80] uppercase tracking-wider mb-2">Completed Settlements</p>
-          <p className="text-2xl font-extrabold text-white">₹{(completedSettlements / 10000000).toFixed(2)}Cr</p>
+          <p className="text-2xl font-extrabold text-white">₹{(data.completedSettlements / 10000000).toFixed(2)}Cr</p>
           <div className="flex items-center gap-1 mt-1 text-xs font-semibold text-[#22C55E]">
             <CheckCircle className="w-3.5 h-3.5" /> Successfully disbursed
           </div>
@@ -286,12 +282,12 @@ export default function FinanceOverviewPage() {
       </div>
 
       {/* Chart */}
-      <MiniBarChart data={chartData} />
+      <MiniBarChart data={data.chartData} />
 
       {/* Bottom row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <PayoutPipeline />
-        <SettlementQuickList saToken={saToken} />
+        <PayoutPipeline settlements={settlements} />
+        <SettlementQuickList saToken={saToken} settlements={settlements} />
       </div>
     </div>
   )

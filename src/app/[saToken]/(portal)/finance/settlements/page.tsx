@@ -1,18 +1,18 @@
 'use client'
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Wallet, Search, Download, CheckCircle, Clock,
   AlertTriangle, XCircle, Eye, RefreshCw, Filter,
   Building, ChevronDown, ChevronUp, Play, RotateCcw
 } from 'lucide-react'
-import { useSAStore } from '@/lib/store/super-admin-store'
 import type { SASettlement } from '@/types/super-admin.types'
 import { ResponsiveSheet } from '@/components/ui/responsive-sheet'
 import { useIsMobile } from '@/hooks/useBreakpoint'
 import { cn } from '@/lib/utils'
 import { format } from 'date-fns'
 import { toast } from 'sonner'
+import { fetchSettlementsAction, updateSettlementStatusAction } from '@/actions/super-admin/queries'
 
 type SettlementStatus = SASettlement['status']
 
@@ -24,7 +24,7 @@ const STATUS_CONFIG: Record<SettlementStatus, { label: string; color: string; bg
 }
 
 function StatusBadge({ status }: { status: SettlementStatus }) {
-  const cfg = STATUS_CONFIG[status]
+  const cfg = STATUS_CONFIG[status] || STATUS_CONFIG['pending']
   const Icon = cfg.icon
   return (
     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold" style={{ background: cfg.bg, color: cfg.color }}>
@@ -45,8 +45,7 @@ function SettlementDetail({ settlement, onProcess, onRetry, onClose }: {
 
   const handleAction = async (action: 'process' | 'retry') => {
     setActing(true)
-    await new Promise(r => setTimeout(r, 700))
-    action === 'process' ? onProcess(settlement.id) : onRetry(settlement.id)
+    await (action === 'process' ? onProcess(settlement.id) : onRetry(settlement.id))
     setActing(false)
     onClose()
   }
@@ -66,27 +65,27 @@ function SettlementDetail({ settlement, onProcess, onRetry, onClose }: {
       <div className="p-4 bg-[#FF7A00]/5 border border-[#FF7A00]/20 rounded-xl space-y-3">
         <div className="flex justify-between items-center">
           <span className="text-sm text-[#A0A0B8]">Gross Amount</span>
-          <span className="text-xl font-extrabold text-white">₹{settlement.amount.toLocaleString()}</span>
+          <span className="text-xl font-extrabold text-white">₹{(settlement.amount || 0).toLocaleString()}</span>
         </div>
         <div className="flex justify-between items-center">
           <span className="text-sm text-[#A0A0B8]">Commission Deducted</span>
-          <span className="text-base font-bold text-[#EF4444]">-₹{settlement.commission.toLocaleString()}</span>
+          <span className="text-base font-bold text-[#EF4444]">-₹{(settlement.commission || 0).toLocaleString()}</span>
         </div>
         <div className="h-px bg-[#2A2A3E]" />
         <div className="flex justify-between items-center">
           <span className="text-sm font-bold text-white">Net Payout</span>
-          <span className="text-2xl font-extrabold text-[#22C55E]">₹{settlement.netAmount.toLocaleString()}</span>
+          <span className="text-2xl font-extrabold text-[#22C55E]">₹{(settlement.netAmount || 0).toLocaleString()}</span>
         </div>
         <div className="flex justify-between text-xs text-[#6B6B80]">
           <span>Commission rate</span>
-          <span className="text-[#FF7A00] font-semibold">{((settlement.commission / settlement.amount) * 100).toFixed(1)}%</span>
+          <span className="text-[#FF7A00] font-semibold">{settlement.amount ? (((settlement.commission || 0) / settlement.amount) * 100).toFixed(1) : 0}%</span>
         </div>
       </div>
 
       {/* Details */}
       <div className="space-y-2">
         {[
-          { label: 'Orders Included', value: settlement.ordersCount.toString() },
+          { label: 'Orders Included', value: settlement.ordersCount?.toString() || '0' },
           { label: 'Period Start', value: format(new Date(settlement.periodStart), 'dd MMM yyyy') },
           { label: 'Period End', value: format(new Date(settlement.periodEnd), 'dd MMM yyyy') },
           { label: 'Created', value: format(new Date(settlement.createdAt), 'dd MMM yyyy, hh:mm a') },
@@ -138,11 +137,11 @@ function SettlementCard({ settlement, onClick }: { settlement: SASettlement; onC
       <div className="flex items-start justify-between mb-3">
         <div className="flex items-center gap-2.5">
           <div className="w-9 h-9 rounded-xl bg-[#1E1E2E] flex items-center justify-center font-bold text-sm text-white">
-            {settlement.sellerName[0]}
+            {settlement.sellerName?.[0] || '?'}
           </div>
           <div>
             <p className="text-sm font-bold text-white">{settlement.sellerName}</p>
-            <p className="text-xs text-[#6B6B80]">{settlement.ordersCount} orders</p>
+            <p className="text-xs text-[#6B6B80]">{settlement.ordersCount || 0} orders</p>
           </div>
         </div>
         <StatusBadge status={settlement.status} />
@@ -150,15 +149,15 @@ function SettlementCard({ settlement, onClick }: { settlement: SASettlement; onC
       <div className="grid grid-cols-3 gap-2">
         <div className="p-2 bg-[#1A1A26] rounded-lg text-center">
           <p className="text-[10px] text-[#6B6B80]">Gross</p>
-          <p className="text-xs font-bold text-white">₹{(settlement.amount / 1000).toFixed(0)}K</p>
+          <p className="text-xs font-bold text-white">₹{((settlement.amount || 0) / 1000).toFixed(0)}K</p>
         </div>
         <div className="p-2 bg-[#1A1A26] rounded-lg text-center">
           <p className="text-[10px] text-[#6B6B80]">Commission</p>
-          <p className="text-xs font-bold text-[#EF4444]">-₹{(settlement.commission / 1000).toFixed(0)}K</p>
+          <p className="text-xs font-bold text-[#EF4444]">-₹{((settlement.commission || 0) / 1000).toFixed(0)}K</p>
         </div>
         <div className="p-2 bg-[#1A1A26] rounded-lg text-center">
           <p className="text-[10px] text-[#6B6B80]">Net</p>
-          <p className="text-xs font-bold text-[#22C55E]">₹{(settlement.netAmount / 1000).toFixed(0)}K</p>
+          <p className="text-xs font-bold text-[#22C55E]">₹{((settlement.netAmount || 0) / 1000).toFixed(0)}K</p>
         </div>
       </div>
       <p className="text-[10px] text-[#4A4A5E] mt-2">
@@ -171,47 +170,65 @@ function SettlementCard({ settlement, onClick }: { settlement: SASettlement; onC
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function SettlementsPage() {
   const isMobile = useIsMobile()
-  const settlements = useSAStore(state => state.settlements)
-  const setSettlements = (updater: (prev: SASettlement[]) => SASettlement[]) => {
-    useSAStore.setState(state => ({ settlements: updater(state.settlements) }))
-  }
+  const [settlements, setSettlements] = useState<SASettlement[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<SettlementStatus | 'all'>('all')
   const [selected, setSelected] = useState<SASettlement | null>(null)
   const [sortField, setSortField] = useState<'netAmount' | 'createdAt'>('createdAt')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
 
+  useEffect(() => {
+    async function load() {
+      const { data } = await fetchSettlementsAction()
+      setSettlements(data as SASettlement[] || [])
+      setIsLoading(false)
+    }
+    load()
+  }, [])
+
   const filtered = useMemo(() => {
     let list = settlements.filter(s => {
-      const matchSearch = !search || s.sellerName.toLowerCase().includes(search.toLowerCase())
+      const matchSearch = !search || s.sellerName?.toLowerCase().includes(search.toLowerCase())
       const matchStatus = statusFilter === 'all' || s.status === statusFilter
       return matchSearch && matchStatus
     })
     list = [...list].sort((a, b) => {
-      const va = sortField === 'createdAt' ? new Date(a.createdAt).getTime() : a.netAmount
-      const vb = sortField === 'createdAt' ? new Date(b.createdAt).getTime() : b.netAmount
+      const va = sortField === 'createdAt' ? new Date(a.createdAt).getTime() : (a.netAmount || 0)
+      const vb = sortField === 'createdAt' ? new Date(b.createdAt).getTime() : (b.netAmount || 0)
       return sortDir === 'asc' ? va - vb : vb - va
     })
     return list
   }, [settlements, search, statusFilter, sortField, sortDir])
 
   const totals = useMemo(() => ({
-    pending: settlements.filter(s => s.status === 'pending').reduce((a, b) => a + b.netAmount, 0),
-    processing: settlements.filter(s => s.status === 'processing').reduce((a, b) => a + b.netAmount, 0),
-    completed: settlements.filter(s => s.status === 'completed').reduce((a, b) => a + b.netAmount, 0),
-    failed: settlements.filter(s => s.status === 'failed').reduce((a, b) => a + b.netAmount, 0),
+    pending: settlements.filter(s => s.status === 'pending').reduce((a, b) => a + (b.netAmount || 0), 0),
+    processing: settlements.filter(s => s.status === 'processing').reduce((a, b) => a + (b.netAmount || 0), 0),
+    completed: settlements.filter(s => s.status === 'completed').reduce((a, b) => a + (b.netAmount || 0), 0),
+    failed: settlements.filter(s => s.status === 'failed').reduce((a, b) => a + (b.netAmount || 0), 0),
   }), [settlements])
 
-  const handleProcess = (id: string) => {
-    setSettlements(prev => prev.map(s => s.id === id ? { ...s, status: 'processing' } : s))
-    if (selected?.id === id) setSelected(prev => prev ? { ...prev, status: 'processing' } : null)
-    toast.success('Settlement initiated — processing')
+  const handleProcess = async (id: string) => {
+    const { success, error } = await updateSettlementStatusAction(id, 'processing')
+    if (success) {
+      setSettlements(prev => prev.map(s => s.id === id ? { ...s, status: 'processing' } : s))
+      if (selected?.id === id) setSelected(prev => prev ? { ...prev, status: 'processing' } : null)
+      toast.success('Settlement initiated — processing')
+    } else {
+      toast.error('Failed: ' + error)
+    }
   }
 
-  const handleRetry = (id: string) => {
-    setSettlements(prev => prev.map(s => s.id === id ? { ...s, status: 'pending' } : s))
-    if (selected?.id === id) setSelected(prev => prev ? { ...prev, status: 'pending' } : null)
-    toast.success('Settlement queued for retry')
+  const handleRetry = async (id: string) => {
+    const { success, error } = await updateSettlementStatusAction(id, 'pending')
+    if (success) {
+      setSettlements(prev => prev.map(s => s.id === id ? { ...s, status: 'pending' } : s))
+      if (selected?.id === id) setSelected(prev => prev ? { ...prev, status: 'pending' } : null)
+      toast.success('Settlement queued for retry')
+    } else {
+      toast.error('Failed: ' + error)
+    }
   }
 
   const handleSort = (field: typeof sortField) => {
@@ -225,6 +242,10 @@ export default function SettlementsPage() {
       <ChevronDown className={cn('w-2.5 h-2.5', sortField === field && sortDir === 'desc' ? 'text-[#FF7A00]' : 'text-[#3A3A50]')} />
     </span>
   )
+
+  if (isLoading) {
+    return <div className="p-6 text-sm text-white">Loading...</div>
+  }
 
   return (
     <div className="space-y-6">
@@ -268,7 +289,7 @@ export default function SettlementsPage() {
         <div className="flex gap-1.5">
           {(['all', 'pending', 'processing', 'completed', 'failed'] as const).map(s => (
             <button key={s} onClick={() => setStatusFilter(s)} className={cn('px-3 py-2 rounded-xl text-xs font-semibold capitalize transition-all h-11', statusFilter === s ? 'bg-[#FF7A00] text-white' : 'bg-[#111118] border border-[#2A2A3E] text-[#6B6B80] hover:text-white')}>
-              {s === 'all' ? 'All' : STATUS_CONFIG[s].label}
+              {s === 'all' ? 'All' : STATUS_CONFIG[s as SettlementStatus]?.label || s}
             </button>
           ))}
         </div>
@@ -312,14 +333,14 @@ export default function SettlementsPage() {
                 <tr key={s.id} className="border-b border-[#1E1E2E] hover:bg-[#1A1A26] transition-colors cursor-pointer" onClick={() => setSelected(s)}>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
-                      <div className="w-7 h-7 rounded-lg bg-[#1E1E2E] flex items-center justify-center text-xs font-bold text-white shrink-0">{s.sellerName[0]}</div>
+                      <div className="w-7 h-7 rounded-lg bg-[#1E1E2E] flex items-center justify-center text-xs font-bold text-white shrink-0">{s.sellerName?.[0] || '?'}</div>
                       <p className="text-sm font-semibold text-white">{s.sellerName}</p>
                     </div>
                   </td>
                   <td className="px-4 py-3 text-sm text-[#A0A0B8]">{s.ordersCount}</td>
-                  <td className="px-4 py-3 text-sm font-semibold text-white">₹{s.amount.toLocaleString()}</td>
-                  <td className="px-4 py-3 text-sm font-semibold text-[#EF4444]">-₹{s.commission.toLocaleString()}</td>
-                  <td className="px-4 py-3 text-sm font-bold text-[#22C55E]">₹{s.netAmount.toLocaleString()}</td>
+                  <td className="px-4 py-3 text-sm font-semibold text-white">₹{(s.amount || 0).toLocaleString()}</td>
+                  <td className="px-4 py-3 text-sm font-semibold text-[#EF4444]">-₹{(s.commission || 0).toLocaleString()}</td>
+                  <td className="px-4 py-3 text-sm font-bold text-[#22C55E]">₹{(s.netAmount || 0).toLocaleString()}</td>
                   <td className="px-4 py-3 text-xs text-[#6B6B80]">{format(new Date(s.periodStart), 'dd MMM')} – {format(new Date(s.periodEnd), 'dd MMM')}</td>
                   <td className="px-4 py-3"><StatusBadge status={s.status} /></td>
                   <td className="px-4 py-3 text-xs text-[#6B6B80]">{format(new Date(s.createdAt), 'dd MMM yy')}</td>

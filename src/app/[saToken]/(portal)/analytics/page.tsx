@@ -1,7 +1,6 @@
 'use client'
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import { usePhase11Store } from '@/lib/store/phase11-store'
-import { useSuperAdminStore } from '@/lib/store/super-admin-store'
 import { 
   getAnalyticsRevenue, getGeographicData, getFunnelData, getCohortData, 
   getSellerGrowth, getProductHealth, getPlatformHealth 
@@ -13,30 +12,64 @@ import { CohortChart } from '@/components/super-admin/analytics/CohortChart'
 import { GeographicBreakdown } from '@/components/super-admin/analytics/GeographicBreakdown'
 import { SellerGrowthChart, ProductHealthCard } from '@/components/super-admin/analytics/SellerGrowthChart'
 
+import { fetchOrdersAction, fetchSellersAction, fetchCustomersAction, fetchProductsAction } from '@/actions/super-admin/queries'
+
 export default function AnalyticsPage() {
-  const { orders, settlements, sellers, customers, products } = useSuperAdminStore()
-  
   const {
     revenueGranularity, setRevenueGranularity, geographyMetric, setGeographyMetric,
     exportAnalyticsReport,
   } = usePhase11Store()
 
-  // Compute live data instead of mock
+  const [dbData, setDbData] = useState({
+    orders: [],
+    sellers: [],
+    customers: [],
+    products: []
+  })
+  const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    async function loadData() {
+      const [ordersRes, sellersRes, customersRes, productsRes] = await Promise.all([
+        fetchOrdersAction(),
+        fetchSellersAction(),
+        fetchCustomersAction(),
+        fetchProductsAction()
+      ])
+      
+      setDbData({
+        orders: ordersRes.data || [],
+        sellers: sellersRes.data || [],
+        customers: customersRes.data || [],
+        products: productsRes.data || []
+      })
+      setIsLoading(false)
+    }
+    loadData()
+  }, [])
+
+  const { orders, sellers, customers, products } = dbData
+
+  // Compute live data
   const revenueSeries = React.useMemo(
-    () => getAnalyticsRevenue({ orders: orders as any, settlements }, revenueGranularity),
-    [orders, settlements, revenueGranularity]
+    () => getAnalyticsRevenue({ orders: orders as any, settlements: [] }, revenueGranularity),
+    [orders, revenueGranularity]
   )
 
   const geographicData = React.useMemo(
-    () => getGeographicData({ orders: orders as any, sellers, customers }),
+    () => getGeographicData({ orders: orders as any, sellers: sellers as any, customers: customers as any }),
     [orders, sellers, customers]
   )
 
-  const funnelData = React.useMemo(() => getFunnelData({ customers, orders: orders as any }), [customers, orders])
-  const cohortData = React.useMemo(() => getCohortData({ customers }), [customers])
-  const sellerGrowth = React.useMemo(() => getSellerGrowth({ sellers }), [sellers])
-  const productHealth = React.useMemo(() => getProductHealth({ products }), [products])
+  const funnelData = React.useMemo(() => getFunnelData({ customers: customers as any, orders: orders as any }), [customers, orders])
+  const cohortData = React.useMemo(() => getCohortData({ customers: customers as any }), [customers])
+  const sellerGrowth = React.useMemo(() => getSellerGrowth({ sellers: sellers as any }), [sellers])
+  const productHealth = React.useMemo(() => getProductHealth({ products: products as any }), [products])
   const platformHealth = React.useMemo(() => getPlatformHealth(), [])
+
+  if (isLoading) {
+    return <div className="p-6 text-white text-sm">Loading analytics...</div>
+  }
 
   return (
     <div className="flex flex-col gap-6 p-4 md:p-6 overflow-y-auto h-full bg-[#09090B]">

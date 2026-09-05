@@ -1,22 +1,57 @@
 'use client'
-import React, { useMemo } from 'react'
+import React, { useMemo, useEffect, useState } from 'react'
 import { Download, Search, Filter, ShieldCheck, AlertCircle, AlertTriangle } from 'lucide-react'
-import { useSAStore } from '@/lib/store/super-admin-store'
 import { AuditDetailPanel } from '@/components/super-admin/audit/AuditDetailPanel'
 import { AUDIT_CATEGORY_LABELS, AUDIT_ACTORS } from '@/lib/mock/sa-audit-v2.mock'
-import type { AuditSeverity, AuditActionCategory } from '@/types/super-admin.types'
+import type { AuditSeverity, AuditActionCategory, SAAuditLog } from '@/types/super-admin.types'
 import { cn } from '@/lib/utils'
+import { fetchAuditLogsAction } from '@/actions/super-admin/queries'
 
 export default function AuditLogsPage({ params }: { params: Promise<{ saToken: string }> }) {
   const resolvedParams = React.use(params)
-  const {
-    auditLogs, auditFilter, setAuditFilter, clearAuditFilter,
-    selectedAuditLogId, setSelectedAuditLogId, getFilteredLogs,
-    exportAuditLog, getCriticalActionsToday
-  } = useSAStore()
+  
+  const [auditLogs, setAuditLogs] = useState<SAAuditLog[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [selectedAuditLogId, setSelectedAuditLogId] = useState<string | null>(null)
+  
+  const [auditFilter, setAuditFilter] = useState<{
+    search?: string
+    category?: AuditActionCategory
+    severity?: AuditSeverity
+    actorId?: string
+  }>({})
 
-  const filteredLogs = getFilteredLogs()
-  const criticalToday = getCriticalActionsToday()
+  useEffect(() => {
+    async function load() {
+      const { data } = await fetchAuditLogsAction()
+      setAuditLogs(data || [])
+      setIsLoading(false)
+    }
+    load()
+  }, [])
+
+  const filteredLogs = useMemo(() => {
+    return auditLogs.filter(log => {
+      if (auditFilter.category && log.category !== auditFilter.category) return false
+      if (auditFilter.severity && log.severity !== auditFilter.severity) return false
+      if (auditFilter.actorId && log.actorId !== auditFilter.actorId) return false
+      if (auditFilter.search) {
+        const q = auditFilter.search.toLowerCase()
+        return (
+          log.action.toLowerCase().includes(q) ||
+          log.actorName.toLowerCase().includes(q) ||
+          (log.targetEntityLabel && log.targetEntityLabel.toLowerCase().includes(q))
+        )
+      }
+      return true
+    })
+  }, [auditLogs, auditFilter])
+
+  const criticalToday = useMemo(() => {
+    const todayStr = new Date().toISOString().split('T')[0]
+    return auditLogs.filter(l => l.timestamp.startsWith(todayStr) && l.severity === 'critical')
+  }, [auditLogs])
+
   const selectedLog = useMemo(() => auditLogs.find(l => l.id === selectedAuditLogId) || null, [auditLogs, selectedAuditLogId])
 
   const todayStr = new Date().toISOString().split('T')[0]
@@ -34,6 +69,16 @@ export default function AuditLogsPage({ params }: { params: Promise<{ saToken: s
     if (sev === 'critical') return <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#EF4444]/15 text-[#EF4444] uppercase">Critical</span>
     if (sev === 'warning') return <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#F59E0B]/15 text-[#F59E0B] uppercase">Warning</span>
     return <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#3B82F6]/15 text-[#3B82F6] uppercase">Info</span>
+  }
+  
+  const clearAuditFilter = () => setAuditFilter({})
+  const exportAuditLog = () => {
+    // Basic export implementation
+    const csvContent = "data:text/csv;charset=utf-8," 
+        + "ID,Timestamp,Severity,Actor,Action,Category,Target,IP\n"
+        + filteredLogs.map(l => `${l.id},${l.timestamp},${l.severity},${l.actorName},${l.action},${l.category},${l.targetEntityLabel},${l.ipAddress}`).join("\n");
+    const encodedUri = encodeURI(csvContent);
+    window.open(encodedUri);
   }
 
   return (
@@ -86,7 +131,7 @@ export default function AuditLogsPage({ params }: { params: Promise<{ saToken: s
                 type="text"
                 placeholder="Search action or target..."
                 value={auditFilter.search || ''}
-                onChange={(e) => setAuditFilter({ search: e.target.value })}
+                onChange={(e) => setAuditFilter({ ...auditFilter, search: e.target.value })}
                 className="w-64 h-9 pl-9 pr-3 bg-[#111118] border border-[#2A2A3E] rounded-lg text-sm text-white placeholder:text-[#4A4A5E] focus:outline-none focus:border-[#FF7A00]"
               />
             </div>
@@ -94,7 +139,7 @@ export default function AuditLogsPage({ params }: { params: Promise<{ saToken: s
             {/* Category Dropdown */}
             <select
               value={auditFilter.category || ''}
-              onChange={(e) => setAuditFilter({ category: (e.target.value as AuditActionCategory) || undefined })}
+              onChange={(e) => setAuditFilter({ ...auditFilter, category: (e.target.value as AuditActionCategory) || undefined })}
               className="h-9 px-3 bg-[#111118] border border-[#2A2A3E] rounded-lg text-sm text-white focus:outline-none focus:border-[#FF7A00]"
             >
               <option value="">All Categories</option>
@@ -103,34 +148,22 @@ export default function AuditLogsPage({ params }: { params: Promise<{ saToken: s
               ))}
             </select>
 
-            {/* Actor Dropdown */}
-            <select
-              value={auditFilter.actorId || ''}
-              onChange={(e) => setAuditFilter({ actorId: e.target.value || undefined })}
-              className="h-9 px-3 bg-[#111118] border border-[#2A2A3E] rounded-lg text-sm text-white focus:outline-none focus:border-[#FF7A00]"
-            >
-              <option value="">All Actors</option>
-              {AUDIT_ACTORS.map(a => (
-                <option key={a.id} value={a.id}>{a.name} ({a.role})</option>
-              ))}
-            </select>
-
             {/* Severity Pills */}
             <div className="flex items-center bg-[#111118] border border-[#2A2A3E] rounded-lg p-1">
               <button
-                onClick={() => setAuditFilter({ severity: undefined })}
+                onClick={() => setAuditFilter({ ...auditFilter, severity: undefined })}
                 className={cn('px-2.5 py-1 text-xs rounded-md transition-colors', !auditFilter.severity ? 'bg-[#2A2A3E] text-white' : 'text-[#6B6B80] hover:text-white')}
               >All</button>
               <button
-                onClick={() => setAuditFilter({ severity: 'info' })}
+                onClick={() => setAuditFilter({ ...auditFilter, severity: 'info' })}
                 className={cn('px-2.5 py-1 text-xs rounded-md transition-colors', auditFilter.severity === 'info' ? 'bg-[#3B82F6]/20 text-[#3B82F6]' : 'text-[#6B6B80] hover:text-[#3B82F6]')}
               >Info</button>
               <button
-                onClick={() => setAuditFilter({ severity: 'warning' })}
+                onClick={() => setAuditFilter({ ...auditFilter, severity: 'warning' })}
                 className={cn('px-2.5 py-1 text-xs rounded-md transition-colors', auditFilter.severity === 'warning' ? 'bg-[#F59E0B]/20 text-[#F59E0B]' : 'text-[#6B6B80] hover:text-[#F59E0B]')}
               >Warning</button>
               <button
-                onClick={() => setAuditFilter({ severity: 'critical' })}
+                onClick={() => setAuditFilter({ ...auditFilter, severity: 'critical' })}
                 className={cn('px-2.5 py-1 text-xs rounded-md transition-colors', auditFilter.severity === 'critical' ? 'bg-[#EF4444]/20 text-[#EF4444]' : 'text-[#6B6B80] hover:text-[#EF4444]')}
               >Critical</button>
             </div>
@@ -172,7 +205,13 @@ export default function AuditLogsPage({ params }: { params: Promise<{ saToken: s
               </tr>
             </thead>
             <tbody>
-              {filteredLogs.length === 0 ? (
+              {isLoading ? (
+                <tr>
+                   <td colSpan={7} className="py-12 text-center text-[#6B6B80] text-sm">
+                     Loading...
+                   </td>
+                </tr>
+              ) : filteredLogs.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="py-12 text-center text-[#6B6B80] text-sm">
                     <Filter className="w-8 h-8 mx-auto mb-3 opacity-20" />
