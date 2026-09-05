@@ -1,5 +1,5 @@
 'use client'
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   ShoppingCart, Search, Filter, ChevronRight, Eye,
@@ -7,13 +7,13 @@ import {
   RotateCcw, CreditCard, Banknote, Smartphone, Globe,
   MapPin, User, Store, Copy, Check, RefreshCw
 } from 'lucide-react'
-import { useSuperAdminStore } from '@/lib/store/super-admin-store'
 import type { SAOrder, OrderStatus } from '@/types/super-admin.types'
 import { ResponsiveSheet } from '@/components/ui/responsive-sheet'
 import { useIsMobile } from '@/hooks/useBreakpoint'
 import { cn } from '@/lib/utils'
 import { format } from 'date-fns'
 import { toast } from 'sonner'
+import { fetchAllOrdersAction, updateOrderStatusAction } from '@/actions/super-admin/queries'
 
 // ─── Status Config ────────────────────────────────────────────────────────────
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; icon: React.ElementType }> = {
@@ -51,7 +51,7 @@ function StatusBadge({ status }: { status: string }) {
 
 function PaymentBadge({ method, payStatus }: { method: string; payStatus: string }) {
   const Icon = PAYMENT_ICONS[method] ?? CreditCard
-  const color = payStatus === 'paid' ? '#22C55E' : payStatus === 'refunded' ? '#3B82F6' : payStatus === 'failed' ? '#EF4444' : '#F59E0B'
+  const color = payStatus === 'paid' || payStatus === 'captured' ? '#22C55E' : payStatus === 'refunded' ? '#3B82F6' : payStatus === 'failed' ? '#EF4444' : '#F59E0B'
   return (
     <div className="flex items-center gap-1.5 text-xs" style={{ color }}>
       <Icon className="w-3.5 h-3.5" />
@@ -111,16 +111,25 @@ function OrderDetailSheet({ order, onStatusUpdate }: { order: SAOrder; onStatusU
   const [updating, setUpdating] = useState(false)
   const [newStatus, setNewStatus] = useState<string>(order.status)
 
+  useEffect(() => {
+    setNewStatus(order.status)
+  }, [order.status])
+
   const handleStatusUpdate = async () => {
     if (newStatus === order.status) return
     setUpdating(true)
-    await new Promise(r => setTimeout(r, 600))
-    onStatusUpdate(order.id, newStatus as OrderStatus)
-    toast.success(`Order ${order.orderId} status updated`)
+    const { success, error } = await updateOrderStatusAction(order.id, newStatus)
+    if (success) {
+      onStatusUpdate(order.id, newStatus as OrderStatus)
+      toast.success(`Order ${order.orderId} status updated`)
+    } else {
+      toast.error(`Update failed: ${error}`)
+    }
     setUpdating(false)
   }
 
   const validTransitions: Partial<Record<string, string[]>> = {
+    pending_payment: ['confirmed', 'cancelled'],
     confirmed: ['processing', 'cancelled'],
     processing: ['shipped', 'cancelled'],
     shipped: ['in_transit', 'delivered'],
@@ -146,14 +155,16 @@ function OrderDetailSheet({ order, onStatusUpdate }: { order: SAOrder; onStatusU
       <div>
         <h4 className="text-xs font-bold text-[#6B6B80] uppercase tracking-wider mb-2">Products</h4>
         <div className="space-y-1.5">
-          {order.products.map((p, i) => (
+          {order.products.length > 0 ? order.products.map((p, i) => (
             <div key={i} className="flex items-center gap-2.5 p-2.5 bg-[#1A1A26] rounded-xl">
               <div className="w-8 h-8 rounded-lg bg-[#FF7A00]/10 flex items-center justify-center shrink-0">
                 <Package className="w-4 h-4 text-[#FF7A00]" />
               </div>
               <p className="text-sm text-white">{p}</p>
             </div>
-          ))}
+          )) : (
+            <p className="text-sm text-[#6B6B80]">No products found.</p>
+          )}
         </div>
       </div>
 
@@ -175,16 +186,16 @@ function OrderDetailSheet({ order, onStatusUpdate }: { order: SAOrder; onStatusU
             <User className="w-3.5 h-3.5 text-[#3B82F6]" />
             <p className="text-[10px] text-[#6B6B80] uppercase tracking-wide">Customer</p>
           </div>
-          <p className="text-sm font-semibold text-white">{order.customerName}</p>
-          <CopyId id={order.customerId} />
+          <p className="text-sm font-semibold text-white truncate">{order.customerName}</p>
+          {order.customerId && <CopyId id={order.customerId} />}
         </div>
         <div className="p-3 bg-[#1A1A26] border border-[#2A2A3E] rounded-xl">
           <div className="flex items-center gap-2 mb-1">
             <Store className="w-3.5 h-3.5 text-[#8B5CF6]" />
             <p className="text-[10px] text-[#6B6B80] uppercase tracking-wide">Seller</p>
           </div>
-          <p className="text-sm font-semibold text-white">{order.sellerName}</p>
-          <CopyId id={order.sellerId} />
+          <p className="text-sm font-semibold text-white truncate">{order.sellerName}</p>
+          {order.sellerId && <CopyId id={order.sellerId} />}
         </div>
       </div>
 
@@ -196,14 +207,11 @@ function OrderDetailSheet({ order, onStatusUpdate }: { order: SAOrder; onStatusU
         </div>
         <p className="text-sm text-white">{order.address}</p>
         <p className="text-xs text-[#6B6B80]">{order.city}, {order.state}</p>
-        {order.deliveryPartnerName && (
+        {order.deliveryPartnerId && (
           <div className="flex items-center gap-1.5 pt-1 border-t border-[#2A2A3E]">
             <Truck className="w-3.5 h-3.5 text-[#6B6B80]" />
-            <p className="text-xs text-[#A0A0B8]">{order.deliveryPartnerName}</p>
+            <p className="text-xs text-[#A0A0B8]">Partner ID: {order.deliveryPartnerId}</p>
           </div>
-        )}
-        {order.deliveredAt && (
-          <p className="text-xs text-[#22C55E]">✓ Delivered {format(new Date(order.deliveredAt), 'dd MMM yyyy')}</p>
         )}
       </div>
 
@@ -251,10 +259,26 @@ const STATUS_FILTER_GROUPS = [
 
 export default function OrdersPage() {
   const isMobile = useIsMobile()
-  const { orders, setOrders } = useSuperAdminStore()
+  const [orders, setOrders] = useState<SAOrder[]>([])
+  const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [selected, setSelected] = useState<SAOrder | null>(null)
+
+  useEffect(() => {
+    loadOrders()
+  }, [])
+
+  const loadOrders = async () => {
+    setLoading(true)
+    const { data, error } = await fetchAllOrdersAction()
+    if (error) {
+      toast.error('Failed to load orders: ' + error)
+    } else {
+      setOrders(data || [])
+    }
+    setLoading(false)
+  }
 
   const filtered = useMemo(() => orders.filter(o => {
     const q = search.toLowerCase()
@@ -273,7 +297,7 @@ export default function OrdersPage() {
     inTransit: orders.filter(o => ['in_transit', 'shipped', 'out_for_delivery'].includes(o.status)).length,
     pending: orders.filter(o => ['pending_payment', 'confirmed', 'processing'].includes(o.status)).length,
     returns: orders.filter(o => ['return_requested', 'returned'].includes(o.status)).length,
-    totalGMV: orders.reduce((a, b) => a + b.totalAmount, 0),
+    totalGMV: orders.reduce((a, b) => a + Number(b.totalAmount), 0),
   }), [orders])
 
   const handleStatusUpdate = (id: string, status: OrderStatus) => {
@@ -284,14 +308,19 @@ export default function OrdersPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#8B5CF6] to-[#6D28D9] flex items-center justify-center shadow-lg shadow-purple-500/20">
-          <ShoppingCart className="w-5 h-5 text-white" />
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#8B5CF6] to-[#6D28D9] flex items-center justify-center shadow-lg shadow-purple-500/20">
+            <ShoppingCart className="w-5 h-5 text-white" />
+          </div>
+          <div>
+            <h1 className="text-xl md:text-2xl font-bold text-white">Orders</h1>
+            <p className="text-sm text-[#6B6B80]">{stats.total} total · GMV ₹{(stats.totalGMV / 100000).toFixed(1)}L</p>
+          </div>
         </div>
-        <div>
-          <h1 className="text-xl md:text-2xl font-bold text-white">Orders</h1>
-          <p className="text-sm text-[#6B6B80]">{stats.total} total · GMV ₹{(stats.totalGMV / 100000).toFixed(1)}L</p>
-        </div>
+        <button onClick={loadOrders} className="p-2 bg-[#1A1A26] hover:bg-[#2A2A3E] text-[#A0A0B8] hover:text-white rounded-lg transition-colors">
+          <RefreshCw className={cn("w-4 h-4", loading && "animate-spin")} />
+        </button>
       </div>
 
       {/* Stats */}
@@ -337,7 +366,11 @@ export default function OrdersPage() {
       </div>
 
       {/* Mobile cards / Desktop table */}
-      {isMobile ? (
+      {loading && orders.length === 0 ? (
+        <div className="flex justify-center py-16">
+          <RefreshCw className="w-8 h-8 text-[#FF7A00] animate-spin" />
+        </div>
+      ) : isMobile ? (
         <div className="space-y-3">
           <AnimatePresence>
             {filtered.map(o => <OrderCard key={o.id} order={o} onClick={() => setSelected(o)} />)}
@@ -373,7 +406,7 @@ export default function OrdersPage() {
                   <td className="px-4 py-3 text-sm text-[#A0A0B8] max-w-[120px] truncate">{o.customerName}</td>
                   <td className="px-4 py-3 text-sm text-[#A0A0B8] max-w-[120px] truncate">{o.sellerName}</td>
                   <td className="px-4 py-3 text-xs text-[#6B6B80] max-w-[160px] truncate">{o.products.join(', ')}</td>
-                  <td className="px-4 py-3 text-sm font-bold text-white whitespace-nowrap">₹{o.totalAmount.toLocaleString()}</td>
+                  <td className="px-4 py-3 text-sm font-bold text-white whitespace-nowrap">₹{Number(o.totalAmount).toLocaleString()}</td>
                   <td className="px-4 py-3"><PaymentBadge method={o.paymentMethod} payStatus={o.paymentStatus} /></td>
                   <td className="px-4 py-3"><StatusBadge status={o.status} /></td>
                   <td className="px-4 py-3 text-xs text-[#6B6B80] whitespace-nowrap">{format(new Date(o.createdAt), 'dd MMM yy')}</td>

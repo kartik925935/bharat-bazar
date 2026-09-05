@@ -1,42 +1,24 @@
 'use client'
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  Settings, Power, AlertTriangle, ShieldCheck, Mail, Save
+  Settings, Power, AlertTriangle, ShieldCheck, Mail, Save, RefreshCw
 } from 'lucide-react'
-import { usePhase11Store } from '@/lib/store/phase11-store'
 import { cn } from '@/lib/utils'
+import { fetchPlatformSettingsAction, updatePlatformSettingsAction } from '@/actions/super-admin/queries'
+import { toast } from 'sonner'
 
 export default function SettingsPage() {
-  const {
-    settings,
-    isSavingSettings,
-    updatePlatformSettings,
-    toggleMaintenanceMode,
-    toggleFeatureFlag,
-    updateNotificationSettings,
-    updateLegalVersion
-  } = usePhase11Store()
+  const [settings, setSettings] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+  const [isSavingSettings, setIsSavingSettings] = useState(false)
 
   // Business Rules State
-  const [bizRules, setBizRules] = useState({
-    commissionRateDefault: settings.commissionRateDefault,
-    returnWindowDays: settings.returnWindowDays,
-    settlementCycleDays: settings.settlementCycleDays,
-    minSettlementAmount: settings.minSettlementAmount,
-    sellerRegistrationFee: settings.sellerRegistrationFee,
-    maxProductsPerSeller: settings.maxProductsPerSeller,
-    minProductImages: settings.minProductImages,
-    productCompletenessThreshold: settings.productCompletenessThreshold,
-    orderAcceptanceSlaHours: settings.orderAcceptanceSlaHours,
-    dispatchSlaHours: settings.dispatchSlaHours,
-    maxCodOrderValue: settings.maxCodOrderValue,
-    sellerAutoSuspendAfterDays: settings.sellerAutoSuspendAfterDays,
-  })
+  const [bizRules, setBizRules] = useState<any>({})
 
   // Maintenance State
   const [showMaintenanceConfirm, setShowMaintenanceConfirm] = useState(false)
-  const [maintenanceMsg, setMaintenanceMsg] = useState(settings.maintenanceMessage)
+  const [maintenanceMsg, setMaintenanceMsg] = useState('')
   const [maintenanceEnd, setMaintenanceEnd] = useState('')
   const [maintenanceAgreed, setMaintenanceAgreed] = useState(false)
 
@@ -44,17 +26,59 @@ export default function SettingsPage() {
   const [legalModal, setLegalModal] = useState<'terms' | 'privacy' | null>(null)
   const [newVersion, setNewVersion] = useState('')
 
+  useEffect(() => {
+    loadSettings()
+  }, [])
+
+  const loadSettings = async () => {
+    setLoading(true)
+    const { data, error } = await fetchPlatformSettingsAction()
+    if (error || !data) {
+      toast.error(error || 'Failed to load settings')
+    } else {
+      setSettings(data)
+      setBizRules({
+        commissionRateDefault: data.commissionRateDefault,
+        returnWindowDays: data.returnWindowDays,
+        settlementCycleDays: data.settlementCycleDays,
+        minSettlementAmount: data.minSettlementAmount,
+        sellerRegistrationFee: data.sellerRegistrationFee,
+        maxProductsPerSeller: data.maxProductsPerSeller,
+        minProductImages: data.minProductImages,
+        productCompletenessThreshold: data.productCompletenessThreshold,
+        orderAcceptanceSlaHours: data.orderAcceptanceSlaHours,
+        dispatchSlaHours: data.dispatchSlaHours,
+        maxCodOrderValue: data.maxCodOrderValue,
+        sellerAutoSuspendAfterDays: data.sellerAutoSuspendAfterDays,
+      })
+      setMaintenanceMsg(data.maintenanceMessage || '')
+      setMaintenanceEnd(data.maintenanceScheduledEnd || '')
+    }
+    setLoading(false)
+  }
+
+  const updateSettingsAPI = async (payload: any, successMsg = 'Settings updated') => {
+    setIsSavingSettings(true)
+    const { error } = await updatePlatformSettingsAction(payload)
+    if (error) {
+      toast.error(error)
+    } else {
+      toast.success(successMsg)
+      await loadSettings()
+    }
+    setIsSavingSettings(false)
+  }
+
   const handleSaveBizRules = async () => {
-    // Basic conversion to numbers
     const payload = Object.fromEntries(
       Object.entries(bizRules).map(([k, v]) => [k, Number(v)])
     )
-    await updatePlatformSettings(payload as any)
+    await updateSettingsAPI(payload, 'Business rules saved')
   }
 
   const handleToggleMaintenance = async () => {
     if (settings.maintenanceMode) {
-      await toggleMaintenanceMode({ enabled: false, message: '' })
+      await updateSettingsAPI({ maintenanceMode: false, maintenanceMessage: '' }, 'Maintenance mode disabled')
     } else {
       setShowMaintenanceConfirm(true)
     }
@@ -62,20 +86,41 @@ export default function SettingsPage() {
 
   const confirmMaintenance = async () => {
     if (!maintenanceAgreed) return
-    await toggleMaintenanceMode({
-      enabled: true,
-      message: maintenanceMsg,
-      scheduledEnd: maintenanceEnd || undefined
-    })
+    await updateSettingsAPI({
+      maintenanceMode: true,
+      maintenanceMessage: maintenanceMsg,
+      maintenanceScheduledEnd: maintenanceEnd || undefined
+    }, 'Maintenance mode enabled')
     setShowMaintenanceConfirm(false)
     setMaintenanceAgreed(false)
   }
 
   const handleUpdateLegal = async () => {
     if (!newVersion.trim()) return
-    await updateLegalVersion(legalModal === 'terms' ? 'termsVersion' : 'privacyPolicyVersion', newVersion)
+    const payload = legalModal === 'terms' 
+      ? { termsVersion: newVersion } 
+      : { privacyPolicyVersion: newVersion }
+    await updateSettingsAPI(payload, 'Legal version updated')
     setLegalModal(null)
     setNewVersion('')
+  }
+
+  const toggleFeatureFlag = async (featureKey: string, currentVal: boolean) => {
+    const newFeatures = { ...settings.features, [featureKey]: !currentVal }
+    await updateSettingsAPI({ features: newFeatures }, 'Feature flag updated')
+  }
+
+  const updateNotificationSettings = async (key: string, val: boolean) => {
+    const newNotifications = { ...settings.notifications, [key]: val }
+    await updateSettingsAPI({ notifications: newNotifications }, 'Notification settings updated')
+  }
+
+  if (loading || !settings) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <RefreshCw className="w-8 h-8 text-[#FF7A00] animate-spin" />
+      </div>
+    )
   }
 
   return (
@@ -116,8 +161,9 @@ export default function SettingsPage() {
           </div>
           <button
             onClick={handleToggleMaintenance}
+            disabled={isSavingSettings}
             className={cn(
-              "px-5 py-2.5 rounded-xl font-bold text-sm transition-all shrink-0",
+              "px-5 py-2.5 rounded-xl font-bold text-sm transition-all shrink-0 disabled:opacity-50",
               settings.maintenanceMode
                 ? "bg-[#22C55E] hover:bg-[#16A34A] text-white"
                 : "bg-[#EF4444] hover:bg-[#DC2626] text-white"
@@ -140,7 +186,7 @@ export default function SettingsPage() {
             disabled={isSavingSettings}
             className="flex items-center gap-2 px-4 py-2 bg-[#FF7A00] hover:bg-[#FF9A40] disabled:opacity-50 text-white rounded-xl text-sm font-bold transition-colors"
           >
-            <Save className="w-4 h-4" />
+            {isSavingSettings ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
             {isSavingSettings ? 'Saving...' : 'Save Rules'}
           </button>
         </div>
@@ -151,7 +197,7 @@ export default function SettingsPage() {
             <div>
               <p className="text-sm font-bold text-[#F59E0B]">Commission Rate Change</p>
               <p className="text-xs text-[#F59E0B]/80 mt-0.5">
-                Changing the default commission rate will affect all new orders. Existing pending settlements will not be recalculated. This action will be logged in Audit Logs.
+                Changing the default commission rate will affect all new orders. Existing pending settlements will not be recalculated.
               </p>
             </div>
           </div>
@@ -177,7 +223,7 @@ export default function SettingsPage() {
               <input
                 type="number"
                 value={(bizRules as any)[key]}
-                onChange={e => setBizRules(p => ({ ...p, [key]: e.target.value }))}
+                onChange={e => setBizRules((p: any) => ({ ...p, [key]: e.target.value }))}
                 className="w-full h-11 px-3 bg-[#111118] border border-[#2A2A3E] rounded-xl text-white focus:outline-none focus:border-[#FF7A00] transition-colors"
               />
               <p className="text-[10px] text-[#6B6B80]">{meta.desc}</p>
@@ -203,7 +249,7 @@ export default function SettingsPage() {
             referralProgramEnabled: { label: 'Referral Program', desc: 'Enable customer referral reward system' },
             bulkImportEnabled: { label: 'Bulk Import', desc: 'Allow sellers to bulk-import products via CSV' },
           }).map(([key, meta]) => {
-            const isEnabled = (settings.features as any)[key]
+            const isEnabled = (settings.features as any)?.[key]
             return (
               <div key={key} className="flex items-start justify-between p-4 bg-[#111118] border border-[#2A2A3E] rounded-xl">
                 <div className="pr-4">
@@ -216,10 +262,11 @@ export default function SettingsPage() {
                     if (isEnabled && criticalFlags.includes(key)) {
                       if (!confirm(`Disabling ${meta.label} will immediately affect all active users. Are you sure?`)) return
                     }
-                    toggleFeatureFlag({ feature: key as any, enabled: !isEnabled })
+                    toggleFeatureFlag(key, isEnabled)
                   }}
+                  disabled={isSavingSettings}
                   className={cn(
-                    "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none",
+                    "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none disabled:opacity-50",
                     isEnabled ? "bg-[#FF7A00]" : "bg-[#2A2A3E]"
                   )}
                 >
@@ -254,15 +301,15 @@ export default function SettingsPage() {
               sendSmsOnDelivery: 'Send SMS on delivery (Requires SMS gateway)',
               sendSellerPayoutEmail: 'Send seller payout notification email',
             }).map(([key, label]) => {
-              const isEnabled = (settings.notifications as any)[key]
-              const isDisabled = key === 'sendSmsOnDelivery'
+              const isEnabled = (settings.notifications as any)?.[key]
+              const isDisabled = key === 'sendSmsOnDelivery' || isSavingSettings
               return (
                 <label key={key} className={cn("flex items-center gap-3", isDisabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer")}>
                   <input
                     type="checkbox"
                     checked={isEnabled}
                     disabled={isDisabled}
-                    onChange={(e) => updateNotificationSettings({ [key]: e.target.checked })}
+                    onChange={(e) => updateNotificationSettings(key, e.target.checked)}
                     className="w-4 h-4 rounded border-[#2A2A3E] bg-[#111118] text-[#FF7A00] focus:ring-[#FF7A00] focus:ring-offset-[#09090B]"
                   />
                   <span className="text-sm text-[#E0E0E0]">{label}</span>
@@ -303,7 +350,7 @@ export default function SettingsPage() {
               </button>
             </div>
             <p className="text-xs text-[#6B6B80] text-center">
-              Last updated by {settings.lastUpdatedBy} on {new Date(settings.lastUpdatedAt).toLocaleDateString()}
+              Last updated {settings.lastUpdatedBy ? `by ${settings.lastUpdatedBy}` : ''} on {new Date(settings.lastUpdatedAt).toLocaleDateString()}
             </p>
           </div>
         </div>
@@ -361,16 +408,17 @@ export default function SettingsPage() {
               <div className="p-5 border-t border-[#2A2A3E] flex justify-end gap-3 bg-[#0A0A12]">
                 <button
                   onClick={() => { setShowMaintenanceConfirm(false); setMaintenanceAgreed(false) }}
-                  className="px-5 py-2.5 rounded-xl text-sm font-bold text-[#A0A0B8] hover:text-white hover:bg-[#1E1E2E] transition-colors"
+                  disabled={isSavingSettings}
+                  className="px-5 py-2.5 rounded-xl text-sm font-bold text-[#A0A0B8] hover:text-white hover:bg-[#1E1E2E] transition-colors disabled:opacity-50"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={confirmMaintenance}
-                  disabled={!maintenanceAgreed}
+                  disabled={!maintenanceAgreed || isSavingSettings}
                   className="px-5 py-2.5 rounded-xl text-sm font-bold bg-[#EF4444] hover:bg-[#DC2626] disabled:opacity-50 disabled:cursor-not-allowed text-white transition-colors"
                 >
-                  Enable Maintenance Mode
+                  {isSavingSettings ? 'Enabling...' : 'Enable Maintenance Mode'}
                 </button>
               </div>
             </motion.div>
@@ -407,15 +455,17 @@ export default function SettingsPage() {
               <div className="flex justify-end gap-3">
                 <button
                   onClick={() => { setLegalModal(null); setNewVersion('') }}
-                  className="px-4 py-2 rounded-lg text-sm font-bold text-[#A0A0B8] hover:text-white transition-colors"
+                  disabled={isSavingSettings}
+                  className="px-4 py-2 rounded-lg text-sm font-bold text-[#A0A0B8] hover:text-white transition-colors disabled:opacity-50"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleUpdateLegal}
-                  disabled={!newVersion.trim()}
-                  className="px-4 py-2 rounded-lg text-sm font-bold bg-[#FF7A00] hover:bg-[#FF9A40] disabled:opacity-50 text-white transition-colors"
+                  disabled={!newVersion.trim() || isSavingSettings}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold bg-[#FF7A00] hover:bg-[#FF9A40] disabled:opacity-50 text-white transition-colors"
                 >
+                  {isSavingSettings && <RefreshCw className="w-3 h-3 animate-spin" />}
                   Update
                 </button>
               </div>
