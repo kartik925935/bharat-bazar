@@ -1,20 +1,20 @@
 'use client'
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   ShieldCheck, FileText, CheckCircle, XCircle, Clock,
   AlertTriangle, Search, Eye, ChevronRight, User,
   Building, CreditCard, Phone, Fingerprint, RefreshCw
 } from 'lucide-react'
-import { useSuperAdminStore } from '@/lib/store/super-admin-store'
 import type { SASellerExtended } from '@/types/super-admin.types'
 import { ResponsiveSheet } from '@/components/ui/responsive-sheet'
 import { useIsMobile } from '@/hooks/useBreakpoint'
 import { cn } from '@/lib/utils'
 import { format } from 'date-fns'
 import { toast } from 'sonner'
+import { fetchKycSellersAction, updateKycStatusAction, updateSellerDocStatusAction } from '@/actions/super-admin/queries'
 
-type KYCStatus = 'pending' | 'verified' | 'rejected'
+type KYCStatus = 'pending' | 'verified' | 'rejected' | 'under_review' | 'changes_required' | 'approved' | 'suspended'
 
 interface DocCheck {
   id: string
@@ -23,34 +23,37 @@ interface DocCheck {
   status: 'pending' | 'verified' | 'rejected' | 'missing'
 }
 
-const KYC_STATUS_CONFIG: Record<KYCStatus, { label: string; color: string; bg: string; icon: React.ElementType }> = {
+const KYC_STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; icon: React.ElementType }> = {
   pending:  { label: 'Pending Review', color: '#F59E0B', bg: '#F59E0B15', icon: Clock },
+  under_review: { label: 'Under Review', color: '#3B82F6', bg: '#3B82F615', icon: Search },
+  changes_required: { label: 'Changes Required', color: '#F97316', bg: '#F9731615', icon: AlertTriangle },
+  approved: { label: 'Approved',       color: '#22C55E', bg: '#22C55E15', icon: CheckCircle },
   verified: { label: 'Verified',       color: '#22C55E', bg: '#22C55E15', icon: CheckCircle },
   rejected: { label: 'Rejected',       color: '#EF4444', bg: '#EF444415', icon: XCircle },
+  suspended: { label: 'Suspended',     color: '#6B7280', bg: '#6B728015', icon: XCircle },
 }
 
-function getKYCStatus(seller: SASellerExtended): KYCStatus {
+function getKYCStatus(seller: any): KYCStatus {
   return (seller.kycStatus as KYCStatus) ?? 'pending'
 }
 
 function KYCBadge({ status }: { status: KYCStatus }) {
-  const cfg = KYC_STATUS_CONFIG[status]
+  const cfg = KYC_STATUS_CONFIG[status] || KYC_STATUS_CONFIG.pending
   const Icon = cfg.icon
   return (
-    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold" style={{ background: cfg.bg, color: cfg.color }}>
+    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold whitespace-nowrap" style={{ background: cfg.bg, color: cfg.color }}>
       <Icon className="w-3 h-3" />
       {cfg.label}
     </span>
   )
 }
 
-// Derived doc checks from seller data
-function getDocChecks(seller: SASellerExtended): DocCheck[] {
+function getDocChecks(seller: any): DocCheck[] {
   return [
-    { id: 'pan', label: 'PAN Verified', icon: CreditCard, status: seller.panVerified ? 'verified' : 'pending' },
-    { id: 'bank', label: 'Bank Verified', icon: Building, status: seller.bankVerified ? 'verified' : 'pending' },
-    { id: 'gst', label: 'GST Verified', icon: FileText, status: seller.gstVerified ? 'verified' : 'pending' },
-    { id: 'kyc', label: 'KYC Documents', icon: Fingerprint, status: seller.kycStatus === 'verified' ? 'verified' : seller.kycStatus === 'rejected' ? 'rejected' : 'pending' },
+    { id: 'pan', label: 'PAN Verified', icon: CreditCard, status: seller.panVerified ? 'verified' : seller.panNumber ? 'pending' : 'missing' },
+    { id: 'bank', label: 'Bank Verified', icon: Building, status: seller.bankVerified ? 'verified' : seller.accountNumber ? 'pending' : 'missing' },
+    { id: 'gst', label: 'GST Verified', icon: FileText, status: seller.gstVerified ? 'verified' : seller.gstNumber ? 'pending' : 'missing' },
+    { id: 'aadhaar', label: 'Aadhaar Verified', icon: Fingerprint, status: seller.aadhaarNumber ? 'pending' : 'missing' }, // Assuming aadhaar is also a doc type
     { id: 'phone', label: 'Phone Registered', icon: Phone, status: seller.phone ? 'verified' : 'missing' },
   ]
 }
@@ -62,8 +65,7 @@ const DOC_STATUS_CONFIG = {
   missing:  { color: '#6B7280', label: 'Not Provided' },
 }
 
-// ─── Seller KYC Card (Mobile) ─────────────────────────────────────────────────
-function KYCCard({ seller, onClick }: { seller: SASellerExtended; onClick: () => void }) {
+function KYCCard({ seller, onClick }: { seller: any; onClick: () => void }) {
   const status = getKYCStatus(seller)
   const checks = getDocChecks(seller)
   const verifiedCount = checks.filter(c => c.status === 'verified').length
@@ -76,35 +78,33 @@ function KYCCard({ seller, onClick }: { seller: SASellerExtended; onClick: () =>
       className="w-full p-4 bg-[#111118] border border-[#2A2A3E] rounded-2xl text-left hover:border-[#FF7A00]/30 active:scale-[0.98] transition-all"
     >
       <div className="flex items-start justify-between mb-3">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#1E1E2E] to-[#2A2A3E] flex items-center justify-center text-sm font-bold text-white">
-            {seller.displayName?.[0] ?? seller.email[0].toUpperCase()}
+        <div className="flex items-center gap-3 max-w-[70%]">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#1E1E2E] to-[#2A2A3E] flex items-center justify-center text-sm font-bold text-white shrink-0">
+            {seller.displayName?.[0] ?? seller.email?.[0]?.toUpperCase() ?? 'S'}
           </div>
-          <div>
-            <p className="text-sm font-bold text-white">{seller.displayName ?? seller.email}</p>
-            <p className="text-xs text-[#6B6B80]">{seller.shopName ?? 'No shop name'}</p>
+          <div className="truncate">
+            <p className="text-sm font-bold text-white truncate">{seller.displayName ?? seller.email}</p>
+            <p className="text-xs text-[#6B6B80] truncate">{seller.shopName ?? 'No shop name'}</p>
           </div>
         </div>
         <KYCBadge status={status} />
       </div>
-      {/* Doc progress */}
       <div className="flex items-center gap-2">
         <div className="flex-1 h-1.5 bg-[#1E1E2E] rounded-full overflow-hidden">
           <div className="h-full bg-[#22C55E] rounded-full" style={{ width: `${(verifiedCount / checks.length) * 100}%` }} />
         </div>
-        <span className="text-xs text-[#6B6B80]">{verifiedCount}/{checks.length} docs</span>
+        <span className="text-xs text-[#6B6B80] shrink-0">{verifiedCount}/{checks.length} docs</span>
       </div>
     </motion.button>
   )
 }
 
-// ─── KYC Detail Sheet ─────────────────────────────────────────────────────────
-function KYCDetailSheet({ seller, onClose, onDecision }: {
-  seller: SASellerExtended
+function KYCDetailSheet({ seller, onClose, onDecision, onDocUpdate }: {
+  seller: any
   onClose: () => void
   onDecision: (sellerId: string, status: string) => void
+  onDocUpdate: () => void
 }) {
-  const { updateSellerDocStatus } = useSuperAdminStore()
   const checks = getDocChecks(seller)
   const status = getKYCStatus(seller)
   const [docStates, setDocStates] = useState<Record<string, DocCheck['status']>>(
@@ -114,10 +114,17 @@ function KYCDetailSheet({ seller, onClose, onDecision }: {
   const [rejectionReason, setRejectionReason] = useState('')
   const [showReject, setShowReject] = useState(false)
 
-  const updateDocStatus = (id: string, newStatus: DocCheck['status']) => {
+  const updateDocStatus = async (id: string, newStatus: DocCheck['status']) => {
     setDocStates(prev => ({ ...prev, [id]: newStatus }))
-    if (id === 'pan' || id === 'gst' || id === 'bank') {
-      updateSellerDocStatus(seller.id, id as any, newStatus === 'verified')
+    if (id === 'pan' || id === 'gst' || id === 'bank' || id === 'aadhaar') {
+      const { success, error } = await updateSellerDocStatusAction(seller.id, id, newStatus === 'verified')
+      if (!success) {
+        toast.error(`Failed to update ${id} status: ${error}`)
+        setDocStates(prev => ({ ...prev, [id]: checks.find(c => c.id === id)?.status || 'pending' }))
+      } else {
+        toast.success(`${id.toUpperCase()} marked as ${newStatus}`)
+        onDocUpdate() // Refresh list
+      }
     }
   }
 
@@ -127,12 +134,7 @@ function KYCDetailSheet({ seller, onClose, onDecision }: {
       return
     }
     setDeciding(true)
-    await new Promise(r => setTimeout(r, 600))
-    onDecision(seller.id, newStatus)
-    if (newStatus === 'verified') toast.success(`KYC verified for ${seller.displayName}`)
-    else if (newStatus === 'rejected') toast.success(`KYC rejected — seller notified`)
-    else toast.success(`KYC marked as pending`)
-    onClose()
+    await onDecision(seller.id, newStatus)
     setDeciding(false)
   }
 
@@ -157,13 +159,14 @@ function KYCDetailSheet({ seller, onClose, onDecision }: {
         <KYCBadge status={status} />
       </div>
 
-      {/* Document Checklist — tap to cycle through statuses */}
+      {/* Document Checklist */}
       <div>
         <div className="flex items-center justify-between mb-3">
           <h4 className="text-xs font-bold text-[#6B6B80] uppercase tracking-wider">Document Verification</h4>
         </div>
         <div className="space-y-3">
           {checks.map(doc => {
+            if (doc.id === 'phone') return null // Read-only
             const docStatus = docStates[doc.id]
             const cfg = DOC_STATUS_CONFIG[docStatus]
             const Icon = doc.icon
@@ -207,7 +210,6 @@ function KYCDetailSheet({ seller, onClose, onDecision }: {
 
       {/* Detailed Seller Information */}
       <div className="space-y-6">
-        {/* Personal Information */}
         <div>
           <h4 className="text-xs font-bold text-[#FF7A00] uppercase tracking-wider mb-3">Personal Information</h4>
           <div className="space-y-2">
@@ -216,8 +218,6 @@ function KYCDetailSheet({ seller, onClose, onDecision }: {
               { label: 'Display Name', value: seller.displayName ?? 'N/A' },
               { label: 'Email Address', value: seller.email ?? 'N/A' },
               { label: 'Mobile Number', value: seller.phone ?? 'N/A' },
-              { label: 'Alternate Phone', value: seller.alternatePhone ?? 'Not provided' },
-              { label: 'Date of Birth', value: seller.dateOfBirth ?? 'Not provided' },
               { label: 'Seller Type', value: seller.sellerType ?? 'N/A' },
             ].map(({ label, value }) => (
               <div key={label} className="flex justify-between items-center py-2 border-b border-[#1E1E2E] last:border-none">
@@ -228,14 +228,13 @@ function KYCDetailSheet({ seller, onClose, onDecision }: {
           </div>
         </div>
 
-        {/* KYC Information */}
         <div>
           <h4 className="text-xs font-bold text-[#FF7A00] uppercase tracking-wider mb-3">KYC Information</h4>
           <div className="space-y-2">
             {[
-              { label: 'PAN Number', value: seller.panNumber ?? 'Not provided' },
-              { label: 'Aadhaar Number', value: seller.aadhaarNumber ?? 'Not provided' },
-              { label: 'GST Number', value: seller.gstNumber ?? 'Not provided' },
+              { label: 'PAN Number', value: seller.panNumber || 'Not provided' },
+              { label: 'Aadhaar Number', value: seller.aadhaarNumber || 'Not provided' },
+              { label: 'GST Number', value: seller.gstNumber || 'Not provided' },
             ].map(({ label, value }) => (
               <div key={label} className="flex justify-between items-center py-2 border-b border-[#1E1E2E] last:border-none">
                 <span className="text-xs text-[#6B6B80]">{label}</span>
@@ -245,22 +244,15 @@ function KYCDetailSheet({ seller, onClose, onDecision }: {
           </div>
         </div>
 
-        {/* Shop Details */}
         <div>
           <h4 className="text-xs font-bold text-[#FF7A00] uppercase tracking-wider mb-3">Shop Details</h4>
           <div className="space-y-2">
             {[
               { label: 'Shop Name', value: seller.shopName ?? 'N/A' },
               { label: 'Username', value: seller.username ?? 'N/A' },
-              { label: 'Category', value: seller.shopCategory ?? 'N/A' },
-              { label: 'Subcategory', value: seller.shopSubcategory ?? 'N/A' },
-              { label: 'Tagline', value: seller.shopTagline ?? 'N/A' },
-              { label: 'Address', value: seller.address ?? 'N/A' },
               { label: 'Village/Area', value: seller.village ?? 'N/A' },
-              { label: 'City', value: seller.city ?? 'N/A' },
               { label: 'District', value: seller.district ?? 'N/A' },
               { label: 'State', value: seller.state ?? 'N/A' },
-              { label: 'Pincode', value: seller.pincode ?? 'N/A' },
             ].map(({ label, value }) => (
               <div key={label} className="flex justify-between items-start py-2 border-b border-[#1E1E2E] last:border-none gap-4">
                 <span className="text-xs text-[#6B6B80] shrink-0">{label}</span>
@@ -269,23 +261,19 @@ function KYCDetailSheet({ seller, onClose, onDecision }: {
             ))}
             <div className="py-2 border-b border-[#1E1E2E] last:border-none">
               <span className="text-xs text-[#6B6B80] block mb-1">Shop Description</span>
-              <span className="text-xs font-semibold text-white block break-words whitespace-pre-wrap">{seller.shopDescription ?? 'No description provided.'}</span>
+              <span className="text-xs font-semibold text-white block break-words whitespace-pre-wrap">{seller.shopDescription || 'No description provided.'}</span>
             </div>
           </div>
         </div>
 
-        {/* Banking Details */}
         <div>
           <h4 className="text-xs font-bold text-[#FF7A00] uppercase tracking-wider mb-3">Banking Details</h4>
           <div className="space-y-2">
             {[
-              { label: 'Account Name', value: seller.bankAccountName ?? 'N/A' },
-              { label: 'Bank Name', value: seller.bankName ?? 'N/A' },
-              { label: 'Branch Name', value: seller.branchName ?? 'N/A' },
-              { label: 'IFSC Code', value: seller.ifscCode ?? 'N/A' },
-              { label: 'Account Number', value: seller.accountNumber ?? 'N/A' },
-              { label: 'Account Type', value: seller.accountType ?? 'N/A' },
-              { label: 'UPI ID', value: seller.upiId ?? 'Not provided' },
+              { label: 'Account Name', value: seller.bankAccountName || 'N/A' },
+              { label: 'Bank Name', value: seller.bankName || 'N/A' },
+              { label: 'IFSC Code', value: seller.ifscCode || 'N/A' },
+              { label: 'Account Number', value: seller.accountNumber || 'N/A' },
             ].map(({ label, value }) => (
               <div key={label} className="flex justify-between items-center py-2 border-b border-[#1E1E2E] last:border-none">
                 <span className="text-xs text-[#6B6B80]">{label}</span>
@@ -301,13 +289,13 @@ function KYCDetailSheet({ seller, onClose, onDecision }: {
         <h4 className="text-xs font-bold text-[#6B6B80] uppercase tracking-wider">Update KYC Status</h4>
         <div className="flex flex-wrap gap-2">
           <button
-            onClick={() => handleDecisionOverride('verified')}
-            disabled={deciding || (!allVerified && status !== 'verified')}
+            onClick={() => handleDecisionOverride('approved')}
+            disabled={deciding || (!allVerified && status !== 'approved' && status !== 'verified')}
             className={cn("flex-1 min-w-[100px] h-11 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all",
-              status === 'verified' ? "bg-[#22C55E] text-white shadow-lg shadow-green-500/20" : "bg-[#22C55E]/10 text-[#22C55E] hover:bg-[#22C55E]/20"
+              (status === 'approved' || status === 'verified') ? "bg-[#22C55E] text-white shadow-lg shadow-green-500/20" : "bg-[#22C55E]/10 text-[#22C55E] hover:bg-[#22C55E]/20"
             )}
           >
-            <CheckCircle className="w-4 h-4" /> Verified
+            <CheckCircle className="w-4 h-4" /> Approve
           </button>
           
           <button
@@ -317,7 +305,7 @@ function KYCDetailSheet({ seller, onClose, onDecision }: {
               status === 'rejected' || showReject ? "bg-[#EF4444] text-white shadow-lg shadow-red-500/20" : "bg-[#EF4444]/10 text-[#EF4444] hover:bg-[#EF4444]/20"
             )}
           >
-            <XCircle className="w-4 h-4" /> Rejected
+            <XCircle className="w-4 h-4" /> Reject
           </button>
 
           <button
@@ -354,33 +342,51 @@ function KYCDetailSheet({ seller, onClose, onDecision }: {
   )
 }
 
-// ─── Main Page ────────────────────────────────────────────────────────────────
 export default function KYCVerificationPage() {
   const isMobile = useIsMobile()
-  const { sellers, updateSellerKYCStatus } = useSuperAdminStore()
+  const [allSellers, setAllSellers] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [tabFilter, setTabFilter] = useState<KYCStatus | 'all'>('all')
-  const [selected, setSelected] = useState<SASellerExtended | null>(null)
+  const [selected, setSelected] = useState<any | null>(null)
 
-  const allSellers = sellers as SASellerExtended[]
+  useEffect(() => {
+    loadSellers()
+  }, [])
+
+  const loadSellers = async () => {
+    setLoading(true)
+    const { data, error } = await fetchKycSellersAction()
+    if (error) toast.error('Failed to load KYC data: ' + error)
+    else setAllSellers(data || [])
+    setLoading(false)
+  }
 
   const kycSellers = useMemo(() => allSellers.filter(s => {
     const status = getKYCStatus(s)
     const matchSearch = !search || (s.displayName ?? s.email).toLowerCase().includes(search.toLowerCase())
+    // map 'verified' tab to 'approved' and 'verified' since legacy data uses 'verified'
+    if (tabFilter === 'verified') return matchSearch && (status === 'verified' || status === 'approved')
     const matchTab = tabFilter === 'all' || status === tabFilter
     return matchSearch && matchTab
   }), [allSellers, search, tabFilter])
 
   const counts = useMemo(() => ({
     all: allSellers.length,
-    pending: allSellers.filter(s => getKYCStatus(s) === 'pending').length,
-    verified: allSellers.filter(s => getKYCStatus(s) === 'verified').length,
+    pending: allSellers.filter(s => getKYCStatus(s) === 'pending' || getKYCStatus(s) === 'under_review').length,
+    verified: allSellers.filter(s => getKYCStatus(s) === 'verified' || getKYCStatus(s) === 'approved').length,
     rejected: allSellers.filter(s => getKYCStatus(s) === 'rejected').length,
   }), [allSellers])
 
-  const handleDecision = (sellerId: string, newStatus: string) => {
-    updateSellerKYCStatus(sellerId, newStatus as any)
-    setSelected(null)
+  const handleDecision = async (sellerId: string, newStatus: string) => {
+    const { success, error } = await updateKycStatusAction(sellerId, newStatus)
+    if (success) {
+      toast.success(`Seller status updated to ${newStatus}`)
+      setSelected(null)
+      await loadSellers()
+    } else {
+      toast.error(`Update failed: ${error}`)
+    }
   }
 
   const TABS = [
@@ -393,14 +399,19 @@ export default function KYCVerificationPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#22C55E] to-[#16A34A] flex items-center justify-center shadow-lg shadow-green-500/20">
-          <ShieldCheck className="w-5 h-5 text-white" />
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#22C55E] to-[#16A34A] flex items-center justify-center shadow-lg shadow-green-500/20">
+            <ShieldCheck className="w-5 h-5 text-white" />
+          </div>
+          <div>
+            <h1 className="text-xl md:text-2xl font-bold text-white">KYC Verification</h1>
+            <p className="text-sm text-[#6B6B80]">{counts.pending} pending · {counts.verified} verified</p>
+          </div>
         </div>
-        <div>
-          <h1 className="text-xl md:text-2xl font-bold text-white">KYC Verification</h1>
-          <p className="text-sm text-[#6B6B80]">{counts.pending} pending · {counts.verified} verified</p>
-        </div>
+        <button onClick={loadSellers} className="p-2 bg-[#1A1A26] hover:bg-[#2A2A3E] text-[#A0A0B8] hover:text-white rounded-lg transition-colors">
+          <RefreshCw className={cn("w-4 h-4", loading && "animate-spin")} />
+        </button>
       </div>
 
       {/* Stats */}
@@ -429,13 +440,13 @@ export default function KYCVerificationPage() {
             className="w-full h-11 bg-[#111118] border border-[#2A2A3E] rounded-xl pl-9 pr-4 text-sm text-white focus:border-[#FF7A00] outline-none"
           />
         </div>
-        <div className="flex gap-1.5 overflow-x-auto pb-1">
+        <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-none">
           {TABS.map(tab => (
             <button
               key={tab.id}
               onClick={() => setTabFilter(tab.id as any)}
               className={cn(
-                'flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all h-9',
+                'flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all h-9 shrink-0',
                 tabFilter === tab.id ? 'bg-[#FF7A00] text-white' : 'bg-[#111118] border border-[#2A2A3E] text-[#6B6B80] hover:text-white'
               )}
             >
@@ -449,7 +460,11 @@ export default function KYCVerificationPage() {
       </div>
 
       {/* List */}
-      {isMobile ? (
+      {loading && allSellers.length === 0 ? (
+        <div className="flex justify-center py-16">
+          <RefreshCw className="w-8 h-8 text-[#FF7A00] animate-spin" />
+        </div>
+      ) : isMobile ? (
         <div className="space-y-3">
           <AnimatePresence>
             {kycSellers.map(s => <KYCCard key={s.id} seller={s} onClick={() => setSelected(s)} />)}
@@ -466,8 +481,8 @@ export default function KYCVerificationPage() {
           <table className="w-full">
             <thead>
               <tr className="border-b border-[#1E1E2E]">
-                {['Seller', 'Shop', 'KYC Status', 'Aadhaar', 'PAN', 'Bank', 'Action'].map(h => (
-                  <th key={h} className="px-4 py-3 text-left text-[10px] font-bold text-[#4A4A5E] uppercase tracking-wider">{h}</th>
+                {['Seller', 'Shop', 'KYC Status', 'PAN', 'GST', 'Bank', 'Action'].map(h => (
+                  <th key={h} className="px-4 py-3 text-left text-[10px] font-bold text-[#4A4A5E] uppercase tracking-wider whitespace-nowrap">{h}</th>
                 ))}
               </tr>
             </thead>
@@ -482,27 +497,27 @@ export default function KYCVerificationPage() {
                         <p className="text-xs text-[#6B6B80]">{seller.email}</p>
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-sm text-[#A0A0B8]">{seller.shopName ?? '—'}</td>
+                    <td className="px-4 py-3 text-sm text-[#A0A0B8] max-w-[150px] truncate">{seller.shopName ?? '—'}</td>
                     <td className="px-4 py-3"><KYCBadge status={status} /></td>
                     <td className="px-4 py-3">
-                      <span className={cn('text-xs font-semibold', seller.panVerified ? 'text-[#22C55E]' : 'text-[#EF4444]')}>
-                        {seller.panVerified ? '✓' : '✗'}
+                      <span className={cn('text-xs font-semibold', seller.panVerified ? 'text-[#22C55E]' : seller.panNumber ? 'text-[#F59E0B]' : 'text-[#EF4444]')}>
+                        {seller.panVerified ? 'Verified' : seller.panNumber ? 'Pending' : 'Missing'}
                       </span>
                     </td>
                     <td className="px-4 py-3">
-                      <span className={cn('text-xs font-semibold', seller.gstVerified ? 'text-[#22C55E]' : 'text-[#EF4444]')}>
-                        {seller.gstVerified ? '✓' : '✗'}
+                      <span className={cn('text-xs font-semibold', seller.gstVerified ? 'text-[#22C55E]' : seller.gstNumber ? 'text-[#F59E0B]' : 'text-[#EF4444]')}>
+                        {seller.gstVerified ? 'Verified' : seller.gstNumber ? 'Pending' : 'Missing'}
                       </span>
                     </td>
                     <td className="px-4 py-3">
                       <span className={cn('text-xs font-semibold', seller.bankVerified ? 'text-[#22C55E]' : 'text-[#EF4444]')}>
-                        {seller.bankVerified ? '✓' : '✗'}
+                        {seller.bankVerified ? 'Verified' : 'Missing'}
                       </span>
                     </td>
                     <td className="px-4 py-3">
                       <button
                         onClick={() => setSelected(seller)}
-                        className="flex items-center gap-1.5 h-8 px-3 bg-[#1E1E2E] hover:bg-[#2A2A3E] text-white rounded-lg text-xs font-semibold transition-colors"
+                        className="flex items-center gap-1.5 h-8 px-3 bg-[#1E1E2E] hover:bg-[#2A2A3E] text-white rounded-lg text-xs font-semibold transition-colors whitespace-nowrap"
                       >
                         <Eye className="w-3.5 h-3.5 text-[#FF7A00]" /> Review
                       </button>
@@ -519,7 +534,7 @@ export default function KYCVerificationPage() {
       )}
 
       <ResponsiveSheet isOpen={!!selected} onClose={() => setSelected(null)} title="KYC Review" desktopWidth="w-[560px]">
-        {selected && <KYCDetailSheet seller={selected} onClose={() => setSelected(null)} onDecision={handleDecision} />}
+        {selected && <KYCDetailSheet seller={selected} onClose={() => setSelected(null)} onDecision={handleDecision} onDocUpdate={loadSellers} />}
       </ResponsiveSheet>
     </div>
   )

@@ -9,7 +9,8 @@ import {
   Store, Heart, CheckCircle, Star, MapPin, ChevronDown,
 } from 'lucide-react';
 import { ProductCard } from '@/components/storefront/product-card';
-import { getFeaturedProducts } from '@/actions/products/storefront-queries';
+import { getFeaturedProducts, getStorefrontProductById } from '@/actions/products/storefront-queries';
+import { createClient } from '@/lib/supabase/client';
 import { useBrowsingStore } from '@/lib/store/browsing-store';
 import { toast } from 'sonner';
 import { Product } from '@/types';
@@ -218,7 +219,7 @@ export default function HomePage() {
 
   const { recentlyViewed } = useBrowsingStore();
 
-  // Fetch featured products from Supabase
+  // Fetch featured products from Supabase and set up Realtime
   useEffect(() => {
     const fetchProducts = async () => {
       setProductsLoading(true);
@@ -227,6 +228,64 @@ export default function HomePage() {
       setProductsLoading(false);
     };
     fetchProducts();
+
+    const supabase = createClient();
+    
+    // Subscribe to products table for realtime updates (when a product gets approved)
+    const channel = supabase
+      .channel('products-storefront-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'products',
+          filter: "status=eq.published",
+        },
+        async (payload) => {
+          // A product was updated and is now published
+          // Check if we already have it in the list to avoid duplicates
+          setAllProducts((prev) => {
+            const exists = prev.some((p) => p.id === payload.new.id);
+            if (exists) return prev; // It's already there (maybe a price update, we could handle it but for now just skip)
+            
+            // It's a newly published product not in our list
+            // We need to fetch full details including joins
+            getStorefrontProductById(payload.new.id).then((result) => {
+              if (result.data) {
+                setAllProducts((current) => [result.data!, ...current]);
+                toast.success('A new artisan product just arrived!');
+              }
+            });
+            return prev;
+          });
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'products',
+          filter: "status=eq.published",
+        },
+        async (payload) => {
+          getStorefrontProductById(payload.new.id).then((result) => {
+            if (result.data) {
+              setAllProducts((current) => {
+                if (current.some(p => p.id === result.data!.id)) return current;
+                return [result.data!, ...current];
+              });
+              toast.success('A new artisan product just arrived!');
+            }
+          });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   // Auto-advance hero

@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { Ban, CheckCircle, ShieldAlert } from 'lucide-react'
 import { DataTable, Column } from '@/components/super-admin/shared/DataTable'
 import { ExportButton } from '@/components/super-admin/shared/ExportButton'
@@ -9,10 +9,10 @@ import { SavedViewsBar } from '@/components/super-admin/shared/SavedViewsBar'
 import { StatusBadge } from '@/components/super-admin/shared/StatusBadge'
 import { TierBadge } from '@/components/super-admin/shared/TierBadge'
 import { SellerDetailDrawer } from '@/components/super-admin/sellers/SellerDetailDrawer'
-import { useSuperAdminStore } from '@/lib/store/super-admin-store'
 import { useUndoableAction } from '@/lib/hooks/useUndoableAction'
 import { cn } from '@/lib/utils'
 import type { SASellerExtended } from '@/types/super-admin.types'
+import { fetchSellersAction, updateSellerStatusAction } from '@/actions/super-admin/queries'
 
 const SELLER_FIELDS: FilterField[] = [
   { key: 'shopName', label: 'Shop Name', type: 'text' },
@@ -48,13 +48,23 @@ const SELLER_FIELDS: FilterField[] = [
 ]
 
 export default function SellersPage() {
-  const { sellers, updateSellerStatus } = useSuperAdminStore()
   const { execute } = useUndoableAction()
   
+  const [sellers, setSellers] = useState<SASellerExtended[]>([])
+  const [isLoading, setIsLoading] = useState(true)
   const [activeRules, setActiveRules] = useState<FilterRule[]>([])
   const [selectedSeller, setSelectedSeller] = useState<SASellerExtended | null>(null)
 
-  const filteredSellers = applyFilterRules(sellers as SASellerExtended[], activeRules, SELLER_FIELDS)
+  useEffect(() => {
+    async function load() {
+      const { data } = await fetchSellersAction()
+      setSellers(data as SASellerExtended[] || [])
+      setIsLoading(false)
+    }
+    load()
+  }, [])
+
+  const filteredSellers = applyFilterRules(sellers, activeRules, SELLER_FIELDS)
 
   const columns: Column<SASellerExtended>[] = [
     {
@@ -67,12 +77,12 @@ export default function SellersPage() {
             <img src={row.avatar} alt="" className="w-10 h-10 rounded-xl object-cover shrink-0" />
           ) : (
             <div className="w-10 h-10 rounded-xl bg-[#1A1A26] border border-[#2A2A3E] flex items-center justify-center text-sm font-bold text-[#A0A0B8] shrink-0">
-              {row.shopName.charAt(0)}
+              {row.shopName?.charAt(0) || '?'}
             </div>
           )}
           <div className="min-w-0">
             <p className="font-bold text-white truncate">{row.shopName}</p>
-            <p className="text-[10px] text-[#8B8B9E] truncate uppercase tracking-wider">{row.sellerType.replace(/_/g, ' ')}</p>
+            <p className="text-[10px] text-[#8B8B9E] truncate uppercase tracking-wider">{(row.sellerType || '').replace(/_/g, ' ')}</p>
           </div>
         </div>
       ),
@@ -129,7 +139,7 @@ export default function SellersPage() {
       render: (row) => (
         <div className="text-sm">
           <p className="font-bold text-white">
-            {new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(row.totalSales)}
+            {new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(row.totalSales || 0)}
           </p>
         </div>
       ),
@@ -151,11 +161,15 @@ export default function SellersPage() {
         await execute({
           description: `Suspended ${ids.length} sellers`,
           action: async () => {
-            ids.forEach(id => updateSellerStatus(id, 'suspended'))
+            const promises = ids.map(id => updateSellerStatusAction(id, 'suspended'))
+            await Promise.all(promises)
+            setSellers(prev => prev.map(s => ids.includes(s.id) ? { ...s, status: 'suspended' } : s))
             return true
           },
           undoAction: async () => {
-            ids.forEach(id => updateSellerStatus(id, 'active'))
+            const promises = ids.map(id => updateSellerStatusAction(id, 'active'))
+            await Promise.all(promises)
+            setSellers(prev => prev.map(s => ids.includes(s.id) ? { ...s, status: 'active' } : s))
           }
         })
       }
@@ -181,10 +195,21 @@ export default function SellersPage() {
     const oldStatus = selectedSeller.status
     await execute({
       description: `Updated seller status to ${status}`,
-      action: async () => updateSellerStatus(id, status),
-      undoAction: async () => updateSellerStatus(id, oldStatus)
+      action: async () => {
+        await updateSellerStatusAction(id, status)
+        setSellers(prev => prev.map(s => s.id === id ? { ...s, status } : s))
+        return true
+      },
+      undoAction: async () => {
+        await updateSellerStatusAction(id, oldStatus)
+        setSellers(prev => prev.map(s => s.id === id ? { ...s, status: oldStatus } : s))
+      }
     })
     setSelectedSeller(null)
+  }
+
+  if (isLoading) {
+    return <div className="p-6 text-white text-sm">Loading sellers...</div>
   }
 
   return (

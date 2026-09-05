@@ -50,23 +50,6 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
     fetchProduct();
   }, [slug]);
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-[#FAFAF8] pt-24 pb-20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center py-16">
-            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[#FF7A00]"></div>
-            <p className="text-sm text-[#8C8B80] mt-4">Loading product...</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (!product) {
-    return notFound();
-  }
-
   const [selectedImg, setSelectedImg] = useState(0);
   const [pincode, setPincode] = useState('');
   const [pincodeStatus, setPincodeStatus] = useState<string | null>(null);
@@ -88,24 +71,42 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
 
   const addItem = useCartStore((state) => state.addItem);
   const toggleWishlist = useWishlistStore((state) => state.toggleWishlist);
-  const isWishlisted = useWishlistStore((state) => state.isInWishlist(product.id));
+  const isWishlisted = useWishlistStore((state) => product ? state.isInWishlist(product.id) : false);
   const { addRecentlyViewed } = useBrowsingStore();
 
   // Track recently viewed
   useEffect(() => {
     if (product) addRecentlyViewed(product);
-  }, [product]);
+  }, [product, addRecentlyViewed]);
 
   // Store in recently viewed
   useEffect(() => {
-    if (typeof window !== 'undefined') {
+    if (product && typeof window !== 'undefined') {
       const items = localStorage.getItem('bb-recently-viewed');
       let parsed = items ? JSON.parse(items) : [];
-      parsed = parsed.filter((id: string) => id !== product.id);
-      parsed = [product.id, ...parsed].slice(0, 8);
-      localStorage.setItem('bb-recently-viewed', JSON.stringify(parsed));
+      if (!parsed.find((p: any) => p.id === product.id)) {
+        parsed = [product, ...parsed].slice(0, 10);
+        localStorage.setItem('bb-recently-viewed', JSON.stringify(parsed));
+      }
     }
-  }, [product.id]);
+  }, [product]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#FAFAF8] pt-24 pb-20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center py-16">
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[#FF7A00]"></div>
+            <p className="text-sm text-[#8C8B80] mt-4">Loading product...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!product) {
+    return notFound();
+  }
 
   const handleAddToCart = () => {
     if (!product.inStock) return;

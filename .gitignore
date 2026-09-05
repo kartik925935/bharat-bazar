@@ -52,6 +52,7 @@ desktop.ini
 
 # Local temp files
 .temp/
+supabase/.temp/
 tmp/
 
 # AI Agent Configs
@@ -67,3 +68,7 @@ replace.js
 superadmin_prompts_summary.md
 scripts/
 eslint-report.json
+
+# Temporary Debug Scripts
+check-*.ts
+dump.sql

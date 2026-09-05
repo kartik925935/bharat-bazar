@@ -12,8 +12,7 @@ import { useIsMobile } from '@/hooks/useBreakpoint'
 import { cn } from '@/lib/utils'
 import { format, isPast, isFuture, differenceInHours, differenceInDays } from 'date-fns'
 import { toast } from 'sonner'
-
-import { MOCK_SA_OFFERS } from '@/lib/mock/sa-offers.mock'
+import { fetchOffersAction, createOfferAction, deleteOfferAction } from '@/actions/super-admin/queries'
 
 type OfferStatus = 'active' | 'scheduled' | 'ended'
 
@@ -32,7 +31,7 @@ function formatCountdown(endDate: string) {
 }
 
 function OfferCard({ offer, onClick }: { offer: SAOfferExtended; onClick: () => void }) {
-  const cfg = STATUS_CONFIG[offer.status as OfferStatus]
+  const cfg = STATUS_CONFIG[offer.status as OfferStatus] || STATUS_CONFIG['ended']
   const [tick, setTick] = useState(0)
 
   useEffect(() => {
@@ -117,22 +116,28 @@ function CreateOfferWizard({ onClose, onCreated }: { onClose: () => void; onCrea
   const handleCreate = async () => {
     if (!form.name || !form.value || !form.endDate) { toast.error('Fill all required fields'); return }
     setSaving(true)
-    await new Promise(r => setTimeout(r, 700))
+    
     const now = new Date()
     const start = form.startDate ? new Date(form.startDate) : now
     const end = new Date(form.endDate)
-    const newOffer: SAOfferExtended = {
-      id: `off-${Date.now()}`, name: form.name, type: form.type,
-      value: Number(form.value),
-      startDate: start.toISOString(), endDate: end.toISOString(),
-      status: isFuture(start) ? 'scheduled' : isPast(end) ? 'ended' : 'active',
-      bannerImage: '', appliesTo: form.appliesTo,
-      productsCount: 0, revenueGenerated: 0, ordersGenerated: 0, discountCost: 0, roi: 0,
+    const status = isFuture(start) ? 'scheduled' : isPast(end) ? 'ended' : 'active'
+    
+    const { data, error } = await createOfferAction({
+      ...form,
+      startDate: start.toISOString(),
+      endDate: end.toISOString(),
+      status
+    })
+
+    if (error) {
+      toast.error('Failed to create offer: ' + error)
+    } else if (data) {
+      onCreated(data as SAOfferExtended)
+      toast.success(`Offer "${form.name}" created`)
+      onClose()
     }
-    onCreated(newOffer)
-    toast.success(`Offer "${form.name}" created`)
+    
     setSaving(false)
-    onClose()
   }
 
   return (
@@ -242,19 +247,44 @@ function CreateOfferWizard({ onClose, onCreated }: { onClose: () => void; onCrea
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function OffersPage() {
-  const [offers, setOffers] = useState<SAOfferExtended[]>(MOCK_SA_OFFERS)
+  const [offers, setOffers] = useState<SAOfferExtended[]>([])
+  const [isLoading, setIsLoading] = useState(true)
   const [selected, setSelected] = useState<SAOfferExtended | null>(null)
   const [showCreate, setShowCreate] = useState(false)
   const [statusFilter, setStatusFilter] = useState<OfferStatus | 'all'>('all')
+
+  useEffect(() => {
+    async function load() {
+      const { data } = await fetchOffersAction()
+      setOffers(data as SAOfferExtended[] || [])
+      setIsLoading(false)
+    }
+    load()
+  }, [])
 
   const filtered = useMemo(() => offers.filter(o => statusFilter === 'all' || o.status === statusFilter), [offers, statusFilter])
 
   const stats = useMemo(() => ({
     active: offers.filter(o => o.status === 'active').length,
     scheduled: offers.filter(o => o.status === 'scheduled').length,
-    totalRevenue: offers.reduce((a, b) => a + b.revenueGenerated, 0),
-    totalOrders: offers.reduce((a, b) => a + b.ordersGenerated, 0),
+    totalRevenue: offers.reduce((a, b) => a + (b.revenueGenerated || 0), 0),
+    totalOrders: offers.reduce((a, b) => a + (b.ordersGenerated || 0), 0),
   }), [offers])
+
+  const handleDeleteOffer = async (id: string) => {
+    const { success, error } = await deleteOfferAction(id)
+    if (success) {
+      setOffers(prev => prev.filter(o => o.id !== id))
+      setSelected(null)
+      toast.success('Offer deleted')
+    } else {
+      toast.error('Failed to delete offer: ' + error)
+    }
+  }
+
+  if (isLoading) {
+    return <div className="p-6 text-white text-sm">Loading offers...</div>
+  }
 
   return (
     <div className="space-y-6">
@@ -292,7 +322,7 @@ export default function OffersPage() {
       <div className="flex gap-1.5">
         {(['all', 'active', 'scheduled', 'ended'] as const).map(s => (
           <button key={s} onClick={() => setStatusFilter(s)} className={cn('px-3 py-2 rounded-xl text-xs font-semibold capitalize transition-all h-9', statusFilter === s ? 'bg-[#FF7A00] text-white' : 'bg-[#111118] border border-[#2A2A3E] text-[#6B6B80] hover:text-white')}>
-            {s === 'all' ? 'All' : STATUS_CONFIG[s as OfferStatus].label}
+            {s === 'all' ? 'All' : STATUS_CONFIG[s as OfferStatus]?.label || 'Ended'}
           </button>
         ))}
       </div>
@@ -318,8 +348,8 @@ export default function OffersPage() {
               <div className="px-4 py-2 bg-[#FF7A00]/10 rounded-xl">
                 <p className="text-2xl font-extrabold text-[#FF7A00]">{selected.type === 'percentage' ? `${selected.value}%` : `₹${selected.value}`} OFF</p>
               </div>
-              <span className="px-3 py-1.5 rounded-full text-sm font-bold" style={{ background: STATUS_CONFIG[selected.status as OfferStatus].bg, color: STATUS_CONFIG[selected.status as OfferStatus].color }}>
-                {STATUS_CONFIG[selected.status as OfferStatus].label}
+              <span className="px-3 py-1.5 rounded-full text-sm font-bold" style={{ background: STATUS_CONFIG[selected.status as OfferStatus]?.bg || '#000', color: STATUS_CONFIG[selected.status as OfferStatus]?.color || '#fff' }}>
+                {STATUS_CONFIG[selected.status as OfferStatus]?.label || 'Ended'}
               </span>
             </div>
             {selected.status === 'active' && (
@@ -330,10 +360,10 @@ export default function OffersPage() {
             )}
             <div className="grid grid-cols-2 gap-3">
               {[
-                { label: 'Orders', value: selected.ordersGenerated.toLocaleString(), icon: Package, color: '#3B82F6' },
-                { label: 'Revenue', value: `₹${(selected.revenueGenerated / 100000).toFixed(1)}L`, icon: TrendingUp, color: '#22C55E' },
-                { label: 'Discount Cost', value: `₹${(selected.discountCost / 1000).toFixed(0)}K`, icon: IndianRupee, color: '#EF4444' },
-                { label: 'ROI', value: `${selected.roi}x`, icon: BarChart2, color: '#F59E0B' },
+                { label: 'Orders', value: selected.ordersGenerated?.toLocaleString() || '0', icon: Package, color: '#3B82F6' },
+                { label: 'Revenue', value: `₹${((selected.revenueGenerated || 0) / 100000).toFixed(1)}L`, icon: TrendingUp, color: '#22C55E' },
+                { label: 'Discount Cost', value: `₹${((selected.discountCost || 0) / 1000).toFixed(0)}K`, icon: IndianRupee, color: '#EF4444' },
+                { label: 'ROI', value: `${selected.roi || 0}x`, icon: BarChart2, color: '#F59E0B' },
               ].map(({ label, value, icon: Icon, color }) => (
                 <div key={label} className="p-3 bg-[#1A1A26] border border-[#2A2A3E] rounded-xl">
                   <div className="flex items-center gap-2 mb-1">
@@ -346,7 +376,7 @@ export default function OffersPage() {
             </div>
             {[
               { label: 'Applies To', value: selected.appliesTo === 'all' ? 'All Products' : 'Specific Category' },
-              { label: 'Products Included', value: selected.productsCount.toLocaleString() },
+              { label: 'Products Included', value: (selected.productsCount || 0).toLocaleString() },
               { label: 'Start', value: format(new Date(selected.startDate), 'dd MMM yyyy, hh:mm a') },
               { label: 'End', value: format(new Date(selected.endDate), 'dd MMM yyyy, hh:mm a') },
             ].map(({ label, value }) => (
@@ -355,7 +385,7 @@ export default function OffersPage() {
                 <span className="text-xs font-bold text-white">{value}</span>
               </div>
             ))}
-            <button onClick={() => { setOffers(prev => prev.filter(o => o.id !== selected.id)); setSelected(null); toast.success('Offer deleted') }} className="w-full h-10 bg-[#EF4444]/10 hover:bg-[#EF4444]/20 text-[#EF4444] rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-colors">
+            <button onClick={() => handleDeleteOffer(selected.id)} className="w-full h-10 bg-[#EF4444]/10 hover:bg-[#EF4444]/20 text-[#EF4444] rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-colors">
               <Trash2 className="w-4 h-4" /> Delete Offer
             </button>
           </div>
