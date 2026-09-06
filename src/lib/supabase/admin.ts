@@ -1,4 +1,7 @@
+import 'server-only'
 import { createClient as createSupabaseClient } from '@supabase/supabase-js'
+import { publicEnv } from '@/config/env.public'
+import { serverEnv } from '@/config/env.server'
 
 if (typeof globalThis.WebSocket === 'undefined') {
   (globalThis as any).WebSocket = class WebSocket {}
@@ -12,13 +15,9 @@ if (typeof globalThis.WebSocket === 'undefined') {
  * Use strictly in secure server-side routes/actions where admin rights are necessary.
  */
 export function createAdminClient() {
-  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
-    throw new Error('Missing Supabase URL or Service Role Key')
-  }
-
   return createSupabaseClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.SUPABASE_SERVICE_ROLE_KEY,
+    publicEnv.NEXT_PUBLIC_SUPABASE_URL,
+    serverEnv.SUPABASE_SERVICE_ROLE_KEY,
     {
       auth: {
         autoRefreshToken: false,

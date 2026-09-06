@@ -7,7 +7,10 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "seed": "tsx scripts/seed.ts"
+    "seed": "tsx scripts/seed.ts",
+    "db:types": "supabase gen types typescript --project-id syxmzvnfuseoeajoylke > src/types/database.types.ts",
+    "db:types:local": "supabase gen types typescript --local > src/types/database.types.ts",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.5.7",
