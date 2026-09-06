@@ -113,7 +113,7 @@ export function ReviewRequestDialog({ open, onClose, request }: ReviewRequestDia
           </div>
 
           <div className="flex justify-end gap-2 pt-1">
-            <Button type="button" variant="outline" onClick={onClose} className="rounded-xl">
+            <Button type="button" variant="ghost" onClick={onClose} className="rounded-xl">
               Cancel
             </Button>
             <Button
