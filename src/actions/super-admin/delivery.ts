@@ -1,6 +1,6 @@
 'use server'
 
-import { createClient } from '@/utils/supabase/server'
+import { createClient } from '@/lib/supabase/server'
 import type { SADeliveryPartner, DeliveryPartnerStatus } from '@/types/super-admin.types'
 
 export async function fetchDeliveryPartnersAction() {
@@ -32,13 +32,13 @@ export async function fetchDeliveryPartnersAction() {
 
     if (deliveriesError) throw deliveriesError
 
-    const formattedPartners: SADeliveryPartner[] = partnersData.map(p => {
-      const pDeliveries = deliveriesData.filter(d => d.delivery_partner_id === p.id)
-      const totalDeliveries = pDeliveries.filter(d => d.status === 'delivered').length
-      const activeOrders = pDeliveries.filter(d => ['assigned', 'picked_up', 'in_transit', 'out_for_delivery'].includes(d.status)).length
+    const formattedPartners: SADeliveryPartner[] = partnersData.map((p: any) => {
+      const pDeliveries = deliveriesData.filter((d: any) => d.delivery_partner_id === p.id)
+      const totalDeliveries = pDeliveries.filter((d: any) => d.status === 'delivered').length
+      const activeOrders = pDeliveries.filter((d: any) => ['assigned', 'picked_up', 'in_transit', 'out_for_delivery'].includes(d.status)).length
       
-      const successCount = pDeliveries.filter(d => d.status === 'delivered').length
-      const failedCount = pDeliveries.filter(d => d.status === 'failed').length
+      const successCount = pDeliveries.filter((d: any) => d.status === 'delivered').length
+      const failedCount = pDeliveries.filter((d: any) => d.status === 'failed').length
       const totalFinished = successCount + failedCount
       const successRate = totalFinished > 0 ? Math.round((successCount / totalFinished) * 100) : 100
 
@@ -94,8 +94,7 @@ export async function createDeliveryPartnerAction(partnerData: any) {
     
     // Instead of failing on auth, we can just return a fake success 
     // for this demo action if we can't create the user due to public schema restrictions.
-    
-    return { success: true, data: { ...partnerData, id: \`dp-\${Date.now()}\`, joinedAt: new Date().toISOString() }, error: null }
+    return { success: true, data: { ...partnerData, id: `dp-${Date.now()}`, joinedAt: new Date().toISOString() }, error: null }
   } catch (error: any) {
     return { success: false, data: null, error: error.message }
   }

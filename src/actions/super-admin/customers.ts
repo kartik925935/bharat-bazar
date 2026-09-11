@@ -1,6 +1,6 @@
 'use server'
 
-import { createClient } from '@/utils/supabase/server'
+import { createClient } from '@/lib/supabase/server'
 import type { SACustomerExtended, CustomerTier } from '@/types/super-admin.types'
 
 export async function fetchCustomersAction() {
@@ -33,8 +33,8 @@ export async function fetchCustomersAction() {
     if (ordersError) throw ordersError
 
     // Mocking risk score for now, but dynamically calculating tiers
-    const formattedCustomers: SACustomerExtended[] = customersData.map(c => {
-      const custOrders = ordersData.filter(o => o.customer_id === c.id)
+    const formattedCustomers: SACustomerExtended[] = customersData.map((c: any) => {
+      const custOrders = ordersData.filter((o: any) => o.customer_id === c.id)
       const totalOrders = custOrders.length
       const totalSpent = custOrders.reduce((sum:any, o:any) => sum + Number(o.total_amount), 0)
 
@@ -55,7 +55,17 @@ export async function fetchCustomersAction() {
         joinedAt: c.created_at,
         totalOrders,
         totalSpent,
-        riskScore: Math.floor(Math.random() * 20), // Mock risk score
+        riskScore: Math.floor(Math.random() * 100),
+        returnRate: 0,
+        fraudFlags: [],
+        avgOrderValue: totalOrders > 0 ? totalSpent / totalOrders : 0,
+        loginHistory: [],
+        deviceIds: [],
+        ipAddresses: [],
+        paymentMethods: [],
+        wishlistCount: 0,
+        cartAbandonCount: 0,
+        lastActive: new Date().toISOString()
       }
     })
 

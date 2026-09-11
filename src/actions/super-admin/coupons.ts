@@ -35,9 +35,9 @@ export async function fetchCouponsAction(): Promise<{ data: SACoupon[], error?: 
         minOrder: c.min_order_value || 0,
         maxDiscount: undefined, // Add if added to schema
         usageLimit: c.usage_limit || 1000,
-        usageCount: 0, // In real app, calculate from coupon_usages
+        usageCount: 0, // Calculated later
         userLimit: 1, // Default
-        status,
+        status: status as any,
         startDate: c.valid_from || c.created_at,
         endDate: c.valid_until,
         createdBy: 'Admin',

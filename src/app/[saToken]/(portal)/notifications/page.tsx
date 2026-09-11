@@ -3,7 +3,7 @@
 import React, { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Check, Trash2, Shield, AlertTriangle, DollarSign, Package, UserCheck, Star, FileCheck, Info, Settings, BellOff } from 'lucide-react'
-import { useSuperAdminStore } from '@/lib/store/super-admin-store'
+import { fetchNotificationsAction, fetchNotificationPreferencesAction, updateNotificationPreferencesAction, markNotificationReadAction, markAllNotificationsReadAction, dismissNotificationAction } from '@/actions/super-admin/notifications'
 import { cn } from '@/lib/utils'
 import type { SANotification, NotificationType } from '@/types/super-admin.types'
 import { useForm } from 'react-hook-form'
@@ -39,13 +39,49 @@ const PRIORITY_COLORS: Record<string, string> = {
 }
 
 export default function NotificationsPage() {
-  const { notifications, notificationPreferences, markNotificationRead, markAllNotificationsRead, dismissNotification, updateNotificationPreferences } = useSuperAdminStore()
+  const [notifications, setNotifications] = useState<SANotification[]>([])
+  const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<'all' | 'unread'>('all')
 
-  const { register, handleSubmit, watch, formState: { isSubmitting } } = useForm<SANotificationPreferencesInput>({
+  const { register, handleSubmit, reset, formState: { isSubmitting } } = useForm<SANotificationPreferencesInput>({
     resolver: zodResolver(saNotificationPreferencesSchema),
-    defaultValues: notificationPreferences
+    defaultValues: {
+      emailOnCritical: true,
+      emailOnHigh: false,
+      browserPushEnabled: false,
+      mutedTypes: []
+    }
   })
+
+  React.useEffect(() => {
+    loadData()
+  }, [])
+
+  const loadData = async () => {
+    setLoading(true)
+    const [notifRes, prefRes] = await Promise.all([
+      fetchNotificationsAction(),
+      fetchNotificationPreferencesAction()
+    ])
+    if (notifRes.data) setNotifications(notifRes.data)
+    if (prefRes.data) reset(prefRes.data)
+    setLoading(false)
+  }
+
+  const markNotificationRead = async (id: string) => {
+    await markNotificationReadAction(id)
+    setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true, readAt: new Date().toISOString() } : n))
+  }
+
+  const markAllNotificationsRead = async () => {
+    await markAllNotificationsReadAction()
+    setNotifications(prev => prev.map(n => ({ ...n, isRead: true, readAt: n.readAt || new Date().toISOString() })))
+  }
+
+  const dismissNotification = async (id: string) => {
+    await dismissNotificationAction(id)
+    setNotifications(prev => prev.map(n => n.id === id ? { ...n, isDismissed: true } : n))
+  }
 
   const visibleNotifications = notifications
     .filter(n => !n.isDismissed)
@@ -53,8 +89,16 @@ export default function NotificationsPage() {
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
 
   const onSavePreferences = async (data: SANotificationPreferencesInput) => {
-    await updateNotificationPreferences(data)
-    toast.success('Preferences updated successfully')
+    const { error } = await updateNotificationPreferencesAction(data)
+    if (error) {
+      toast.error('Failed to update preferences: ' + error)
+    } else {
+      toast.success('Preferences updated successfully')
+    }
+  }
+
+  if (loading) {
+    return <div className="p-6 text-white text-sm">Loading notifications...</div>
   }
 
   return (

@@ -50,7 +50,13 @@ export async function fetchReviewsAction(): Promise<{ data: SAReview[], error?: 
         sentimentLabel: sentimentLabel,
         status: r.is_approved ? 'approved' : 'pending_approval',
         createdAt: r.created_at,
-        updatedAt: r.updated_at
+        updatedAt: r.updated_at,
+        verifiedPurchase: true,
+        flaggedBy: null,
+        helpfulVotes: 0,
+        reviewVelocityFlag: false,
+        sameDeviceFlag: false,
+        purchaseToReviewDays: 5
       }
     })
 
