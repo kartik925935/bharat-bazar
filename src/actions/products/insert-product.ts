@@ -15,6 +15,7 @@ export interface SellerProductInsert {
   weight: number;
   lowStockThreshold: number;
   imageUrls: string[];
+  specifications?: Record<string, any>;
 }
 
 export async function insertSellerProduct(input: SellerProductInsert) {
@@ -24,12 +25,16 @@ export async function insertSellerProduct(input: SellerProductInsert) {
     // 1. Resolve seller UUID from text seller_id
     const { data: sellerRow, error: sellerErr } = await supabase
       .from('sellers')
-      .select('id')
+      .select('id, seller_type')
       .eq('seller_id', input.sellerTextId)
       .maybeSingle()
 
     if (sellerErr || !sellerRow?.id) {
       return { error: `Seller not found: ${input.sellerTextId}` }
+    }
+
+    if (sellerRow.seller_type === 'professional' && input.imageUrls.length < 5) {
+      return { error: 'Professional sellers must upload at least 5 product images to ensure quality standards.' }
     }
 
     const sellerUuid = sellerRow.id
@@ -60,6 +65,12 @@ export async function insertSellerProduct(input: SellerProductInsert) {
       shopId = newShop.id
     }
 
+    // Calculate Completeness Score (PR-003): 30% description, 40% images, 30% specifications
+    let completenessScore = 0
+    if (input.description && input.description.length > 20) completenessScore += 30
+    if (input.imageUrls.length > 0) completenessScore += (Math.min(input.imageUrls.length, 4) * 10) // 10% per image up to 40%
+    if (input.specifications && Object.keys(input.specifications).length > 0) completenessScore += 30
+
     // 3. Insert into public.products
     // Products start in 'draft' status - must be published by admin to be visible to customers
     const { data: product, error: prodErr } = await supabase
@@ -76,6 +87,7 @@ export async function insertSellerProduct(input: SellerProductInsert) {
         stock_quantity: input.stockQuantity,
         status: 'pending_review',
         weight: input.weight,
+        completeness_score: completenessScore,
       }])
       .select()
       .single()
