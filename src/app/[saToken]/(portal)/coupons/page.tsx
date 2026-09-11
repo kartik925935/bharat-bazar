@@ -6,7 +6,7 @@ import {
   Clock, Users, TrendingUp, AlertTriangle, Eye,
   EyeOff, Trash2, Search, Filter, RefreshCw, X
 } from 'lucide-react'
-import { useSuperAdminStore } from '@/lib/store/super-admin-store'
+import { fetchCouponsAction, createCouponAction, deleteCouponAction } from '@/actions/super-admin/coupons'
 import type { SACoupon } from '@/types/super-admin.types'
 import { ResponsiveSheet } from '@/components/ui/responsive-sheet'
 import { useIsMobile } from '@/hooks/useBreakpoint'
@@ -141,8 +141,13 @@ function CreateCouponForm({ onClose, onCreated }: { onClose: () => void; onCreat
       createdBy: 'sa-001', createdAt: new Date().toISOString(),
       appliesTo: form.appliesTo,
     }
-    onCreated(newCoupon)
-    toast.success(`Coupon "${newCoupon.code}" created`)
+    const { success } = await createCouponAction(newCoupon)
+    if (success) {
+      onCreated(newCoupon)
+      toast.success(`Coupon "${newCoupon.code}" created`)
+    } else {
+      toast.error('Failed to create coupon')
+    }
     setSaving(false)
     onClose()
   }
@@ -264,12 +269,24 @@ function CouponAnalytics({ coupon }: { coupon: SACoupon }) {
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function CouponsPage() {
   const isMobile = useIsMobile()
-  const { coupons, setCoupons } = useSuperAdminStore()
+  const [coupons, setCoupons] = useState<SACoupon[]>([])
+  const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<CouponStatus | 'all'>('all')
   const [selected, setSelected] = useState<SACoupon | null>(null)
   const [detailTab, setDetailTab] = useState<'info' | 'analytics'>('info')
   const [showCreate, setShowCreate] = useState(false)
+
+  const loadCoupons = async () => {
+    setLoading(true)
+    const { data } = await fetchCouponsAction()
+    if (data) setCoupons(data)
+    setLoading(false)
+  }
+
+  React.useEffect(() => {
+    loadCoupons()
+  }, [])
 
   const filtered = useMemo(() => coupons.filter(c => {
     const matchSearch = !search || c.code.toLowerCase().includes(search.toLowerCase())
@@ -283,10 +300,15 @@ export default function CouponsPage() {
     totalUses: coupons.reduce((a, b) => a + b.usageCount, 0),
   }), [coupons])
 
-  const handleDeleteCoupon = (id: string) => {
-    setCoupons(coupons.filter(c => c.id !== id))
-    setSelected(null)
-    toast.success('Coupon deleted')
+  const handleDeleteCoupon = async (id: string) => {
+    const { success } = await deleteCouponAction(id)
+    if (success) {
+      setCoupons(coupons.filter(c => c.id !== id))
+      setSelected(null)
+      toast.success('Coupon deleted')
+    } else {
+      toast.error('Failed to delete coupon')
+    }
   }
 
   return (
@@ -403,7 +425,7 @@ export default function CouponsPage() {
 
       {/* Create Sheet */}
       <ResponsiveSheet isOpen={showCreate} onClose={() => setShowCreate(false)} title="New Coupon" desktopWidth="w-[520px]">
-        <CreateCouponForm onClose={() => setShowCreate(false)} onCreated={c => setCoupons([c, ...coupons])} />
+        <CreateCouponForm onClose={() => setShowCreate(false)} onCreated={c => loadCoupons()} />
       </ResponsiveSheet>
     </div>
   )

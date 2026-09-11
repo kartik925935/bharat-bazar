@@ -6,16 +6,27 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { CheckCircle2, XCircle, Flag, MessageSquare, Star, ShieldAlert, MonitorSmartphone, ShieldCheck } from 'lucide-react'
 import { DataTable, Column } from '@/components/super-admin/shared/DataTable'
 import { StatusBadge } from '@/components/super-admin/shared/StatusBadge'
-import { useSAStore } from '@/lib/store/super-admin-store'
+import { fetchReviewsAction, approveReviewAction, rejectReviewAction } from '@/actions/super-admin/reviews'
 import { ReviewDetailModal } from '@/components/super-admin/reviews/ReviewDetailModal'
 import { cn } from '@/lib/utils'
 import type { SAReview } from '@/types/super-admin.types'
 
 export default function ReviewsPage() {
-  const { reviews, approveReview, rejectReview, bulkApproveReviews, bulkRejectReviews, flagReview, getSentimentBreakdown } = useSAStore()
-  
+  const [reviews, setReviews] = useState<SAReview[]>([])
+  const [loading, setLoading] = useState(true)
   const [selectedReviewId, setSelectedReviewId] = useState<string | null>(null)
   const searchParams = useSearchParams()
+
+  const loadReviews = async () => {
+    setLoading(true)
+    const { data } = await fetchReviewsAction()
+    if (data) setReviews(data)
+    setLoading(false)
+  }
+
+  useEffect(() => {
+    loadReviews()
+  }, [])
 
   useEffect(() => {
     const reviewId = searchParams.get('reviewId')
@@ -27,14 +38,41 @@ export default function ReviewsPage() {
   // Modals state
   const selectedReview = reviews.find(r => r.id === selectedReviewId) || null
 
-  // Derived stats
   const pendingCount = reviews.filter(r => r.status === 'pending_approval').length
   const flaggedCount = reviews.filter(r => r.status === 'flagged').length
-  
-  // In a real app we'd filter by last 7d, here we just count totals for mock
   const approvedCount = reviews.filter(r => r.status === 'approved').length
   const rejectedCount = reviews.filter(r => r.status === 'rejected').length
+
+  const getSentimentBreakdown = () => {
+    return reviews.reduce(
+      (acc, r) => {
+        acc[r.sentimentLabel] = (acc[r.sentimentLabel] || 0) + 1
+        return acc
+      },
+      { very_positive: 0, positive: 0, neutral: 0, negative: 0, very_negative: 0 } as Record<string, number>
+    )
+  }
   const sentiment = getSentimentBreakdown()
+
+  const handleApprove = async (id: string) => {
+    await approveReviewAction(id)
+    await loadReviews()
+  }
+
+  const handleReject = async (id: string) => {
+    await rejectReviewAction(id)
+    await loadReviews()
+  }
+
+  const bulkApprove = async (ids: string[]) => {
+    for (const id of ids) await approveReviewAction(id)
+    await loadReviews()
+  }
+
+  const bulkReject = async (ids: string[]) => {
+    for (const id of ids) await rejectReviewAction(id)
+    await loadReviews()
+  }
 
   const columns: Column<SAReview>[] = [
     {
@@ -131,13 +169,13 @@ export default function ReviewsPage() {
     {
       label: 'Approve Selected',
       icon: CheckCircle2,
-      onClick: async (rows: SAReview[]) => { await bulkApproveReviews(rows.map(r => r.id)) },
+      onClick: async (rows: SAReview[]) => { await bulkApprove(rows.map(r => r.id)) },
       variant: 'default' as const
     },
     {
       label: 'Reject Selected',
       icon: XCircle,
-      onClick: async (rows: SAReview[]) => { await bulkRejectReviews(rows.map(r => r.id)) },
+      onClick: async (rows: SAReview[]) => { await bulkReject(rows.map(r => r.id)) },
       variant: 'danger' as const
     }
   ]
@@ -219,10 +257,10 @@ export default function ReviewsPage() {
           <ReviewDetailModal
             review={selectedReview}
             onClose={() => setSelectedReviewId(null)}
-            onApprove={(id, note) => approveReview(id, note)}
-            onReject={(id, note) => rejectReview(id, note)}
-            onFlag={(id, reason) => flagReview(id, reason as any)}
-            onClearFlag={(id) => approveReview(id, 'Cleared flag')}
+            onApprove={(id, note) => handleApprove(id)}
+            onReject={(id, note) => handleReject(id)}
+            onFlag={(id, reason) => {}} // Flag is disabled
+            onClearFlag={(id) => handleApprove(id)}
           />
         )}
       </AnimatePresence>

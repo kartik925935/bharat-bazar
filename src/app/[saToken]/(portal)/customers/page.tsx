@@ -9,7 +9,8 @@ import { AdvancedFilterBuilder, FilterField, FilterRule, applyFilterRules } from
 import { SavedViewsBar } from '@/components/super-admin/shared/SavedViewsBar'
 import { StatusBadge } from '@/components/super-admin/shared/StatusBadge'
 import { CustomerDetailDrawer } from '@/components/super-admin/customers/CustomerDetailDrawer'
-import { useSuperAdminStore } from '@/lib/store/super-admin-store'
+import { fetchCustomersAction, updateCustomerStatusAction } from '@/actions/super-admin/customers'
+import { toast } from 'sonner'
 import { useUndoableAction } from '@/lib/hooks/useUndoableAction'
 import { cn } from '@/lib/utils'
 import type { SACustomerExtended } from '@/types/super-admin.types'
@@ -42,23 +43,49 @@ const TIER_COLORS: Record<string, string> = {
 }
 
 export default function CustomersPage() {
-  const { customers, blockCustomer, unblockCustomer } = useSuperAdminStore()
   const { execute } = useUndoableAction()
   
+  const [customers, setCustomers] = useState<SACustomerExtended[]>([])
+  const [loading, setLoading] = useState(true)
   const [activeRules, setActiveRules] = useState<FilterRule[]>([])
   const [selectedCustomer, setSelectedCustomer] = useState<SACustomerExtended | null>(null)
   const searchParams = useSearchParams()
 
   useEffect(() => {
+    loadCustomers()
+  }, [])
+
+  const loadCustomers = async () => {
+    setLoading(true)
+    const { data, error } = await fetchCustomersAction()
+    if (error) {
+      toast.error('Failed to load customers: ' + error)
+    } else {
+      setCustomers(data || [])
+    }
+    setLoading(false)
+  }
+
+  useEffect(() => {
     const customerId = searchParams.get('customerId')
-    if (customerId) {
+    if (customerId && customers.length > 0) {
       const cust = customers.find(c => c.id === customerId)
-      if (cust) setSelectedCustomer(cust as SACustomerExtended)
+      if (cust) setSelectedCustomer(cust)
     }
   }, [searchParams, customers])
 
+  const blockCustomer = async (id: string) => {
+    await updateCustomerStatusAction(id, true)
+    setCustomers(prev => prev.map(c => c.id === id ? { ...c, status: 'blocked' } : c))
+  }
+
+  const unblockCustomer = async (id: string) => {
+    await updateCustomerStatusAction(id, false)
+    setCustomers(prev => prev.map(c => c.id === id ? { ...c, status: 'active' } : c))
+  }
+
   // Apply filters
-  const filteredCustomers = applyFilterRules(customers as SACustomerExtended[], activeRules, CUSTOMER_FIELDS)
+  const filteredCustomers = applyFilterRules(customers, activeRules, CUSTOMER_FIELDS)
 
   const columns: Column<SACustomerExtended>[] = [
     {
@@ -219,7 +246,7 @@ export default function CustomersPage() {
         </div>
         <div className="flex items-center gap-3">
           <ExportButton 
-            data={customers as SACustomerExtended[]} 
+            data={customers} 
             visibleData={filteredCustomers} 
             columns={exportColumns} 
             filename="bharat_bazaar_customers" 
