@@ -290,7 +290,7 @@ function KYCDetailSheet({ seller, onClose, onDecision, onDocUpdate }: {
         <div className="flex flex-wrap gap-2">
           <button
             onClick={() => handleDecisionOverride('approved')}
-            disabled={deciding || (!allVerified && status !== 'approved' && status !== 'verified')}
+            disabled={deciding}
             className={cn("flex-1 min-w-[100px] h-11 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all",
               (status === 'approved' || status === 'verified') ? "bg-[#22C55E] text-white shadow-lg shadow-green-500/20" : "bg-[#22C55E]/10 text-[#22C55E] hover:bg-[#22C55E]/20"
             )}

@@ -11,7 +11,7 @@ export async function fetchReviewsAction(): Promise<{ data: SAReview[], error?: 
       .select(`
         id, product_id, user_id, rating, title, body, images, is_approved, created_at, updated_at,
         products ( name, images, seller_id, sellers ( display_name, legal_name ) ),
-        profiles ( first_name, last_name, email )
+        profiles ( full_name )
       `)
       .order('created_at', { ascending: false })
 
@@ -40,7 +40,7 @@ export async function fetchReviewsAction(): Promise<{ data: SAReview[], error?: 
         sellerId: prod.seller_id,
         sellerName: seller.display_name || seller.legal_name || 'Unknown Seller',
         customerId: r.user_id,
-        customerName: `${cust.first_name || ''} ${cust.last_name || ''}`.trim() || cust.email || 'Unknown',
+        customerName: cust.full_name || cust.email || 'Unknown',
         customerTier: 'bronze', // Mock for now until loyalty system exists
         rating: r.rating,
         title: r.title || '',
