@@ -14,16 +14,41 @@ export async function createReview(data: ReviewInput) {
 
   const supabase = await createClient()
 
-  // Ensure user actually bought the product before they can review it (Business Logic)
-  // This can be checked via a query to orders and order_items or RLS.
+  // Ensure user actually bought the product before they can review it (REV-001)
+  const { data: orderItems, error: fetchErr } = await supabase
+    .from('order_items')
+    .select('id, orders!inner(user_id)')
+    .eq('product_id', result.data.productId)
+    .eq('item_status', 'delivered')
+    .eq('orders.user_id', user.id)
+
+  if (fetchErr || !orderItems || orderItems.length === 0) {
+    return { error: 'You can only review products that you have purchased and received.' }
+  }
+
+  // Check which ones are already reviewed
+  const { data: existingReviews } = await supabase
+    .from('reviews')
+    .select('order_item_id')
+    .eq('product_id', result.data.productId)
+    .eq('user_id', user.id)
+
+  const reviewedItemIds = new Set(existingReviews?.map(r => r.order_item_id) || [])
+  const eligibleItem = orderItems.find(item => !reviewedItemIds.has(item.id))
+
+  if (!eligibleItem) {
+    return { error: 'You have already reviewed all your purchases for this product.' }
+  }
 
   const { data: review, error } = await supabase
     .from('reviews')
     .insert([{
+      order_item_id: eligibleItem.id,
       product_id: result.data.productId,
       user_id: user.id,
       rating: result.data.rating,
-      comment: result.data.comment
+      comment: result.data.comment,
+      is_approved: false // REV-003
     }])
     .select()
     .single()

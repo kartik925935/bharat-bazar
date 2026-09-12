@@ -73,7 +73,7 @@ export function ReviewRequestDialog({ open, onClose, request }: ReviewRequestDia
             <Label>Decision <span className="text-red-500">*</span></Label>
             <RadioGroup
               value={decision}
-              onValueChange={(v) => setValue('decision', v as 'approved' | 'rejected')}
+              onValueChange={(v: string) => setValue('decision', v as 'approved' | 'rejected')}
               className="flex gap-4"
             >
               <label className={cn(

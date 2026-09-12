@@ -6,7 +6,7 @@ import {
   AlertTriangle, AlertCircle, Phone, Mail, MapPin, Search, Filter,
   TrendingUp, RefreshCw, ChevronRight, Bike, User, Plus, X
 } from 'lucide-react'
-import { useSuperAdminStore } from '@/lib/store/super-admin-store'
+import { fetchDeliveryPartnersAction, updateDeliveryPartnerStatusAction, createDeliveryPartnerAction } from '@/actions/super-admin/delivery'
 import type { SADeliveryPartner, DeliveryPartnerStatus } from '@/types/super-admin.types'
 import { ResponsiveSheet } from '@/components/ui/responsive-sheet'
 import { useIsMobile } from '@/hooks/useBreakpoint'
@@ -410,11 +410,27 @@ function CreatePartnerModal({ onClose, onCreate }: {
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function DeliveryPartnersPage() {
   const isMobile = useIsMobile()
-  const { deliveryPartners: partners, setDeliveryPartners: setPartners } = useSuperAdminStore()
+  const [partners, setPartners] = useState<SADeliveryPartner[]>([])
+  const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<DeliveryPartnerStatus | 'all'>('all')
   const [selected, setSelected] = useState<SADeliveryPartner | null>(null)
   const [showCreate, setShowCreate] = useState(false)
+
+  React.useEffect(() => {
+    loadPartners()
+  }, [])
+
+  const loadPartners = async () => {
+    setLoading(true)
+    const { data, error } = await fetchDeliveryPartnersAction()
+    if (error) {
+      toast.error('Failed to load delivery partners: ' + error)
+    } else {
+      setPartners(data || [])
+    }
+    setLoading(false)
+  }
 
   const filtered = useMemo(() => partners.filter(p => {
     const matchSearch = !search || p.name.toLowerCase().includes(search.toLowerCase()) || p.city.toLowerCase().includes(search.toLowerCase())
@@ -427,16 +443,22 @@ export default function DeliveryPartnersPage() {
     active: partners.filter(p => p.status === 'active').length,
     onDelivery: partners.filter(p => p.status === 'on_delivery').length,
     suspended: partners.filter(p => p.status === 'suspended').length,
-    avgRating: (partners.reduce((a, b) => a + b.rating, 0) / partners.length).toFixed(1),
+    avgRating: partners.length > 0 ? (partners.reduce((a, b) => a + b.rating, 0) / partners.length).toFixed(1) : '0.0',
   }), [partners])
 
-  const handleStatusChange = (id: string, status: DeliveryPartnerStatus) => {
+  const handleStatusChange = async (id: string, status: DeliveryPartnerStatus) => {
+    await updateDeliveryPartnerStatusAction(id, status)
     setPartners(partners.map(p => p.id === id ? { ...p, status } : p))
     if (selected?.id === id) setSelected(prev => prev ? { ...prev, status } : null)
   }
 
-  const handleCreate = (partner: SADeliveryPartner) => {
-    setPartners([partner, ...partners])
+  const handleCreate = async (partner: SADeliveryPartner) => {
+    const { success, data, error } = await createDeliveryPartnerAction(partner)
+    if (success && data) {
+      setPartners([data, ...partners])
+    } else {
+      toast.error('Failed to create partner: ' + error)
+    }
   }
 
   return (

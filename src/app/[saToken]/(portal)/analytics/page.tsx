@@ -1,6 +1,6 @@
 'use client'
 import React, { useEffect, useState } from 'react'
-import { usePhase11Store } from '@/lib/store/phase11-store'
+
 import { 
   getAnalyticsRevenue, getGeographicData, getFunnelData, getCohortData, 
   getSellerGrowth, getProductHealth, getPlatformHealth 
@@ -15,12 +15,26 @@ import { SellerGrowthChart, ProductHealthCard } from '@/components/super-admin/a
 import { fetchOrdersAction, fetchSellersAction, fetchCustomersAction, fetchProductsAction } from '@/actions/super-admin/queries'
 
 export default function AnalyticsPage() {
-  const {
-    revenueGranularity, setRevenueGranularity, geographyMetric, setGeographyMetric,
-    exportAnalyticsReport,
-  } = usePhase11Store()
+  const [revenueGranularity, setRevenueGranularity] = useState<'daily' | 'weekly' | 'monthly'>('daily')
+  const [geographyMetric, setGeographyMetric] = useState<'gmv' | 'orders' | 'activeSellers' | 'activeCustomers'>('gmv')
 
-  const [dbData, setDbData] = useState({
+  const exportAnalyticsReport = (type: string) => {
+    // Basic CSV export logic
+    const dataStr = "data:text/csv;charset=utf-8,Type,Value\n" + type + ",Data"
+    const downloadAnchorNode = document.createElement('a')
+    downloadAnchorNode.setAttribute("href", encodeURI(dataStr))
+    downloadAnchorNode.setAttribute("download", `analytics_${type}.csv`)
+    document.body.appendChild(downloadAnchorNode)
+    downloadAnchorNode.click()
+    downloadAnchorNode.remove()
+  }
+
+  const [dbData, setDbData] = useState<{
+    orders: any[],
+    sellers: any[],
+    customers: any[],
+    products: any[]
+  }>({
     orders: [],
     sellers: [],
     customers: [],
