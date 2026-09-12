@@ -28,13 +28,13 @@ export async function fetchCustomersAction() {
     // Also fetch orders for calculation
     const { data: ordersData, error: ordersError } = await supabase
       .from('orders')
-      .select('customer_id, total_amount')
+      .select('user_id, total_amount')
 
     if (ordersError) throw ordersError
 
     // Mocking risk score for now, but dynamically calculating tiers
     const formattedCustomers: SACustomerExtended[] = customersData.map((c: any) => {
-      const custOrders = ordersData.filter((o: any) => o.customer_id === c.id)
+      const custOrders = ordersData.filter((o: any) => o.user_id === c.id)
       const totalOrders = custOrders.length
       const totalSpent = custOrders.reduce((sum:any, o:any) => sum + Number(o.total_amount), 0)
 

@@ -78,7 +78,7 @@ export async function fetchCustomersAction(): Promise<{ data: SACustomer[], erro
 
     const customers: SACustomer[] = data.map((c: any) => ({
       id: c.id,
-      name: `${c.first_name || ''} ${c.last_name || ''}`.trim() || 'Unknown',
+      name: c.full_name || 'Unknown',
       email: c.email || '',
       phone: c.phone || '',
       status: 'active',
@@ -101,32 +101,32 @@ export async function fetchSellersAction(): Promise<{ data: SASeller[], error?: 
     const supabase = await createClient()
     const { data, error } = await supabase
       .from('sellers')
-      .select('*')
+      .select('*, profiles ( phone, full_name )')
       .order('created_at', { ascending: false })
 
     if (error) throw error
 
     const sellers: SASeller[] = data.map((s: any) => ({
       id: s.id,
-      sellerId: s.id,
-      legalName: s.business_name || 'Unknown',
-      displayName: s.business_name || 'Unknown',
-      username: s.email || '',
-      email: s.email || '',
-      phone: s.phone || '',
-      name: `${s.first_name || ''} ${s.last_name || ''}`.trim() || 'Unknown Seller',
-      shopName: s.business_name || 'Unnamed Shop',
-      sellerType: 'artisan',
+      sellerId: s.seller_id || s.id,
+      legalName: s.legal_name || 'Unknown',
+      displayName: s.display_name || 'Unknown',
+      username: s.username || '',
+      email: s.profiles?.email || s.username || '',
+      phone: s.profiles?.phone || '',
+      name: s.profiles?.full_name || 'Unknown Seller',
+      shopName: s.display_name || s.legal_name || 'Unnamed Shop',
+      sellerType: s.seller_type || 'artisan',
       status: s.status === 'active' ? 'active' : (s.status === 'suspended' ? 'suspended' : 'pending'),
-      tier: s.tier || 'Silver',
+      tier: s.current_tier || 'Silver',
       joinedAt: s.created_at,
       lastActive: s.created_at,
-      state: 'Maharashtra',
+      state: s.state || 'Maharashtra',
       totalProducts: 0,
       totalSales: 0,
       totalOrders: 0,
       rating: s.rating || 0,
-      kycStatus: s.kyc_status === 'verified' ? 'verified' : (s.kyc_status === 'rejected' ? 'rejected' : 'pending'),
+      kycStatus: s.kyc_status === 'approved' ? 'verified' : (s.kyc_status === 'rejected' ? 'rejected' : 'pending'),
       panVerified: false,
       gstVerified: false,
       bankVerified: false,
@@ -532,7 +532,7 @@ export async function fetchKycSellersAction(): Promise<{ data: any[], error?: st
       .select(`
         id, seller_id, legal_name, display_name, username, village, district, state, description,
         kyc_status, created_at,
-        profiles ( email, phone, first_name, last_name ),
+        profiles ( phone, full_name ),
         seller_documents ( document_type, document_number, verified ),
         bank_accounts ( account_holder_name, account_number, ifsc_code, bank_name )
       `)
@@ -557,7 +557,7 @@ export async function fetchKycSellersAction(): Promise<{ data: any[], error?: st
         username: s.username,
         email: s.profiles?.email || s.username,
         phone: s.profiles?.phone || '',
-        name: `${s.profiles?.first_name || ''} ${s.profiles?.last_name || ''}`.trim(),
+        name: s.profiles?.full_name || 'Unknown',
         shopName: s.legal_name,
         sellerType: 'artisan', // Default fallback since it's not selected or might not match enum perfectly in UI
         kycStatus: s.kyc_status,
@@ -631,7 +631,7 @@ export async function fetchAllOrdersAction(): Promise<{ data: SAOrder[], error?:
       .from('orders')
       .select(`
         id, order_number, total_amount, status, created_at, shipping_address, user_id,
-        profiles!orders_user_id_fkey ( first_name, last_name, email ),
+        profiles!orders_user_id_fkey ( full_name ),
         order_items ( product_name, seller_id, sellers ( display_name ) ),
         payments ( status, amount )
       `)
@@ -653,7 +653,7 @@ export async function fetchAllOrdersAction(): Promise<{ data: SAOrder[], error?:
         id: o.id,
         orderId: o.order_number || o.id.substring(0, 8),
         customerId: o.user_id,
-        customerName: `${o.profiles?.first_name || ''} ${o.profiles?.last_name || ''}`.trim() || o.profiles?.email || 'Unknown',
+        customerName: o.profiles?.full_name || o.profiles?.email || 'Unknown',
         sellerId: items[0]?.seller_id || '',
         sellerName: items[0]?.sellers?.display_name || 'Multiple Sellers',
         products: items.map((i: any) => i.product_name),
