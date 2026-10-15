@@ -1,7 +1,8 @@
 'use client';
 
-import { use, useState } from 'react';
+import { use, useState, useEffect } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { motion } from 'framer-motion';
 import { notFound } from 'next/navigation';
 import {
@@ -9,7 +10,9 @@ import {
   FileText, RotateCcw, Star, RefreshCw, ArrowLeft, MapPin,
   CreditCard, Truck,
 } from 'lucide-react';
-import { mockOrders, STATUS_CONFIG } from '@/lib/mock/orders';
+import { STATUS_CONFIG, type MockOrder } from '@/lib/mock/orders';
+import { mapDbOrderToUi } from '@/lib/utils/order-mapper';
+import { getOrderById } from '@/actions/orders/actions';
 import { formatCurrency } from '@/lib/utils/format-currency';
 import { toast } from 'sonner';
 
@@ -29,8 +32,39 @@ function OrderDetailSkeleton() {
 
 export default function OrderDetailPage({ params }: { params: Promise<{ orderId: string }> }) {
   const { orderId } = use(params);
-  const order = mockOrders.find(o => o.id === orderId);
-  if (!order) return notFound();
+  const [order, setOrder] = useState<MockOrder | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [notFoundState, setNotFoundState] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+    async function loadOrder() {
+      setLoading(true);
+      try {
+        const res = await getOrderById(orderId);
+        if (!isMounted) return;
+        if (res.error || !res.data) {
+          setNotFoundState(true);
+        } else {
+          setOrder(mapDbOrderToUi(res.data));
+        }
+      } catch (err) {
+        if (!isMounted) return;
+        setNotFoundState(true);
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    }
+
+    loadOrder();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [orderId]);
+
+  if (loading) return <OrderDetailSkeleton />;
+  if (notFoundState || !order) return notFound();
 
   const statusCfg = STATUS_CONFIG[order.status];
   const isActive = ['confirmed','processing','packed','shipped','in_transit','out_for_delivery'].includes(order.status);
@@ -193,7 +227,16 @@ export default function OrderDetailPage({ params }: { params: Promise<{ orderId:
         <div className="space-y-4">
           {order.items.map((item) => (
             <div key={item.productId} className="flex gap-4">
-              <img src={item.image} alt={item.name} className="w-20 h-20 rounded-xl object-cover bg-[#F5F4F0] shrink-0" />
+              <div className="relative w-20 h-20 rounded-xl overflow-hidden bg-[#F5F4F0] shrink-0">
+                <Image
+                  src={item.image}
+                  alt={item.name}
+                  fill
+                  unoptimized
+                  sizes="80px"
+                  className="object-cover"
+                />
+              </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold text-[#1A0A00] leading-snug">{item.name}</p>
                 <p className="text-xs text-[#8C7B6E] mt-0.5">by {item.sellerName}</p>

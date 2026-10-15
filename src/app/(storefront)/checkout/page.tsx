@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -9,10 +9,16 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { 
   Check, MapPin, Truck, CreditCard, Package, ChevronRight, 
-  ChevronLeft, AlertCircle, ShoppingBag, ArrowRight 
+  ChevronLeft, AlertCircle, ShoppingBag, ArrowRight, Loader2
 } from 'lucide-react';
 import { useCartStore } from '@/lib/store/cart-store';
+import { useAuthStore } from '@/lib/store/auth-store';
 import { formatCurrency } from '@/lib/utils/format-currency';
+import { getAddresses, createAddress } from '@/actions/address/actions';
+import { syncCartItems } from '@/actions/cart/actions';
+import { createOrder } from '@/actions/orders/actions';
+import { processPayment } from '@/actions/payments/actions';
+import { useOrderStore } from '@/lib/store/order-store';
 import { toast } from 'sonner';
 
 // Step Schemas
@@ -36,7 +42,7 @@ const paymentUpiSchema = z.object({
   upiId: z.string().regex(/^[\w.-]+@[\w.-]+$/, 'Enter a valid UPI ID (e.g. sharma@okaxis)'),
 });
 
-type AddressValues = z.infer<typeof addressSchema>;
+type AddressValues = z.infer<typeof addressSchema> & { id?: string };
 
 function FieldError({ message }: { message?: string }) {
   if (!message) return null;
@@ -63,6 +69,7 @@ const inputBase = (error: boolean) =>
 export default function CheckoutPage() {
   const router = useRouter();
   const { items, subtotal, totalDiscount, finalTotal, clearCart } = useCartStore();
+  const { user, isAuthenticated } = useAuthStore();
 
   const [step, setStep] = useState(1);
   const [paymentMethod, setPaymentMethod] = useState<'upi' | 'card' | 'cod'>('upi');
@@ -80,6 +87,34 @@ export default function CheckoutPage() {
   const [showNewAddressForm, setShowNewAddressForm] = useState(false);
   const [orderCompleted, setOrderCompleted] = useState(false);
   const [generatedOrderId, setGeneratedOrderId] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Load saved addresses from database on mount if user is logged in
+  useEffect(() => {
+    async function loadDbAddresses() {
+      if (isAuthenticated && user) {
+        try {
+          const res = await getAddresses();
+          if (res.success && res.data && res.data.length > 0) {
+            const mapped: AddressValues[] = res.data.map((a: any) => ({
+              id: a.id,
+              fullName: a.full_name,
+              phone: a.phone,
+              addressLine1: a.address_line1,
+              city: a.city,
+              state: a.state,
+              pincode: a.pincode,
+            }));
+            setSavedAddresses(mapped);
+            setSelectedAddressIdx(0);
+          }
+        } catch (err) {
+          console.error('Failed to load user addresses:', err);
+        }
+      }
+    }
+    loadDbAddresses();
+  }, [isAuthenticated, user]);
 
   // Forms
   const addressForm = useForm<AddressValues>({
@@ -115,7 +150,39 @@ export default function CheckoutPage() {
     );
   }
 
-  const handleAddNewAddress = (data: AddressValues) => {
+  const handleAddNewAddress = async (data: AddressValues) => {
+    if (isAuthenticated) {
+      try {
+        const res = await createAddress({
+          fullName: data.fullName,
+          phone: data.phone,
+          addressLine1: data.addressLine1,
+          city: data.city,
+          state: data.state,
+          pincode: data.pincode,
+        });
+        if (res.success && res.data) {
+          const newAddress: AddressValues = {
+            id: res.data.id,
+            fullName: res.data.full_name,
+            phone: res.data.phone,
+            addressLine1: res.data.address_line1,
+            city: res.data.city,
+            state: res.data.state,
+            pincode: res.data.pincode,
+          };
+          setSavedAddresses([...savedAddresses, newAddress]);
+          setSelectedAddressIdx(savedAddresses.length);
+          setShowNewAddressForm(false);
+          addressForm.reset();
+          toast.success('Shipping address saved to your account!');
+          return;
+        }
+      } catch (err) {
+        console.error('Error saving address:', err);
+      }
+    }
+
     setSavedAddresses([...savedAddresses, data]);
     setSelectedAddressIdx(savedAddresses.length);
     setShowNewAddressForm(false);
@@ -151,12 +218,91 @@ export default function CheckoutPage() {
       }
     }
 
-    // Placing order
-    const mockId = `BB-ORD-${Math.floor(100000 + Math.random() * 900000)}`;
-    setGeneratedOrderId(mockId);
-    setOrderCompleted(true);
-    clearCart();
-    toast.success('Thank you! Order placed successfully. 🎉');
+    if (!isAuthenticated) {
+      toast.error('Please sign in to place your order');
+      router.push('/auth/login?redirect=/checkout');
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      // 1. Ensure address is saved in database to obtain a valid address UUID
+      let shippingAddressId: string | undefined = savedAddresses[selectedAddressIdx]?.id;
+
+      if (!shippingAddressId) {
+        const selectedAddr = savedAddresses[selectedAddressIdx];
+        const addrRes = await createAddress({
+          fullName: selectedAddr.fullName,
+          phone: selectedAddr.phone,
+          addressLine1: selectedAddr.addressLine1,
+          city: selectedAddr.city,
+          state: selectedAddr.state,
+          pincode: selectedAddr.pincode,
+        });
+        if (addrRes.error || !addrRes.data) {
+          toast.error(addrRes.error || 'Failed to save shipping address');
+          setIsSubmitting(false);
+          return;
+        }
+        shippingAddressId = addrRes.data.id;
+      }
+
+      if (!shippingAddressId) {
+        toast.error('Shipping address could not be verified');
+        setIsSubmitting(false);
+        return;
+      }
+
+      // 2. Synchronize client-side cart items with Supabase cart in database
+      const syncRes = await syncCartItems(
+        items.map((i) => ({
+          productId: i.product?.id || i.id,
+          quantity: i.quantity,
+        }))
+      );
+
+      if (syncRes.error) {
+        toast.error(syncRes.error || 'Failed to sync cart before ordering');
+        setIsSubmitting(false);
+        return;
+      }
+
+      // 3. Call backend create_order_from_cart RPC via createOrder server action
+      const orderRes = await createOrder({ shippingAddressId });
+
+      if (orderRes.error || !orderRes.data) {
+        toast.error(orderRes.error || 'Failed to place order');
+        setIsSubmitting(false);
+        return;
+      }
+
+      const createdOrder = orderRes.data;
+
+      // 4. Record payment in database
+      const paymentRes = await processPayment({
+        orderId: createdOrder.id,
+        paymentMethodId: paymentMethod,
+        amount: createdOrder.total_amount || totalAmount,
+      });
+
+      if (paymentRes.error) {
+        console.warn('Payment record warning:', paymentRes.error);
+      }
+
+      // 5. Complete order UX
+      const finalOrderId = createdOrder.order_number || createdOrder.id || `BB-ORD-${Math.floor(100000 + Math.random() * 900000)}`;
+      setGeneratedOrderId(finalOrderId);
+      setOrderCompleted(true);
+      clearCart();
+      useOrderStore.getState().fetchOrders();
+      toast.success('Thank you! Order placed successfully. 🎉');
+    } catch (err: any) {
+      console.error('Order placement exception:', err);
+      toast.error(err.message || 'An unexpected error occurred while placing your order.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const cartSubtotal = subtotal();
@@ -208,12 +354,20 @@ export default function CheckoutPage() {
                   </div>
                 </div>
 
-                <button
-                  onClick={() => router.replace('/products')}
-                  className="w-full h-11 rounded-xl text-white font-bold text-xs bg-gradient-to-r from-[#FF7A00] to-[#FF4500]"
-                >
-                  Continue Shopping
-                </button>
+                <div className="flex flex-col gap-2">
+                  <button
+                    onClick={() => router.replace('/orders')}
+                    className="w-full h-11 rounded-xl text-white font-bold text-xs bg-gradient-to-r from-[#FF7A00] to-[#FF4500] cursor-pointer"
+                  >
+                    View in My Orders
+                  </button>
+                  <button
+                    onClick={() => router.replace('/products')}
+                    className="w-full h-11 rounded-xl text-[#4A3728] font-bold text-xs bg-[#FAFAF8] border border-[#E5E4DE] hover:bg-[#F0EDE8] transition-colors cursor-pointer"
+                  >
+                    Continue Shopping
+                  </button>
+                </div>
               </motion.div>
             </motion.div>
           )}
@@ -522,9 +676,17 @@ export default function CheckoutPage() {
                     </div>
                     <button 
                       onClick={handlePlaceOrder}
-                      className="h-11 px-6 rounded-xl bg-gradient-to-r from-[#FF7A00] to-[#FF4500] text-white font-bold text-xs"
+                      disabled={isSubmitting}
+                      className="h-11 px-6 rounded-xl bg-gradient-to-r from-[#FF7A00] to-[#FF4500] text-white font-bold text-xs flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed shadow-sm active:shadow-none"
                     >
-                      Complete Order
+                      {isSubmitting ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <span>Processing...</span>
+                        </>
+                      ) : (
+                        <span>Complete Order</span>
+                      )}
                     </button>
                   </div>
                 </div>

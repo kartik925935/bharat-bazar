@@ -66,7 +66,9 @@ all_prompts.txt
 fix-legacy.js
 replace.js
 superadmin_prompts_summary.md
-scripts/
+!scripts/
+scripts/*
+!scripts/seed.ts
 eslint-report.json
 
 # Temporary Debug Scripts

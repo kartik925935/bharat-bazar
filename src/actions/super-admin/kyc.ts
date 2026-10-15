@@ -1,6 +1,7 @@
 'use server';
 
 import { createAdminClient } from '@/lib/supabase/admin';
+import { requireRole } from '@/actions/auth/session';
 import { revalidatePath } from 'next/cache';
 
 /**
@@ -13,6 +14,11 @@ export async function updateSellerKycStatus(
   status: 'active' | 'pending' | 'suspended' | 'rejected'
 ) {
   try {
+    const { authorized } = await requireRole(['super admin', 'admin'])
+    if (!authorized) {
+      return { success: false, error: 'Unauthorized: Admin role required' }
+    }
+
     const adminSupabase = createAdminClient();
 
     // 1. Update the seller's KYC status and overall status
@@ -62,6 +68,11 @@ export async function updateSellerKycStatus(
  */
 export async function getPendingKycSellers() {
   try {
+    const { authorized } = await requireRole(['super admin', 'admin'])
+    if (!authorized) {
+      return { success: false, error: 'Unauthorized: Admin role required' }
+    }
+
     const adminSupabase = createAdminClient();
 
     const { data: sellers, error } = await adminSupabase

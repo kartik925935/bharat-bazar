@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { motion } from 'framer-motion';
 import { useInView } from 'framer-motion';
 import {
@@ -12,7 +13,8 @@ import { useAuthStore } from '@/lib/store/auth-store';
 import { useWishlistStore } from '@/lib/store/wishlist-store';
 import { useBrowsingStore } from '@/lib/store/browsing-store';
 import { useNotificationStore } from '@/lib/store/notification-store';
-import { mockOrders, STATUS_CONFIG } from '@/lib/mock/orders';
+import { useOrderStore } from '@/lib/store/order-store';
+import { STATUS_CONFIG } from '@/lib/mock/orders';
 import { getFeaturedProducts } from '@/actions/products/storefront-queries';
 import { Product } from '@/types';
 import { SkeletonCard } from '@/components/ui/skeletons';
@@ -102,12 +104,17 @@ function DashboardSkeleton() {
 export default function CustomerDashboardPage() {
   const [loading, setLoading] = useState(true);
   const { user } = useAuthStore();
+  const { orders, fetchOrders } = useOrderStore();
   const wishlistItems = useWishlistStore((s) => s.items);
   const { recentlyViewed } = useBrowsingStore();
   const unreadCount = useNotificationStore((s) => s.unreadCount);
 
   const [recommendations, setRecommendations] = useState<Product[]>([]);
   const [recommendationsLoading, setRecommendationsLoading] = useState(true);
+
+  useEffect(() => {
+    fetchOrders();
+  }, [fetchOrders]);
 
   useEffect(() => {
     const t = setTimeout(() => setLoading(false), 1000);
@@ -132,18 +139,18 @@ export default function CustomerDashboardPage() {
   const greeting = getGreeting();
   const firstName = user.name.split(' ')[0];
 
-  const activeOrders = mockOrders.filter((o) =>
+  const activeOrders = orders.filter((o) =>
     ['confirmed', 'processing', 'packed', 'shipped', 'in_transit', 'out_for_delivery'].includes(o.status)
   );
-  const deliveredOrders = mockOrders.filter((o) => o.status === 'delivered');
-  const totalSpent = mockOrders.filter(o => o.status !== 'cancelled').reduce((s, o) => s + o.total, 0);
-  const pendingReviews = mockOrders
+  const deliveredOrders = orders.filter((o) => o.status === 'delivered');
+  const totalSpent = orders.filter(o => o.status !== 'cancelled').reduce((s, o) => s + o.total, 0);
+  const pendingReviews = orders
     .filter(o => o.status === 'delivered')
     .flatMap(o => o.items)
     .filter(i => !i.reviewed).length;
 
   const STATS = [
-    { icon: Package, label: 'Total Orders', value: mockOrders.length, sub: `${activeOrders.length} active`, link: '/orders', iconBg: 'bg-[#FFF3E8]', iconColor: 'text-[#FF7A00]' },
+    { icon: Package, label: 'Total Orders', value: orders.length, sub: `${activeOrders.length} active`, link: '/orders', iconBg: 'bg-[#FFF3E8]', iconColor: 'text-[#FF7A00]' },
     { icon: Heart,   label: 'Wishlist',      value: wishlistItems.length, sub: 'Saved items', link: '/wishlist', iconBg: 'bg-[#FEF2F2]', iconColor: 'text-[#EF4444]' },
     { icon: Gift,    label: 'Total Spent',   value: totalSpent, isPrice: true, sub: 'Lifetime value', link: '/spending-summary', iconBg: 'bg-[#F0FDF4]', iconColor: 'text-[#16A34A]' },
     { icon: Star,    label: 'Reviews Due',   value: pendingReviews, sub: 'Write now →', link: '/my-reviews', iconBg: 'bg-[#FEFCE8]', iconColor: 'text-[#CA8A04]' },
@@ -282,7 +289,16 @@ export default function CustomerDashboardPage() {
                   </div>
 
                   <div className="flex gap-3 mb-3">
-                    <img src={item.image} alt={item.name} className="w-14 h-14 rounded-xl object-cover bg-[#F5F4F0] shrink-0" />
+                    <div className="relative w-14 h-14 rounded-xl overflow-hidden bg-[#F5F4F0] shrink-0">
+                      <Image
+                        src={item.image}
+                        alt={item.name}
+                        fill
+                        unoptimized
+                        sizes="56px"
+                        className="object-cover"
+                      />
+                    </div>
                     <div className="min-w-0">
                       <p className="text-xs font-semibold text-[#1A0A00] line-clamp-2 leading-snug">{item.name}</p>
                       <p className="text-xs font-bold text-[#FF7A00] mt-1">{formatCurrency(order.total)}</p>

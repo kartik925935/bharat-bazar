@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { requireRole } from '../auth/session'
 import { revalidatePath } from 'next/cache'
 
@@ -10,10 +11,10 @@ export async function applyCoupon(code: string) {
 
   if (!code || code.trim() === '') return { error: 'Coupon code is required' }
 
-  const supabase = await createClient()
+  const adminSupabase = createAdminClient()
 
   // 1. Get the cart
-  const { data: cart, error: cartError } = await supabase
+  const { data: cart, error: cartError } = await adminSupabase
     .from('carts')
     .select('id')
     .eq('user_id', user.id)
@@ -22,7 +23,7 @@ export async function applyCoupon(code: string) {
   if (cartError || !cart) return { error: 'Cart not found' }
 
   // 2. Get the coupon (case-insensitive CP-001)
-  const { data: coupon, error: couponError } = await supabase
+  const { data: coupon, error: couponError } = await adminSupabase
     .from('coupons')
     .select('*')
     .eq('code', code.toUpperCase())
@@ -33,7 +34,7 @@ export async function applyCoupon(code: string) {
   if (couponError || !coupon) return { error: 'Invalid or expired coupon' }
 
   // 3. Get cart items to calculate eligible subtotal
-  const { data: cartItems, error: itemsError } = await supabase
+  const { data: cartItems, error: itemsError } = await adminSupabase
     .from('cart_items')
     .select('quantity, product_id, products(selling_price, seller_id)')
     .eq('cart_id', cart.id)
@@ -56,7 +57,7 @@ export async function applyCoupon(code: string) {
   }
 
   // 5. Apply the coupon to the cart
-  const { error: updateError } = await supabase
+  const { error: updateError } = await adminSupabase
     .from('carts')
     .update({ applied_coupon_id: coupon.id })
     .eq('id', cart.id)
@@ -72,9 +73,9 @@ export async function removeCoupon() {
   const { authorized, user } = await requireRole(['super admin', 'admin', 'user', 'seller'])
   if (!authorized || !user) return { error: 'Unauthorized' }
 
-  const supabase = await createClient()
+  const adminSupabase = createAdminClient()
 
-  const { error } = await supabase
+  const { error } = await adminSupabase
     .from('carts')
     .update({ applied_coupon_id: null })
     .eq('user_id', user.id)

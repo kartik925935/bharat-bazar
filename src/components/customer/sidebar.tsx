@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -11,7 +12,7 @@ import {
 } from 'lucide-react';
 import { useAuthStore } from '@/lib/store/auth-store';
 import { useNotificationStore } from '@/lib/store/notification-store';
-import { mockOrders } from '@/lib/mock/orders';
+import { useOrderStore } from '@/lib/store/order-store';
 import { MOCK_USER_LOYALTY } from '@/lib/mock/customer';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils/cn';
@@ -72,7 +73,16 @@ function ProfileCompletion({ user }: { user: { name: string; email: string; phon
         <div className="flex items-center gap-3 mb-3">
           <div className="relative shrink-0">
             {user.avatar ? (
-              <img src={user.avatar} alt={user.name} className="w-12 h-12 rounded-full object-cover border-2 border-[#FF7A00]/20" />
+              <div className="relative w-12 h-12 rounded-full overflow-hidden border-2 border-[#FF7A00]/20">
+                <Image
+                  src={user.avatar}
+                  alt={user.name}
+                  fill
+                  unoptimized
+                  sizes="48px"
+                  className="object-cover"
+                />
+              </div>
             ) : (
               <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#FF7A00] to-[#FF4500] flex items-center justify-center text-white text-sm font-bold">
                 {initials}
@@ -154,7 +164,13 @@ export function CustomerSidebar() {
   const router = useRouter();
   const { user, signOut } = useAuthStore();
   const unreadCount = useNotificationStore((s) => s.unreadCount);
-  const activeOrders = mockOrders.filter((o) =>
+  const { orders, fetchOrders } = useOrderStore();
+
+  useEffect(() => {
+    fetchOrders();
+  }, [fetchOrders]);
+
+  const activeOrders = orders.filter((o) =>
     ['confirmed', 'processing', 'packed', 'shipped', 'in_transit', 'out_for_delivery'].includes(o.status)
   ).length;
 
@@ -218,7 +234,8 @@ export function CustomerSidebar() {
 export function MobileBottomTabs() {
   const pathname = usePathname();
   const unreadCount = useNotificationStore((s) => s.unreadCount);
-  const activeOrders = mockOrders.filter((o) =>
+  const { orders } = useOrderStore();
+  const activeOrders = orders.filter((o) =>
     ['confirmed', 'processing', 'packed', 'shipped', 'in_transit', 'out_for_delivery'].includes(o.status)
   ).length;
 

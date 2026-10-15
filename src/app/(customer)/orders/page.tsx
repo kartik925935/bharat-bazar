@@ -1,14 +1,16 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Search, X, Package, Check, ChevronDown,
   FileText, RotateCcw, Star, ArrowRight, MoreHorizontal,
 } from 'lucide-react';
-import { mockOrders, STATUS_CONFIG, type OrderStatus } from '@/lib/mock/orders';
+import { STATUS_CONFIG, type OrderStatus, type MockOrder } from '@/lib/mock/orders';
 import { formatCurrency } from '@/lib/utils/format-currency';
+import { useOrderStore } from '@/lib/store/order-store';
 
 type FilterTab = 'all' | 'active' | 'delivered' | 'cancelled' | 'returned';
 
@@ -48,12 +50,12 @@ function MiniTimeline({ timeline }: { timeline: { done: boolean; label: string; 
   );
 }
 
-function OrderCard({ order, idx }: { order: typeof mockOrders[0]; idx: number }) {
+function OrderCard({ order, idx }: { order: MockOrder; idx: number }) {
   const [expanded, setExpanded] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const statusCfg = STATUS_CONFIG[order.status];
+  const statusCfg = STATUS_CONFIG[order.status] || STATUS_CONFIG.confirmed;
   const showItems = expanded ? order.items : order.items.slice(0, 1);
-  const extraCount = order.items.length - 1;
+  const extraCount = Math.max(0, order.items.length - 1);
 
   const isActive = ACTIVE_STATUSES.includes(order.status);
   const isDelivered = order.status === 'delivered';
@@ -83,7 +85,16 @@ function OrderCard({ order, idx }: { order: typeof mockOrders[0]; idx: number })
       <div className="px-4 py-3 space-y-3">
         {showItems.map((item) => (
           <div key={item.productId} className="flex gap-3">
-            <img src={item.image} alt={item.name} className="w-16 h-16 rounded-xl object-cover bg-[#F5F4F0] shrink-0" />
+            <div className="w-16 h-16 rounded-xl overflow-hidden bg-[#F5F4F0] shrink-0 relative">
+              <Image
+                src={item.image || 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&q=80&w=600'}
+                alt={item.name}
+                fill
+                sizes="64px"
+                unoptimized
+                className="object-cover"
+              />
+            </div>
             <div className="min-w-0 flex-1">
               <p className="text-xs font-semibold text-[#1A0A00] line-clamp-2 leading-snug">{item.name}</p>
               <p className="text-[11px] text-[#8C7B6E] mt-0.5">{item.sellerName}</p>
@@ -114,16 +125,16 @@ function OrderCard({ order, idx }: { order: typeof mockOrders[0]; idx: number })
         <span className="text-sm font-black text-[#1A0A00]">Total: {formatCurrency(order.total)}</span>
         <div className="flex gap-2">
           {isActive && (
-            <Link href={`/orders/${order.id}`} className="h-9 px-3 rounded-xl bg-gradient-to-r from-[#FF7A00] to-[#FF4500] text-white text-xs font-bold flex items-center gap-1 cursor-pointer">
+            <Link href={`/orders/${order.id}`} className="h-9 px-3 rounded-xl bg-gradient-to-r from-[#FF7A00] to-[#FF4500] text-white text-xs font-bold flex items-center gap-1 cursor-pointer shadow-sm active:shadow-none">
               <Package size={13} /> Track
             </Link>
           )}
-          {isDelivered && !order.items[0].reviewed && (
+          {isDelivered && !order.items[0]?.reviewed && (
             <Link href={`/my-reviews`} className="h-9 px-3 rounded-xl bg-[#FEFCE8] text-[#CA8A04] border border-[#FDE68A] text-xs font-bold flex items-center gap-1 cursor-pointer">
               <Star size={13} /> Review
             </Link>
           )}
-          <Link href={`/orders/${order.id}`} className="h-9 px-3 rounded-xl bg-white border border-[#E8E4DE] text-[#4A3728] text-xs font-semibold flex items-center gap-1 cursor-pointer hover:border-[#FF7A00]/30">
+          <Link href={`/orders/${order.id}`} className="h-9 px-3 rounded-xl bg-white border border-[#E8E4DE] text-[#4A3728] text-xs font-semibold flex items-center gap-1 cursor-pointer hover:border-[#FF7A00]/30 shadow-sm active:shadow-none">
             <FileText size={13} /> Details
           </Link>
 
@@ -131,7 +142,8 @@ function OrderCard({ order, idx }: { order: typeof mockOrders[0]; idx: number })
           <div className="relative">
             <button
               onClick={() => setMenuOpen(v => !v)}
-              className="h-9 w-9 rounded-xl border border-[#E8E4DE] flex items-center justify-center text-[#8C7B6E] hover:border-[#FF7A00]/30 cursor-pointer"
+              className="h-9 w-9 rounded-xl border border-[#E8E4DE] flex items-center justify-center text-[#8C7B6E] hover:border-[#FF7A00]/30 cursor-pointer shadow-sm active:shadow-none"
+              aria-label="Order options"
             >
               <MoreHorizontal size={15} />
             </button>
@@ -147,7 +159,6 @@ function OrderCard({ order, idx }: { order: typeof mockOrders[0]; idx: number })
                 >
                   {[
                     { label: 'View Details',    icon: FileText,   link: `/orders/${order.id}` },
-                    { label: 'Download Invoice',icon: FileText,   link: `/orders/${order.id}` },
                     ...(isDelivered ? [
                       { label: 'Write Review', icon: Star,       link: '/my-reviews' },
                       { label: 'Return Items', icon: RotateCcw,  link: '/returns' },
@@ -176,17 +187,22 @@ function OrderCard({ order, idx }: { order: typeof mockOrders[0]; idx: number })
 export default function OrdersPage() {
   const [filter, setFilter] = useState<FilterTab>('all');
   const [search, setSearch] = useState('');
+  const { orders, loading, fetchOrders } = useOrderStore();
+
+  useEffect(() => {
+    fetchOrders();
+  }, [fetchOrders]);
 
   const tabs = [
-    { key: 'all',       label: 'All Orders',   count: mockOrders.length },
-    { key: 'active',    label: 'Active',        count: mockOrders.filter(o => ACTIVE_STATUSES.includes(o.status)).length },
-    { key: 'delivered', label: 'Delivered',     count: mockOrders.filter(o => o.status === 'delivered').length },
-    { key: 'cancelled', label: 'Cancelled',     count: mockOrders.filter(o => o.status === 'cancelled').length },
-    { key: 'returned',  label: 'Returned',      count: mockOrders.filter(o => ['returned','refunded'].includes(o.status)).length },
+    { key: 'all',       label: 'All Orders',   count: orders.length },
+    { key: 'active',    label: 'Active',        count: orders.filter(o => ACTIVE_STATUSES.includes(o.status)).length },
+    { key: 'delivered', label: 'Delivered',     count: orders.filter(o => o.status === 'delivered').length },
+    { key: 'cancelled', label: 'Cancelled',     count: orders.filter(o => o.status === 'cancelled').length },
+    { key: 'returned',  label: 'Returned',      count: orders.filter(o => ['returned','refunded'].includes(o.status)).length },
   ] as const;
 
   const filtered = useMemo(() => {
-    let list = mockOrders;
+    let list = orders;
     if (filter === 'active')    list = list.filter(o => ACTIVE_STATUSES.includes(o.status));
     if (filter === 'delivered') list = list.filter(o => o.status === 'delivered');
     if (filter === 'cancelled') list = list.filter(o => o.status === 'cancelled');
@@ -199,11 +215,15 @@ export default function OrdersPage() {
       );
     }
     return list;
-  }, [filter, search]);
+  }, [orders, filter, search]);
 
-  const totalDelivered = mockOrders.filter(o=>o.status==='delivered').length;
-  const totalActive    = mockOrders.filter(o=>ACTIVE_STATUSES.includes(o.status)).length;
-  const totalReturns   = mockOrders.filter(o=>['returned','refunded'].includes(o.status)).length;
+  const totalDelivered = orders.filter(o=>o.status==='delivered').length;
+  const totalActive    = orders.filter(o=>ACTIVE_STATUSES.includes(o.status)).length;
+  const totalReturns   = orders.filter(o=>['returned','refunded'].includes(o.status)).length;
+
+  if (loading) {
+    return <OrdersListSkeleton />;
+  }
 
   return (
     <div className="p-4 sm:p-6 space-y-6">
@@ -213,7 +233,7 @@ export default function OrdersPage() {
         <p className="text-sm text-[#8C7B6E] mt-0.5">Track, manage and review your purchases</p>
         <div className="flex flex-wrap gap-3 mt-3 text-xs font-semibold text-[#4A3728]">
           <span className="flex items-center gap-1.5 bg-white border border-[#E8E4DE] rounded-full px-3 py-1.5">
-            <Package size={12} className="text-[#FF7A00]" /> {mockOrders.length} Total
+            <Package size={12} className="text-[#FF7A00]" /> {orders.length} Total
           </span>
           <span className="flex items-center gap-1.5 bg-white border border-[#E8E4DE] rounded-full px-3 py-1.5">
             <Check size={12} className="text-[#16A34A]" /> {totalDelivered} Delivered
@@ -240,7 +260,7 @@ export default function OrdersPage() {
           className="w-full h-11 pl-9 pr-10 rounded-xl border border-[#E8E4DE] text-sm text-[#1A0A00] placeholder-[#B5A99A] outline-none focus:border-[#FF7A00] bg-white transition-colors"
         />
         {search && (
-          <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#B5A99A] hover:text-[#4A3728] cursor-pointer">
+          <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#B5A99A] hover:text-[#4A3728] cursor-pointer" aria-label="Clear search">
             <X size={16} />
           </button>
         )}
@@ -278,7 +298,7 @@ export default function OrdersPage() {
           </p>
           {search
             ? <button onClick={() => setSearch('')} className="text-xs font-bold text-[#FF7A00] hover:underline cursor-pointer">Clear Search</button>
-            : <Link href="/products" className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#FF7A00] to-[#FF4500] text-white text-sm font-bold">
+            : <Link href="/products" className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#FF7A00] to-[#FF4500] text-white text-sm font-bold shadow-sm active:shadow-none">
                 Start Shopping <ArrowRight size={14} />
               </Link>
           }
